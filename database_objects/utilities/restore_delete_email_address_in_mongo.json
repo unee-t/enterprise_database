@@ -1,0 +1,11 @@
+db.users.update (
+	{
+	'bugzillaCreds.login': 'nast@hmlet.com'
+	}
+	, {$push: {
+		emails: {
+			address: 'nast@hmlet.com', verified: true
+			}
+		}
+	}
+	)
