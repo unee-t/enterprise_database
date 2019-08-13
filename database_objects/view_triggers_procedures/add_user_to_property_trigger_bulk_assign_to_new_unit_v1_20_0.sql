@@ -1,3 +1,4 @@
+
 #################
 #	
 # When a new MEFE unit is created, auto assign all the users if needed:
@@ -24,19 +25,19 @@ BEGIN
 #	- This is an authorized update method
 #		- `ut_creation_unit_mefe_api_reply`
 
-	SET @unee_t_mefe_unit_id := NEW.`unee_t_mefe_unit_id` ;
-	SET @upstream_update_method := NEW.`update_method` ;
+	SET @unee_t_mefe_unit_id_trig_auto_assign_1 := NEW.`unee_t_mefe_unit_id` ;
+	SET @upstream_update_method_trig_auto_assign_1 := NEW.`update_method` ;
 
-	SET @requestor_id := NEW.`updated_by_id` ;
+	SET @requestor_id_trig_auto_assign_1 := NEW.`updated_by_id` ;
 
-	SET @created_by_id := (SELECT `organization_id`
+	SET @created_by_id_trig_auto_assign_1 := (SELECT `organization_id`
 		FROM `ut_api_keys`
-		WHERE `mefe_user_id` = @requestor_id
+		WHERE `mefe_user_id` = @requestor_id_trig_auto_assign_1
 		);
 
-	IF @requestor_id IS NOT NULL
-		AND @unee_t_mefe_unit_id IS NOT NULL
-		AND @upstream_update_method = 'ut_creation_unit_mefe_api_reply'
+	IF @requestor_id_trig_auto_assign_1 IS NOT NULL
+		AND @unee_t_mefe_unit_id_trig_auto_assign_1 IS NOT NULL
+		AND @upstream_update_method_trig_auto_assign_1 = 'ut_creation_unit_mefe_api_reply'
 	THEN 
 
 	# We need to list all the users that we should assign to this new property:
@@ -45,28 +46,28 @@ BEGIN
 	#	- All the properties in the country where this property is
 	#	- All the properties in the Area where this property is
 
-		SET @external_property_type_id := NEW.`external_property_type_id` ;
+		SET @external_property_type_id_trig_auto_assign_1 := NEW.`external_property_type_id` ;
 
-		SET @property_id := NEW.`new_record_id` ;
+		SET @property_id_trig_auto_assign_1 := NEW.`new_record_id` ;
 
-		SET @organization_id := NEW.`organization_id` ;
+		SET @organization_id_trig_auto_assign_1 := NEW.`organization_id` ;
 
 	# What is the country for that property
 
-		SET @property_country_code := (IF (@external_property_type_id = 1
+		SET @property_country_code_trig_auto_assign_1 := (IF (@external_property_type_id_trig_auto_assign_1 = 1
 				, (SELECT `country_code`
 					FROM `ut_list_mefe_unit_id_level_1_by_area`
-					WHERE `level_1_building_id` = @property_id
+					WHERE `level_1_building_id` = @property_id_trig_auto_assign_1
 					)
-				, IF (@external_property_type_id = 2
+				, IF (@external_property_type_id_trig_auto_assign_1 = 2
 					, (SELECT `country_code`
 						FROM `ut_list_mefe_unit_id_level_2_by_area`
-						WHERE `level_2_unit_id` = @property_id
+						WHERE `level_2_unit_id` = @property_id_trig_auto_assign_1
 						)
-					, IF (@external_property_type_id = 3
+					, IF (@external_property_type_id_trig_auto_assign_1 = 3
 						, (SELECT `country_code`
 							FROM `ut_list_mefe_unit_id_level_3_by_area`
-							WHERE `level_3_room_id` = @property_id
+							WHERE `level_3_room_id` = @property_id_trig_auto_assign_1
 							)
 						, 'error - 1308'
 						)
@@ -76,9 +77,9 @@ BEGIN
 
 	# We get the other variables we need:
 
-		SET @syst_created_datetime := NOW() ;
-		SET @creation_system_id := 2 ;
-		SET @creation_method := 'ut_update_mefe_unit_id_assign_users_to_property' ;
+		SET @syst_created_datetime_trig_auto_assign_1 := NOW() ;
+		SET @creation_system_id_trig_auto_assign_1 := 2 ;
+		SET @creation_method_trig_auto_assign_1 := 'ut_update_mefe_unit_id_assign_users_to_property' ;
 
 	# We create a temporary table to list all the users we need to add to that property:
 
@@ -179,16 +180,16 @@ BEGIN
 			, `is_item_moved`
 			)
 		SELECT 
-			@syst_created_datetime
-			, @creation_system_id
-			, @requestor_id
-			, @created_by_id
-			, @creation_method
-			, @organization_id
+			@syst_created_datetime_trig_auto_assign_1
+			, @creation_system_id_trig_auto_assign_1
+			, @requestor_id_trig_auto_assign_1
+			, @created_by_id_trig_auto_assign_1
+			, @creation_method_trig_auto_assign_1
+			, @organization_id_trig_auto_assign_1
 			, `a`.`mefe_user_id`
 			, `a`.`email`
 			, `a`.`unee_t_user_type_id`
-			, @unee_t_mefe_unit_id
+			, @unee_t_mefe_unit_id_trig_auto_assign_1
 			, `a`.`unee_t_role_id`
 			, `a`.`is_occupant`
 			, `a`.`is_default_assignee`
@@ -222,7 +223,7 @@ BEGIN
 			, `a`.`is_item_moved`
 			FROM `ut_list_users_default_permissions` AS `a`
 				WHERE 
-					`a`.`organization_id` = @organization_id
+					`a`.`organization_id` = @organization_id_trig_auto_assign_1
 					AND `a`.`is_all_unit` = 1
 			;
 
@@ -273,17 +274,17 @@ BEGIN
 			, `is_item_moved`
 			)
 			SELECT 
-				@syst_created_datetime
-				, @creation_system_id
-				, @requestor_id
-				, @created_by_id
-				, @creation_method
-				, @organization_id
+				@syst_created_datetime_trig_auto_assign_1
+				, @creation_system_id_trig_auto_assign_1
+				, @requestor_id_trig_auto_assign_1
+				, @created_by_id_trig_auto_assign_1
+				, @creation_method_trig_auto_assign_1
+				, @organization_id_trig_auto_assign_1
 				, `a`.`country_code`
 				, `a`.`mefe_user_id`
 				, `a`.`email`
 				, `a`.`unee_t_user_type_id`
-				, @unee_t_mefe_unit_id
+				, @unee_t_mefe_unit_id_trig_auto_assign_1
 				, `a`.`unee_t_role_id`
 				, `a`.`is_occupant`
 				, `a`.`is_default_assignee`
@@ -317,8 +318,8 @@ BEGIN
 				, `a`.`is_item_moved`
 				FROM `ut_list_users_default_permissions` AS `a`
 					WHERE 
-						`a`.`organization_id` = @organization_id
-						AND `a`.`country_code` = @property_country_code
+						`a`.`organization_id` = @organization_id_trig_auto_assign_1
+						AND `a`.`country_code` = @property_country_code_trig_auto_assign_1
 						AND `a`.`is_all_units_in_country` = 1
 				;
 
@@ -327,13 +328,13 @@ BEGIN
 		# For Level 1 Properties, this is done in the table 
 		# `external_map_user_unit_role_permissions_level_1`
 
-			SET @propagate_to_all_level_2 := 1 ;
-			SET @propagate_to_all_level_3 := 1;
+			SET @propagate_to_all_level_2_trig_auto_assign_1 := 1 ;
+			SET @propagate_to_all_level_3_trig_auto_assign_1 := 1;
 
-			SET @is_obsolete := 0 ;
-			SET @is_update_needed := 1 ;
+			SET @is_obsolete_trig_auto_assign_1 := 0 ;
+			SET @is_update_needed_trig_auto_assign_1 := 1 ;
 
-			IF @external_property_type_id = 1
+			IF @external_property_type_id_trig_auto_assign_1 = 1
 			THEN
 
 				INSERT INTO `external_map_user_unit_role_permissions_level_1`
@@ -352,34 +353,34 @@ BEGIN
 					, `propagate_level_3`
 					)
 					SELECT 
-						@syst_created_datetime
-						, @creation_system_id
-						, @created_by_id
-						, @creation_method
-						, @organization_id
-						, @is_obsolete
-						, @is_update_needed
+						@syst_created_datetime_trig_auto_assign_1
+						, @creation_system_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @is_obsolete_trig_auto_assign_1
+						, @is_update_needed_trig_auto_assign_1
 						# Which unit/user
 						, `a`.`mefe_user_id`
-						, @property_id
+						, @property_id_trig_auto_assign_1
 						, `a`.`unee_t_user_type_id`
-						, @propagate_to_all_level_2
-						, @propagate_to_all_level_3
+						, @propagate_to_all_level_2_trig_auto_assign_1
+						, @propagate_to_all_level_3_trig_auto_assign_1
 					FROM `temp_list_users_auto_assign_new_property` AS `a`
 						ON DUPLICATE KEY UPDATE
-							`syst_updated_datetime` := @syst_created_datetime
-							, `update_system_id` := @creation_system_id
-							, `updated_by_id` := @created_by_id
-							, `update_method` := @creation_method
-							, `organization_id` := @organization_id
-							, `is_obsolete` := @is_obsolete
-							, `is_update_needed` := @is_update_needed
+							`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+							, `update_system_id` := @creation_system_id_trig_auto_assign_1
+							, `updated_by_id` := @created_by_id_trig_auto_assign_1
+							, `update_method` := @creation_method_trig_auto_assign_1
+							, `organization_id` := @organization_id_trig_auto_assign_1
+							, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+							, `is_update_needed` := @is_update_needed_trig_auto_assign_1
 							# Which unit/user
 							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
-							, `unee_t_level_1_id` := @property_id
+							, `unee_t_level_1_id` := @property_id_trig_auto_assign_1
 							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
-							, `propagate_level_2`:= @propagate_to_all_level_2
-							, `propagate_level_3` := @propagate_to_all_level_3
+							, `propagate_level_2`:= @propagate_to_all_level_2_trig_auto_assign_1
+							, `propagate_level_3` := @propagate_to_all_level_3_trig_auto_assign_1
 						;
 
 				# We insert these in the table `ut_map_user_permissions_unit_level_1`
@@ -438,16 +439,16 @@ BEGIN
 						, `propagate_to_all_level_3`
 						)
 						SELECT
-							@syst_created_datetime
-							, @creation_system_id
-							, @requestor_id
-							, @creation_method
-							, @organization_id
-							, @is_obsolete
-							, @is_update_needed
+							@syst_created_datetime_trig_auto_assign_1
+							, @creation_system_id_trig_auto_assign_1
+							, @requestor_id_trig_auto_assign_1
+							, @creation_method_trig_auto_assign_1
+							, @organization_id_trig_auto_assign_1
+							, @is_obsolete_trig_auto_assign_1
+							, @is_update_needed_trig_auto_assign_1
 							# Which unit/user
 							, `a`.`mefe_user_id`
-							, @unee_t_mefe_unit_id
+							, @unee_t_mefe_unit_id_trig_auto_assign_1
 							# which role
 							, `a`.`unee_t_role_id`
 							, `a`.`is_occupant`
@@ -487,20 +488,20 @@ BEGIN
 							, `a`.`is_new_item`
 							, `a`.`is_item_removed`
 							, `a`.`is_item_moved`
-							, @propagate_to_all_level_2
-							, @propagate_to_all_level_3
+							, @propagate_to_all_level_2_trig_auto_assign_1
+							, @propagate_to_all_level_3_trig_auto_assign_1
 							FROM `temp_list_users_auto_assign_new_property` AS `a`
 							ON DUPLICATE KEY UPDATE
-								`syst_updated_datetime` := @syst_created_datetime
-								, `update_system_id` := @creation_system_id
-								, `updated_by_id` := @requestor_id
-								, `update_method` := @creation_method
-								, `organization_id` := @organization_id
-								, `is_obsolete` := @is_obsolete
-								, `is_update_needed` := @is_update_needed
+								`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+								, `update_system_id` := @creation_system_id_trig_auto_assign_1
+								, `updated_by_id` := @requestor_id_trig_auto_assign_1
+								, `update_method` := @creation_method_trig_auto_assign_1
+								, `organization_id` := @organization_id_trig_auto_assign_1
+								, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+								, `is_update_needed` := @is_update_needed_trig_auto_assign_1
 								# Which unit/user
 								, `unee_t_mefe_id` := `a`.`mefe_user_id`
-								, `unee_t_unit_id` := @unee_t_mefe_unit_id
+								, `unee_t_unit_id` := @unee_t_mefe_unit_id_trig_auto_assign_1
 								# which role
 								, `unee_t_role_id` := `a`.`unee_t_role_id`
 								, `is_occupant` := `a`.`is_occupant`
@@ -540,11 +541,11 @@ BEGIN
 								, `is_new_item` := `a`.`is_new_item`
 								, `is_item_removed` := `a`.`is_item_removed`
 								, `is_item_moved` := `a`.`is_item_moved`
-								, `propagate_to_all_level_2` = @propagate_to_all_level_2
-								, `propagate_to_all_level_3` = @propagate_to_all_level_3
+								, `propagate_to_all_level_2` = @propagate_to_all_level_2_trig_auto_assign_1
+								, `propagate_to_all_level_3` = @propagate_to_all_level_3_trig_auto_assign_1
 								;
 
-			ELSEIF @external_property_type_id = 2
+			ELSEIF @external_property_type_id_trig_auto_assign_1 = 2
 			THEN 
 
 				INSERT INTO `external_map_user_unit_role_permissions_level_2`
@@ -562,32 +563,32 @@ BEGIN
 					, `propagate_level_3`
 					)
 					SELECT 
-						@syst_created_datetime
-						, @creation_system_id
-						, @created_by_id
-						, @creation_method
-						, @organization_id
-						, @is_obsolete
-						, @is_update_needed
+						@syst_created_datetime_trig_auto_assign_1
+						, @creation_system_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @is_obsolete_trig_auto_assign_1
+						, @is_update_needed_trig_auto_assign_1
 						# Which unit/user
 						, `a`.`mefe_user_id`
-						, @property_id
+						, @property_id_trig_auto_assign_1
 						, `a`.`unee_t_user_type_id`
-						, @propagate_to_all_level_3
+						, @propagate_to_all_level_3_trig_auto_assign_1
 					FROM `temp_list_users_auto_assign_new_property` AS `a`
 						ON DUPLICATE KEY UPDATE
-							`syst_updated_datetime` := @syst_created_datetime
-							, `update_system_id` := @creation_system_id
-							, `updated_by_id` := @created_by_id
-							, `update_method` := @creation_method
-							, `organization_id` := @organization_id
-							, `is_obsolete` := @is_obsolete
-							, `is_update_needed` := @is_update_needed
+							`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+							, `update_system_id` := @creation_system_id_trig_auto_assign_1
+							, `updated_by_id` := @created_by_id_trig_auto_assign_1
+							, `update_method` := @creation_method_trig_auto_assign_1
+							, `organization_id` := @organization_id_trig_auto_assign_1
+							, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+							, `is_update_needed` := @is_update_needed_trig_auto_assign_1
 							# Which unit/user
 							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
-							, `unee_t_level_2_id` := @property_id
+							, `unee_t_level_2_id` := @property_id_trig_auto_assign_1
 							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
-							, `propagate_level_3` := @propagate_to_all_level_3
+							, `propagate_level_3` := @propagate_to_all_level_3_trig_auto_assign_1
 						;
 
 				# We insert these in the table `ut_map_user_permissions_unit_level_2` 
@@ -645,16 +646,16 @@ BEGIN
 						, `propagate_to_all_level_3`
 						)
 						SELECT
-							@syst_created_datetime
-							, @creation_system_id
-							, @requestor_id
-							, @creation_method
-							, @organization_id
-							, @is_obsolete
-							, @is_update_needed
+							@syst_created_datetime_trig_auto_assign_1
+							, @creation_system_id_trig_auto_assign_1
+							, @requestor_id_trig_auto_assign_1
+							, @creation_method_trig_auto_assign_1
+							, @organization_id_trig_auto_assign_1
+							, @is_obsolete_trig_auto_assign_1
+							, @is_update_needed_trig_auto_assign_1
 							# Which unit/user
 							, `a`.`mefe_user_id`
-							, @unee_t_mefe_unit_id
+							, @unee_t_mefe_unit_id_trig_auto_assign_1
 							# which role
 							, `a`.`unee_t_role_id`
 							, `a`.`is_occupant`
@@ -694,19 +695,19 @@ BEGIN
 							, `a`.`is_new_item`
 							, `a`.`is_item_removed`
 							, `a`.`is_item_moved`
-							, @propagate_to_all_level_3
+							, @propagate_to_all_level_3_trig_auto_assign_1
 							FROM `temp_list_users_auto_assign_new_property` AS `a`
 							ON DUPLICATE KEY UPDATE
-								`syst_updated_datetime` := @syst_created_datetime
-								, `update_system_id` := @creation_system_id
-								, `updated_by_id` := @requestor_id
-								, `update_method` := @creation_method
-								, `organization_id` := @organization_id
-								, `is_obsolete` := @is_obsolete
-								, `is_update_needed` := @is_update_needed
+								`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+								, `update_system_id` := @creation_system_id_trig_auto_assign_1
+								, `updated_by_id` := @requestor_id_trig_auto_assign_1
+								, `update_method` := @creation_method_trig_auto_assign_1
+								, `organization_id` := @organization_id_trig_auto_assign_1
+								, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+								, `is_update_needed` := @is_update_needed_trig_auto_assign_1
 								# Which unit/user
 								, `unee_t_mefe_id` := `a`.`mefe_user_id`
-								, `unee_t_unit_id` := @unee_t_mefe_unit_id
+								, `unee_t_unit_id` := @unee_t_mefe_unit_id_trig_auto_assign_1
 								# which role
 								, `unee_t_role_id` := `a`.`unee_t_role_id`
 								, `is_occupant` := `a`.`is_occupant`
@@ -746,10 +747,10 @@ BEGIN
 								, `is_new_item` := `a`.`is_new_item`
 								, `is_item_removed` := `a`.`is_item_removed`
 								, `is_item_moved` := `a`.`is_item_moved`
-								, `propagate_to_all_level_3` = @propagate_to_all_level_3
+								, `propagate_to_all_level_3` = @propagate_to_all_level_3_trig_auto_assign_1
 								;
 
-			ELSEIF @external_property_type_id = 3
+			ELSEIF @external_property_type_id_trig_auto_assign_1 = 3
 			THEN 
 
 				INSERT INTO `external_map_user_unit_role_permissions_level_3`
@@ -766,29 +767,29 @@ BEGIN
 					, `unee_t_user_type_id`
 					)
 					SELECT 
-						@syst_created_datetime
-						, @creation_system_id
-						, @created_by_id
-						, @creation_method
-						, @organization_id
-						, @is_obsolete
-						, @is_update_needed
+						@syst_created_datetime_trig_auto_assign_1
+						, @creation_system_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @is_obsolete_trig_auto_assign_1
+						, @is_update_needed_trig_auto_assign_1
 						# Which unit/user
 						, `a`.`mefe_user_id`
-						, @property_id
+						, @property_id_trig_auto_assign_1
 						, `a`.`unee_t_user_type_id`
 					FROM `temp_list_users_auto_assign_new_property` AS `a`
 						ON DUPLICATE KEY UPDATE
-							`syst_updated_datetime` := @syst_created_datetime
-							, `update_system_id` := @creation_system_id
-							, `updated_by_id` := @created_by_id
-							, `update_method` := @creation_method
-							, `organization_id` := @organization_id
-							, `is_obsolete` := @is_obsolete
-							, `is_update_needed` := @is_update_needed
+							`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+							, `update_system_id` := @creation_system_id_trig_auto_assign_1
+							, `updated_by_id` := @created_by_id_trig_auto_assign_1
+							, `update_method` := @creation_method_trig_auto_assign_1
+							, `organization_id` := @organization_id_trig_auto_assign_1
+							, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+							, `is_update_needed` := @is_update_needed_trig_auto_assign_1
 							# Which unit/user
 							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
-							, `unee_t_level_3_id` := @property_id
+							, `unee_t_level_3_id` := @property_id_trig_auto_assign_1
 							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
 						;
 
@@ -846,16 +847,16 @@ BEGIN
 						, `is_item_moved`
 						)
 						SELECT
-							@syst_created_datetime
-							, @creation_system_id
-							, @requestor_id
-							, @creation_method
-							, @organization_id
-							, @is_obsolete
-							, @is_update_needed
+							@syst_created_datetime_trig_auto_assign_1
+							, @creation_system_id_trig_auto_assign_1
+							, @requestor_id_trig_auto_assign_1
+							, @creation_method_trig_auto_assign_1
+							, @organization_id_trig_auto_assign_1
+							, @is_obsolete_trig_auto_assign_1
+							, @is_update_needed_trig_auto_assign_1
 							# Which unit/user
 							, `a`.`mefe_user_id`
-							, @unee_t_mefe_unit_id
+							, @unee_t_mefe_unit_id_trig_auto_assign_1
 							# which role
 							, `a`.`unee_t_role_id`
 							, `a`.`is_occupant`
@@ -897,16 +898,16 @@ BEGIN
 							, `a`.`is_item_moved`
 							FROM `temp_list_users_auto_assign_new_property` AS `a`
 							ON DUPLICATE KEY UPDATE
-								`syst_updated_datetime` := @syst_created_datetime
-								, `update_system_id` := @creation_system_id
-								, `updated_by_id` := @requestor_id
-								, `update_method` := @creation_method
-								, `organization_id` := @organization_id
-								, `is_obsolete` := @is_obsolete
-								, `is_update_needed` := @is_update_needed
+								`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+								, `update_system_id` := @creation_system_id_trig_auto_assign_1
+								, `updated_by_id` := @requestor_id_trig_auto_assign_1
+								, `update_method` := @creation_method_trig_auto_assign_1
+								, `organization_id` := @organization_id_trig_auto_assign_1
+								, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+								, `is_update_needed` := @is_update_needed_trig_auto_assign_1
 								# Which unit/user
 								, `unee_t_mefe_id` := `a`.`mefe_user_id`
-								, `unee_t_unit_id` := @unee_t_mefe_unit_id
+								, `unee_t_unit_id` := @unee_t_mefe_unit_id_trig_auto_assign_1
 								# which role
 								, `unee_t_role_id` := `a`.`unee_t_role_id`
 								, `is_occupant` := `a`.`is_occupant`
@@ -1004,16 +1005,16 @@ BEGIN
 				, `is_item_moved`
 				)
 				SELECT
-					@syst_created_datetime
-					, @creation_system_id
-					, @requestor_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
+					@syst_created_datetime_trig_auto_assign_1
+					, @creation_system_id_trig_auto_assign_1
+					, @requestor_id_trig_auto_assign_1
+					, @creation_method_trig_auto_assign_1
+					, @organization_id_trig_auto_assign_1
+					, @is_obsolete_trig_auto_assign_1
+					, @is_update_needed_trig_auto_assign_1
 					# Which unit/user
 					, `a`.`mefe_user_id`
-					, @unee_t_mefe_unit_id
+					, @unee_t_mefe_unit_id_trig_auto_assign_1
 					# which role
 					, `a`.`unee_t_role_id`
 					, `a`.`is_occupant`
@@ -1055,16 +1056,16 @@ BEGIN
 					, `a`.`is_item_moved`
 					FROM `temp_list_users_auto_assign_new_property` AS `a`
 					ON DUPLICATE KEY UPDATE
-						`syst_updated_datetime` := @syst_created_datetime
-						, `update_system_id` := @creation_system_id
-						, `updated_by_id` := @requestor_id
-						, `update_method` := @creation_method
-						, `organization_id` := @organization_id
-						, `is_obsolete` := @is_obsolete
-						, `is_update_needed` := @is_update_needed
+						`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+						, `update_system_id` := @creation_system_id_trig_auto_assign_1
+						, `updated_by_id` := @requestor_id_trig_auto_assign_1
+						, `update_method` := @creation_method_trig_auto_assign_1
+						, `organization_id` := @organization_id_trig_auto_assign_1
+						, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+						, `is_update_needed` := @is_update_needed_trig_auto_assign_1
 						# Which unit/user
 						, `unee_t_mefe_id` := `a`.`mefe_user_id`
-						, `unee_t_unit_id` := @unee_t_mefe_unit_id
+						, `unee_t_unit_id` := @unee_t_mefe_unit_id_trig_auto_assign_1
 						# which role
 						, `unee_t_role_id` := `a`.`unee_t_role_id`
 						, `is_occupant` := `a`.`is_occupant`

@@ -696,7 +696,6 @@ BEGIN
 		, `unee_t_level_2_id`
 		, `unee_t_user_type_id`
 		, `unee_t_role_id`
-		, `propagate_level_2`
 		, `propagate_level_3`
 		)
 	SELECT
@@ -709,7 +708,6 @@ BEGIN
 		, `a`.`unee_t_level_2_id`
 		, `a`.`unee_t_user_type_id`
 		, `a`.`unee_t_role_id`
-		, 1
 		, 1
 	FROM `retry_assign_user_to_units_list_temporary_level_2` AS `a`
 		;

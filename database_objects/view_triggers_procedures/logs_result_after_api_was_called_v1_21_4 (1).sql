@@ -155,7 +155,7 @@ SQL SECURITY INVOKER
 BEGIN
 
 # This procedure needs the following variables:
-#	- @mefe_api_request_id
+#	- @id_map_user_unit_permissions
 #	- @creation_datetime 
 #	- @mefe_api_error_message
 
@@ -186,7 +186,7 @@ BEGIN
 			, `unee_t_update_ts` := @creation_datetime
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
-			WHERE `id_map_user_unit_permissions` = @mefe_api_request_id
+			WHERE `id_map_user_unit_permissions` = @id_map_user_unit_permissions
 		;
 
 END $$

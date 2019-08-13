@@ -35,6 +35,8 @@ BEGIN
 #		- 'Assign_Buildings_to_Users_Add_Page'
 #		- 'Assign_Buildings_to_Users_Import_Page'
 #		- 'ut_retry_assign_user_to_units_error_already_has_role'
+#		- 'imported_from_hmlet_ipi'
+#		- ''
 #		- ''
 #
 
@@ -78,6 +80,8 @@ BEGIN
 			OR @upstream_update_method_add_u_l1_1 = 'Assign_Buildings_to_Users_Import_Page'
 			OR @upstream_create_method_add_u_l1_1 = 'ut_retry_assign_user_to_units_error_already_has_role'
 			OR @upstream_update_method_add_u_l1_1 = 'ut_retry_assign_user_to_units_error_already_has_role'
+			OR @upstream_create_method_add_u_l2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_add_u_l2_1 = 'imported_from_hmlet_ipi'
 			)
 	THEN 
 

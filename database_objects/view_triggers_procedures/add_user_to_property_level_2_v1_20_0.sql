@@ -33,6 +33,7 @@ BEGIN
 #	- This is done via an authorized insert method:
 #		- 'Assign_Units_to_Users_Add_Page'
 #		- 'Assign_Units_to_Users_Import_Page'
+#		- 'imported_from_hmlet_ipi'
 #		- ''
 #
 
@@ -74,6 +75,8 @@ BEGIN
 			OR @upstream_update_method_add_u_l2_1 = 'Assign_Units_to_Users_Add_Page'
 			OR @upstream_create_method_add_u_l2_1 = 'Assign_Units_to_Users_Import_Page'
 			OR @upstream_update_method_add_u_l2_1 = 'Assign_Units_to_Users_Import_Page'
+			OR @upstream_create_method_add_u_l2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_add_u_l2_1 = 'imported_from_hmlet_ipi'
 			)
 	THEN 
 
@@ -91,7 +94,6 @@ BEGIN
 		SET @updated_by_id_add_u_l2_1 := @source_system_updater_add_u_l2_1 ;
 		SET @update_method_add_u_l2_1 := @this_trigger_add_u_l2_1 ;
 
-		SET @is_obsolete_add_u_l2_1 := NEW.`is_obsolete` ;
 		SET @is_update_needed_add_u_l2_1 := 1 ;
 
 		SET @propagate_to_all_level_3 := NEW.`propagate_level_3` ;

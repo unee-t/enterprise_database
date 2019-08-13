@@ -1,5 +1,7 @@
 #################
 #
+# This is valid for version v22.1 of the UNTE database schema
+#
 # All lambda related objects
 #
 #################
