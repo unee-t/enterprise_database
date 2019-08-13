@@ -1,26 +1,29 @@
 #################
 #
+# This is valid for version v22.1 of the UNTE database schema
+#
 # This is a compilation of the following files
-#	- `create_views_v1_18_0`
-#	- `add_user_to_property_areas_v1_18_0`
-#	- `add_user_to_property_level_1_v1_18_0`
-#	- `add_user_to_property_level_2_v1_18_0`
-#	- `add_user_to_property_level_3_v1_18_0`
-#	- `create_procedures_bulk_assign_units_to_a_user_v1_18_0`
-#	- `create_procedures_log_result_after_api_was_called_v1_18_0.sql`
-#	- `create_procedures_misc_v1_18_0`
-#	- `create_trigger_bulk_assign_users_to_new_unit_v1_18_0`
-#	- `creation_areas_v1_18_0`
-#	- `person_creation_v1_18_0`
-#	- `person_update_v1_18_0`
-#	- `properties_level_1_creation_update_v1_18_0`
-#	- `properties_level_2_creation_update_v1_18_0`
-#	- `properties_level_3_creation_update_v1_18_0`
-#	- `remove_user_from_a_role_all_properties_v1_18_0`
-#	- `retry_assign_user_to_unit_if_error_v1_18_0`
-#	- `retry_unit_creation_if_not_created_v1_18_0`
+#	- `1_views_v1_21_0`
+#	- `add_user_to_property_areas_v1_21_0`
+#	- `add_user_to_property_level_1_v1_21_0`
+#	- `add_user_to_property_level_2_v1_21_0`
+#	- `add_user_to_property_level_3_v1_21_0`
+#	- `add_user_to_property_procedures_bulk_assign_v1_21_0`
+#	- `add_user_to_property_retry_if_error_v1_21_0`
+#	- `add_user_to_property_trigger_bulk_assign_to_new_unit_v1_21_0`
+#	- `logs_result_after_api_was_called_v1_21_0`
+#	- `misc_procedures_v1_21_0`
+#	- `person_creation_v1_21_0`
+#	- `person_update_v1_21_0`
+#	- `properties_areas_creation_update_v1_21_0`
+#	- `properties_level_1_creation_update_v1_21_0`
+#	- `properties_level_2_creation_update_v1_21_0`
+#	- `properties_level_3_creation_update_v1_21_0`
+#	- `properties_retry_unit_creation_if_not_created_v1_21_0`
+#	- `remove_user_from_a_role_all_v1_21_0`
 #
 #################
+
 #################
 #	
 # Create the views we need (to make out life simpler)
@@ -116,7 +119,7 @@
 		`mefe_user_id`
 		, `organization_id`
 	FROM
-		`ut_api_keys`
+		`unte_api_keys`
 	WHERE `is_obsolete` = 0
 		OR `revoked_datetime` IS NOT NULL
 	GROUP BY `mefe_user_id`, `organization_id`
@@ -866,7 +869,7 @@
 	SELECT 
 		`mefe_user_id` AS `associated_mefe_user`
 		, `organization_id`
-	FROM `ut_api_keys`
+	FROM `unte_api_keys`
 	;
 
 # We create a view to list user by organization by country
@@ -934,7 +937,6 @@
 				, `b`.`country_code` ASC
 				, `c`.`ut_user_role_type_id` ASC
 			;
-
 
 #################
 #
@@ -1357,6 +1359,1379 @@ END;
 $$
 DELIMITER ;
 
+#################
+#
+# This lists all the triggers we use 
+# to add a user to a role in a unit
+# Level_1 properties
+# via the Unee-T Enterprise Interface
+#
+#################
+
+# This script creates the following trigger:
+#	- `ut_add_user_to_role_in_a_level_1_property`
+#	- ``
+#
+
+# For properties Level 1
+
+	DROP TRIGGER IF EXISTS `ut_add_user_to_role_in_a_level_1_property`;
+
+DELIMITER $$
+CREATE TRIGGER `ut_add_user_to_role_in_a_level_1_property`
+AFTER INSERT ON `external_map_user_unit_role_permissions_level_1`
+FOR EACH ROW
+BEGIN
+
+# We only do this IF
+#	- We have a MEFE user ID for the creator of that record
+#	- We have an organization ID
+#	- This is not an obsolete request
+#	- We have a MEFE user ID for the user that we are adding
+#	- We have an area ID for the area.
+#	- We have a role_type
+#	- We have a user_type
+#	- We have a MEFE unit ID for the level 1 unit.
+#	- This is done via an authorized insert method:
+#		- 'Assign_Buildings_to_Users_Add_Page'
+#		- 'Assign_Buildings_to_Users_Import_Page'
+#		- 'ut_retry_assign_user_to_units_error_already_has_role'
+#		- 'imported_from_hmlet_ipi'
+#		- ''
+#		- ''
+#
+
+	SET @source_system_creator_add_u_l1_1 := NEW.`created_by_id` ;
+	SET @source_system_updater_add_u_l1_1 := NEW.`updated_by_id`;
+
+	SET @creator_mefe_user_id_add_u_l1_1 := (SELECT `mefe_user_id` 
+		FROM `ut_organization_mefe_user_id`
+		WHERE `organization_id` = @source_system_creator_add_u_l1_1
+		)
+		;
+
+	SET @organization_id_add_u_l1_1 := NEW.`organization_id` ;
+
+	SET @is_obsolete_add_u_l1_1 := NEW.`is_obsolete` ;
+
+	SET @unee_t_level_1_id_add_u_l1_1 := NEW.`unee_t_level_1_id` ;
+
+	SET @unee_t_mefe_user_id_add_u_l1_1 := NEW.`unee_t_mefe_user_id` ;
+	SET @unee_t_user_type_id_add_u_l1_1 := NEW.`unee_t_user_type_id` ;
+	SET @unee_t_role_id_add_u_l1_1 := NEW.`unee_t_role_id` ;
+
+	SET @unee_t_mefe_unit_id_add_u_l1_1 := (SELECT `unee_t_mefe_unit_id`
+		FROM `ut_list_mefe_unit_id_level_1_by_area`
+		WHERE `level_1_building_id` = @unee_t_level_1_id_add_u_l1_1
+		);
+
+	SET @upstream_create_method_add_u_l1_1 := NEW.`creation_method` ;
+	SET @upstream_update_method_add_u_l1_1 := NEW.`update_method` ;
+
+	IF @creator_mefe_user_id_add_u_l1_1 IS NOT NULL
+		AND @organization_id_add_u_l1_1 IS NOT NULL
+		AND @is_obsolete_add_u_l1_1 = 0
+		AND @unee_t_mefe_user_id_add_u_l1_1 IS NOT NULL
+		AND @unee_t_user_type_id_add_u_l1_1 IS NOT NULL
+		AND @unee_t_role_id_add_u_l1_1 IS NOT NULL
+		AND @unee_t_mefe_unit_id_add_u_l1_1 IS NOT NULL
+		AND (@upstream_create_method_add_u_l1_1 = 'Assign_Buildings_to_Users_Add_Page'
+			OR @upstream_update_method_add_u_l1_1 = 'Assign_Buildings_to_Users_Add_Page'
+			OR @upstream_create_method_add_u_l1_1 = 'Assign_Buildings_to_Users_Import_Page'
+			OR @upstream_update_method_add_u_l1_1 = 'Assign_Buildings_to_Users_Import_Page'
+			OR @upstream_create_method_add_u_l1_1 = 'ut_retry_assign_user_to_units_error_already_has_role'
+			OR @upstream_update_method_add_u_l1_1 = 'ut_retry_assign_user_to_units_error_already_has_role'
+			OR @upstream_create_method_add_u_l2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_add_u_l2_1 = 'imported_from_hmlet_ipi'
+			)
+	THEN 
+
+	# We capture the variables that we need:
+
+		SET @this_trigger_add_u_l1_1 := 'ut_add_user_to_role_in_a_level_1_property' ;
+
+		SET @syst_created_datetime_add_u_l1_1 := NOW() ;
+		SET @creation_system_id_add_u_l1_1 := 2 ;
+		SET @created_by_id_add_u_l1_1 := @source_system_creator_add_u_l1_1 ;
+		SET @creation_method_add_u_l1_1 := @this_trigger_add_u_l1_1 ;
+
+		SET @syst_updated_datetime_add_u_l1_1 := NOW() ;
+		SET @update_system_id_add_u_l1_1 := 2 ;
+		SET @updated_by_id_add_u_l1_1 := @source_system_updater_add_u_l1_1 ;
+		SET @update_method_add_u_l1_1 := @this_trigger_add_u_l1_1 ;
+
+		SET @is_obsolete_add_u_l1_1 := NEW.`is_obsolete` ;
+		SET @is_update_needed_add_u_l1_1 := 1 ;
+
+		SET @propagate_to_all_level_2_add_u_l1_1 := NEW.`propagate_level_2` ;
+		SET @propagate_to_all_level_3_add_u_l1_1 := NEW.`propagate_level_3` ;
+
+	# We insert these permissions in the table `ut_map_user_permissions_unit_level_1`
+	# We need the values for each of the preferences
+
+		SET @is_occupant := (SELECT `is_occupant` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+
+		# additional permissions 
+		SET @is_default_assignee := (SELECT `is_default_assignee` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_default_invited := (SELECT `is_default_invited` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_unit_owner := (SELECT `is_unit_owner` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+
+		# Visibility rules 
+		SET @is_public := (SELECT `is_public` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @can_see_role_landlord := (SELECT `can_see_role_landlord` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @can_see_role_tenant := (SELECT `can_see_role_tenant` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @can_see_role_mgt_cny := (SELECT `can_see_role_mgt_cny` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @can_see_role_agent := (SELECT `can_see_role_agent` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @can_see_role_contractor := (SELECT `can_see_role_contractor` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @can_see_occupant := (SELECT `can_see_occupant` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+
+		# Notification rules 
+		# - case - information 
+		SET @is_assigned_to_case := (SELECT `is_assigned_to_case` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_invited_to_case := (SELECT `is_invited_to_case` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_next_step_updated := (SELECT `is_next_step_updated` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_deadline_updated := (SELECT `is_deadline_updated` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_solution_updated := (SELECT `is_solution_updated` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_case_resolved := (SELECT `is_case_resolved` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_case_blocker := (SELECT `is_case_blocker` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_case_critical := (SELECT `is_case_critical` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+
+		# - case - messages 
+		SET @is_any_new_message := (SELECT `is_any_new_message` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_message_from_tenant := (SELECT `is_message_from_tenant` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_message_from_ll := (SELECT `is_message_from_ll` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_message_from_occupant := (SELECT `is_message_from_occupant` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_message_from_agent := (SELECT `is_message_from_agent` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_message_from_mgt_cny := (SELECT `is_message_from_mgt_cny` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_message_from_contractor := (SELECT `is_message_from_contractor` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+
+		# - Inspection Reports 
+		SET @is_new_ir := (SELECT `is_new_ir` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+
+		# - Inventory 
+		SET @is_new_item := (SELECT `is_new_item` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_item_removed := (SELECT `is_item_removed` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+		SET @is_item_moved := (SELECT `is_item_moved` 
+			FROM `ut_user_types` 
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l1_1
+			);
+
+	# We can now include these into the table for the Level_1 properties (Building)
+
+			INSERT INTO `ut_map_user_permissions_unit_level_1`
+				(`syst_created_datetime`
+				, `creation_system_id`
+				, `created_by_id`
+				, `creation_method`
+				, `organization_id`
+				, `is_obsolete`
+				, `is_update_needed`
+				# Which unit/user
+				, `unee_t_mefe_id`
+				, `unee_t_unit_id`
+				# which role
+				, `unee_t_role_id`
+				, `is_occupant`
+				# additional permissions
+				, `is_default_assignee`
+				, `is_default_invited`
+				, `is_unit_owner`
+				# Visibility rules
+				, `is_public`
+				, `can_see_role_landlord`
+				, `can_see_role_tenant`
+				, `can_see_role_mgt_cny`
+				, `can_see_role_agent`
+				, `can_see_role_contractor`
+				, `can_see_occupant`
+				# Notification rules
+				# - case - information
+				, `is_assigned_to_case`
+				, `is_invited_to_case`
+				, `is_next_step_updated`
+				, `is_deadline_updated`
+				, `is_solution_updated`
+				, `is_case_resolved`
+				, `is_case_blocker`
+				, `is_case_critical`
+				# - case - messages
+				, `is_any_new_message`
+				, `is_message_from_tenant`
+				, `is_message_from_ll`
+				, `is_message_from_occupant`
+				, `is_message_from_agent`
+				, `is_message_from_mgt_cny`
+				, `is_message_from_contractor`
+				# - Inspection Reports
+				, `is_new_ir`
+				# - Inventory
+				, `is_new_item`
+				, `is_item_removed`
+				, `is_item_moved`
+				, `propagate_to_all_level_2`
+				, `propagate_to_all_level_3`
+				)
+				VALUES
+					(@syst_created_datetime_add_u_l1_1
+					, @creation_system_id_add_u_l1_1
+					, @creator_mefe_user_id_add_u_l1_1
+					, @creation_method_add_u_l1_1
+					, @organization_id_add_u_l1_1
+					, @is_obsolete_add_u_l1_1
+					, @is_update_needed_add_u_l1_1
+					# Which unit/user
+					, @unee_t_mefe_user_id_add_u_l1_1
+					, @unee_t_mefe_unit_id_add_u_l1_1
+					# which role
+					, @unee_t_role_id_add_u_l1_1
+					, @is_occupant
+					# additional permissions
+					, @is_default_assignee
+					, @is_default_invited
+					, @is_unit_owner
+					# Visibility rules
+					, @is_public
+					, @can_see_role_landlord
+					, @can_see_role_tenant
+					, @can_see_role_mgt_cny
+					, @can_see_role_agent
+					, @can_see_role_contractor
+					, @can_see_occupant
+					# Notification rules
+					# - case - information
+					, @is_assigned_to_case
+					, @is_invited_to_case
+					, @is_next_step_updated
+					, @is_deadline_updated
+					, @is_solution_updated
+					, @is_case_resolved
+					, @is_case_blocker
+					, @is_case_critical
+					# - case - messages
+					, @is_any_new_message
+					, @is_message_from_tenant
+					, @is_message_from_ll
+					, @is_message_from_occupant
+					, @is_message_from_agent
+					, @is_message_from_mgt_cny
+					, @is_message_from_contractor
+					# - Inspection Reports
+					, @is_new_ir
+					# - Inventory
+					, @is_new_item
+					, @is_item_removed
+					, @is_item_moved
+					, @propagate_to_all_level_2_add_u_l1_1
+					, @propagate_to_all_level_3_add_u_l1_1
+					)
+				ON DUPLICATE KEY UPDATE
+					`syst_updated_datetime` := @syst_created_datetime_add_u_l1_1
+					, `update_system_id` := @creation_system_id_add_u_l1_1
+					, `updated_by_id` := @creator_mefe_user_id_add_u_l1_1
+					, `update_method` := @creation_method_add_u_l1_1
+					, `organization_id` := @organization_id_add_u_l1_1
+					, `is_obsolete` := @is_obsolete_add_u_l1_1
+					, `is_update_needed` := @is_update_needed_add_u_l1_1
+					# Which unit/user
+					, `unee_t_mefe_id` := @unee_t_mefe_user_id_add_u_l1_1
+					, `unee_t_unit_id` := @unee_t_mefe_unit_id_add_u_l1_1
+					# which role
+					, `unee_t_role_id` := @unee_t_role_id_add_u_l1_1
+					, `is_occupant` := @is_occupant
+					# additional permissions
+					, `is_default_assignee` := @is_default_assignee
+					, `is_default_invited` := @is_default_invited
+					, `is_unit_owner` := @is_unit_owner
+					# Visibility rules
+					, `is_public` := @is_public
+					, `can_see_role_landlord` := @can_see_role_landlord
+					, `can_see_role_tenant` := @can_see_role_tenant
+					, `can_see_role_mgt_cny` := @can_see_role_mgt_cny
+					, `can_see_role_agent` := @can_see_role_agent
+					, `can_see_role_contractor` := @can_see_role_contractor
+					, `can_see_occupant` := @can_see_occupant
+					# Notification rules
+					# - case - information
+					, `is_assigned_to_case` := @is_assigned_to_case
+					, `is_invited_to_case` := @is_invited_to_case
+					, `is_next_step_updated` := @is_next_step_updated
+					, `is_deadline_updated` := @is_deadline_updated
+					, `is_solution_updated` := @is_solution_updated
+					, `is_case_resolved` := @is_case_resolved
+					, `is_case_blocker` := @is_case_blocker
+					, `is_case_critical` := @is_case_critical
+					# - case - messages
+					, `is_any_new_message` := @is_any_new_message
+					, `is_message_from_tenant` := @is_message_from_tenant
+					, `is_message_from_ll` := @is_message_from_ll
+					, `is_message_from_occupant` := @is_message_from_occupant
+					, `is_message_from_agent` := @is_message_from_agent
+					, `is_message_from_mgt_cny` := @is_message_from_mgt_cny
+					, `is_message_from_contractor` := @is_message_from_contractor
+					# - Inspection Reports
+					, `is_new_ir` := @is_new_ir
+					# - Inventory
+					, `is_new_item` := @is_new_item
+					, `is_item_removed` := @is_item_removed
+					, `is_item_moved` := @is_item_moved
+					;
+
+	# We can now include these into the table that triggers the lambda
+
+		INSERT INTO `ut_map_user_permissions_unit_all`
+			(`syst_created_datetime`
+			, `creation_system_id`
+			, `created_by_id`
+			, `creation_method`
+			, `organization_id`
+			, `is_obsolete`
+			, `is_update_needed`
+			# Which unit/user
+			, `unee_t_mefe_id`
+			, `unee_t_unit_id`
+			# which role
+			, `unee_t_role_id`
+			, `is_occupant`
+			# additional permissions
+			, `is_default_assignee`
+			, `is_default_invited`
+			, `is_unit_owner`
+			# Visibility rules
+			, `is_public`
+			, `can_see_role_landlord`
+			, `can_see_role_tenant`
+			, `can_see_role_mgt_cny`
+			, `can_see_role_agent`
+			, `can_see_role_contractor`
+			, `can_see_occupant`
+			# Notification rules
+			# - case - information
+			, `is_assigned_to_case`
+			, `is_invited_to_case`
+			, `is_next_step_updated`
+			, `is_deadline_updated`
+			, `is_solution_updated`
+			, `is_case_resolved`
+			, `is_case_blocker`
+			, `is_case_critical`
+			# - case - messages
+			, `is_any_new_message`
+			, `is_message_from_tenant`
+			, `is_message_from_ll`
+			, `is_message_from_occupant`
+			, `is_message_from_agent`
+			, `is_message_from_mgt_cny`
+			, `is_message_from_contractor`
+			# - Inspection Reports
+			, `is_new_ir`
+			# - Inventory
+			, `is_new_item`
+			, `is_item_removed`
+			, `is_item_moved`
+			)
+			VALUES
+				(@syst_created_datetime_add_u_l1_1
+				, @creation_system_id_add_u_l1_1
+				, @creator_mefe_user_id_add_u_l1_1
+				, @creation_method_add_u_l1_1
+				, @organization_id_add_u_l1_1
+				, @is_obsolete_add_u_l1_1
+				, @is_update_needed_add_u_l1_1
+				# Which unit/user
+				, @unee_t_mefe_user_id_add_u_l1_1
+				, @unee_t_mefe_unit_id_add_u_l1_1
+				# which role
+				, @unee_t_role_id_add_u_l1_1
+				, @is_occupant
+				# additional permissions
+				, @is_default_assignee
+				, @is_default_invited
+				, @is_unit_owner
+				# Visibility rules
+				, @is_public
+				, @can_see_role_landlord
+				, @can_see_role_tenant
+				, @can_see_role_mgt_cny
+				, @can_see_role_agent
+				, @can_see_role_contractor
+				, @can_see_occupant
+				# Notification rules
+				# - case - information
+				, @is_assigned_to_case
+				, @is_invited_to_case
+				, @is_next_step_updated
+				, @is_deadline_updated
+				, @is_solution_updated
+				, @is_case_resolved
+				, @is_case_blocker
+				, @is_case_critical
+				# - case - messages
+				, @is_any_new_message
+				, @is_message_from_tenant
+				, @is_message_from_ll
+				, @is_message_from_occupant
+				, @is_message_from_agent
+				, @is_message_from_mgt_cny
+				, @is_message_from_contractor
+				# - Inspection Reports
+				, @is_new_ir
+				# - Inventory
+				, @is_new_item
+				, @is_item_removed
+				, @is_item_moved
+					)
+				ON DUPLICATE KEY UPDATE
+					`syst_updated_datetime` := @syst_updated_datetime_add_u_l1_1
+					, `update_system_id` := @update_system_id_add_u_l1_1
+					, `updated_by_id` := @creator_mefe_user_id_add_u_l1_1
+					, `update_method` := @update_method_add_u_l1_1
+					, `organization_id` := @organization_id_add_u_l1_1
+					, `is_obsolete` := @is_obsolete_add_u_l1_1
+					, `is_update_needed` := @is_update_needed_add_u_l1_1
+					, `unee_t_mefe_id` := @unee_t_mefe_user_id_add_u_l1_1
+					, `unee_t_unit_id` := @unee_t_mefe_unit_id_add_u_l1_1
+					, `unee_t_role_id` := @unee_t_role_id_add_u_l1_1
+					, `is_occupant` := @is_occupant
+					, `is_default_assignee` := @is_default_assignee
+					, `is_default_invited` := @is_default_invited
+					, `is_unit_owner` := @is_unit_owner
+					, `is_public` := @is_public
+					, `can_see_role_landlord` := @can_see_role_landlord
+					, `can_see_role_tenant` := @can_see_role_tenant
+					, `can_see_role_mgt_cny` := @can_see_role_mgt_cny
+					, `can_see_role_agent` := @can_see_role_agent
+					, `can_see_role_contractor` := @can_see_role_contractor
+					, `can_see_occupant` := @can_see_occupant
+					, `is_assigned_to_case` := @is_assigned_to_case
+					, `is_invited_to_case` := @is_invited_to_case
+					, `is_next_step_updated` := @is_next_step_updated
+					, `is_deadline_updated` := @is_deadline_updated
+					, `is_solution_updated` := @is_solution_updated
+					, `is_case_resolved` := @is_case_resolved
+					, `is_case_blocker` := @is_case_blocker
+					, `is_case_critical` := @is_case_critical
+					, `is_any_new_message` := @is_any_new_message
+					, `is_message_from_tenant` := @is_message_from_tenant
+					, `is_message_from_ll` := @is_message_from_ll
+					, `is_message_from_occupant` := @is_message_from_occupant
+					, `is_message_from_agent` := @is_message_from_agent
+					, `is_message_from_mgt_cny` := @is_message_from_mgt_cny
+					, `is_message_from_contractor` := @is_message_from_contractor
+					, `is_new_ir` := @is_new_ir
+					, `is_new_item` := @is_new_item
+					, `is_item_removed` := @is_item_removed
+					, `is_item_moved` := @is_item_moved
+					;
+
+	# Propagate to level 2
+
+		# We only do this IF
+		#	- We need to propagate to level 2 units
+
+		IF @propagate_to_all_level_2_add_u_l1_1 = 1
+		THEN 
+
+		# We create a temporary table to store all the units we need to assign
+
+			DROP TEMPORARY TABLE IF EXISTS `temp_user_unit_role_permissions_level_2`;
+
+			CREATE TEMPORARY TABLE `temp_user_unit_role_permissions_level_2` (
+				`id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Unique ID in this table',
+				`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
+				`creation_system_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'What is the id of the sytem that was used for the creation of the record?',
+				`created_by_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
+				`creation_method` varchar(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'How was this record created',
+				`organization_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
+				`is_obsolete` tinyint(1) DEFAULT 0 COMMENT 'is this obsolete?',
+				`is_update_needed` tinyint(1) DEFAULT 0 COMMENT '1 if Unee-T needs to be updated',
+				`unee_t_mefe_user_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
+				`unee_t_level_2_id` int(11) NOT NULL COMMENT 'A FK to the table `property_level_2_units`',
+				`external_unee_t_level_2_id` int(11) NOT NULL COMMENT 'A FK to the table `property_level_2_units`',
+				`unee_t_user_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_user_types`',
+				`unee_t_role_id` mediumint(9) unsigned DEFAULT NULL COMMENT 'FK to the Unee-T BZFE table `ut_role_types` - ID of the Role for this user.',
+				PRIMARY KEY (`unee_t_mefe_user_id`,`unee_t_user_type_id`,`unee_t_level_2_id`,`organization_id`),
+				UNIQUE KEY `unique_id_map_user_unit_role_permissions_units` (`id`)
+			) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
+			;
+
+		# We insert the data we need in the table `temp_user_unit_role_permissions_level_2` 
+		# We need the value of the building_id in the table `property_level_1_buildings` 
+		# and NOT in the table `external_property_level_1_buildings`
+
+			INSERT INTO `temp_user_unit_role_permissions_level_2`
+				(`syst_created_datetime`
+				, `creation_system_id`
+				, `created_by_id`
+				, `creation_method`
+				, `organization_id`
+				, `is_obsolete`
+				, `is_update_needed`
+				, `unee_t_mefe_user_id`
+				, `unee_t_level_2_id`
+				, `external_unee_t_level_2_id`
+				, `unee_t_user_type_id`
+				, `unee_t_role_id`
+				)
+				SELECT @syst_created_datetime_add_u_l1_1
+					, @creation_system_id_add_u_l1_1
+					, @source_system_creator_add_u_l1_1
+					, @creation_method_add_u_l1_1
+					, @organization_id_add_u_l1_1
+					, @is_obsolete_add_u_l1_1
+					, @is_update_needed_add_u_l1_1
+					, @unee_t_mefe_user_id_add_u_l1_1
+					, `b`.`level_2_unit_id`
+					, `b`.`external_level_2_unit_id`
+					, @unee_t_user_type_id_add_u_l1_1
+					, @unee_t_role_id_add_u_l1_1
+					FROM `property_level_2_units` AS `a`
+					INNER JOIN `ut_list_mefe_unit_id_level_2_by_area` AS `b`
+						ON (`b`.`level_1_building_id` = `a`.`building_system_id` )
+					WHERE `b`.`level_1_building_id` = @unee_t_level_1_id_add_u_l1_1
+					GROUP BY `b`.`level_2_unit_id`
+				;
+
+		# We insert the data we need in the table `external_map_user_unit_role_permissions_level_2` 
+
+			INSERT INTO `external_map_user_unit_role_permissions_level_2`
+				(`syst_created_datetime`
+				, `creation_system_id`
+				, `created_by_id`
+				, `creation_method`
+				, `organization_id`
+				, `is_obsolete`
+				, `is_update_needed`
+				, `unee_t_mefe_user_id`
+				, `unee_t_level_2_id`
+				, `unee_t_user_type_id`
+				, `unee_t_role_id`
+				, `propagate_level_3`
+				)
+				SELECT 
+					`syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `is_obsolete`
+					, `is_update_needed`
+					, `unee_t_mefe_user_id`
+					, `unee_t_level_2_id`
+					, `unee_t_user_type_id`
+					, `unee_t_role_id`
+					, @propagate_to_all_level_3_add_u_l1_1
+					FROM `temp_user_unit_role_permissions_level_2` as `a`
+				ON DUPLICATE KEY UPDATE
+					`syst_updated_datetime` := `a`.`syst_created_datetime`
+					, `update_system_id` := `a`.`creation_system_id`
+					, `updated_by_id` := `a`.`created_by_id`
+					, `update_method` := `a`.`creation_method`
+					, `organization_id` := `a`.`organization_id`
+					, `is_obsolete` := `a`.`is_obsolete`
+					, `is_update_needed` := `a`.`is_update_needed`
+					, `unee_t_mefe_user_id` := `a`.`unee_t_mefe_user_id`
+					, `unee_t_level_2_id` := `a`.`unee_t_level_2_id`
+					, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
+					, `unee_t_role_id` := `a`.`unee_t_role_id`
+					, `propagate_level_3`:= @propagate_to_all_level_3_add_u_l1_1
+				;
+
+			# We can now include these into the table for the Level_2 properties
+
+					INSERT INTO `ut_map_user_permissions_unit_level_2`
+						(`syst_created_datetime`
+						, `creation_system_id`
+						, `created_by_id`
+						, `creation_method`
+						, `organization_id`
+						, `is_obsolete`
+						, `is_update_needed`
+						# Which unit/user
+						, `unee_t_mefe_id`
+						, `unee_t_unit_id`
+						# which role
+						, `unee_t_role_id`
+						, `is_occupant`
+						# additional permissions
+						, `is_default_assignee`
+						, `is_default_invited`
+						, `is_unit_owner`
+						# Visibility rules
+						, `is_public`
+						, `can_see_role_landlord`
+						, `can_see_role_tenant`
+						, `can_see_role_mgt_cny`
+						, `can_see_role_agent`
+						, `can_see_role_contractor`
+						, `can_see_occupant`
+						# Notification rules
+						# - case - information
+						, `is_assigned_to_case`
+						, `is_invited_to_case`
+						, `is_next_step_updated`
+						, `is_deadline_updated`
+						, `is_solution_updated`
+						, `is_case_resolved`
+						, `is_case_blocker`
+						, `is_case_critical`
+						# - case - messages
+						, `is_any_new_message`
+						, `is_message_from_tenant`
+						, `is_message_from_ll`
+						, `is_message_from_occupant`
+						, `is_message_from_agent`
+						, `is_message_from_mgt_cny`
+						, `is_message_from_contractor`
+						# - Inspection Reports
+						, `is_new_ir`
+						# - Inventory
+						, `is_new_item`
+						, `is_item_removed`
+						, `is_item_moved`
+						)
+						SELECT
+							`a`.`syst_created_datetime`
+							, `a`.`creation_system_id`
+							, @creator_mefe_user_id_add_u_l1_1
+							, `a`.`creation_method`
+							, `a`.`organization_id`
+							, `a`.`is_obsolete`
+							, `a`.`is_update_needed`
+							# Which unit/user
+							, `a`.`unee_t_mefe_user_id`
+							, `b`.`unee_t_mefe_unit_id`
+							# which role
+							, @unee_t_role_id_add_u_l1_1
+							, @is_occupant
+							# additional permissions
+							, @is_default_assignee
+							, @is_default_invited
+							, @is_unit_owner
+							# Visibility rules
+							, @is_public
+							, @can_see_role_landlord
+							, @can_see_role_tenant
+							, @can_see_role_mgt_cny
+							, @can_see_role_agent
+							, @can_see_role_contractor
+							, @can_see_occupant
+							# Notification rules
+							# - case - information
+							, @is_assigned_to_case
+							, @is_invited_to_case
+							, @is_next_step_updated
+							, @is_deadline_updated
+							, @is_solution_updated
+							, @is_case_resolved
+							, @is_case_blocker
+							, @is_case_critical
+							# - case - messages
+							, @is_any_new_message
+							, @is_message_from_tenant
+							, @is_message_from_ll
+							, @is_message_from_occupant
+							, @is_message_from_agent
+							, @is_message_from_mgt_cny
+							, @is_message_from_contractor
+							# - Inspection Reports
+							, @is_new_ir
+							# - Inventory
+							, @is_new_item
+							, @is_item_removed
+							, @is_item_moved
+							FROM `temp_user_unit_role_permissions_level_2` AS `a`
+							INNER JOIN `ut_list_mefe_unit_id_level_2_by_area` AS `b`
+								ON (`b`.`level_2_unit_id` = `a`.`unee_t_level_2_id`)
+						ON DUPLICATE KEY UPDATE
+							`syst_updated_datetime` := `a`.`syst_created_datetime`
+							, `update_system_id` := `a`.`creation_system_id`
+							, `updated_by_id` := @creator_mefe_user_id_add_u_l1_1
+							, `update_method` := `a`.`creation_method`
+							, `organization_id` := `a`.`organization_id`
+							, `is_obsolete` := `a`.`is_obsolete`
+							, `is_update_needed` := `a`.`is_update_needed`
+							, `unee_t_mefe_id` :=  `a`.`unee_t_mefe_user_id`
+							, `unee_t_unit_id` := `b`.`unee_t_mefe_unit_id`
+							, `unee_t_role_id` := `a`.`unee_t_role_id`
+							, `is_occupant` := @is_occupant
+							, `is_default_assignee` := @is_default_assignee
+							, `is_default_invited` := @is_default_invited
+							, `is_unit_owner` := @is_unit_owner
+							, `is_public` := @is_public
+							, `can_see_role_landlord` := @can_see_role_landlord
+							, `can_see_role_tenant` := @can_see_role_tenant
+							, `can_see_role_mgt_cny` := @can_see_role_mgt_cny
+							, `can_see_role_agent` := @can_see_role_agent
+							, `can_see_role_contractor` := @can_see_role_contractor
+							, `can_see_occupant` := @can_see_occupant
+							, `is_assigned_to_case` := @is_assigned_to_case
+							, `is_invited_to_case` := @is_invited_to_case
+							, `is_next_step_updated` := @is_next_step_updated
+							, `is_deadline_updated` := @is_deadline_updated
+							, `is_solution_updated` := @is_solution_updated
+							, `is_case_resolved` := @is_case_resolved
+							, `is_case_blocker` := @is_case_blocker
+							, `is_case_critical` := @is_case_critical
+							, `is_any_new_message` := @is_any_new_message
+							, `is_message_from_tenant` := @is_message_from_tenant
+							, `is_message_from_ll` := @is_message_from_ll
+							, `is_message_from_occupant` := @is_message_from_occupant
+							, `is_message_from_agent` := @is_message_from_agent
+							, `is_message_from_mgt_cny` := @is_message_from_mgt_cny
+							, `is_message_from_contractor` := @is_message_from_contractor
+							, `is_new_ir` := @is_new_ir
+							, `is_new_item` := @is_new_item
+							, `is_item_removed` := @is_item_removed
+							, `is_item_moved` := @is_item_moved
+							;
+
+			# We can now include these into the table that triggers the lambda
+
+				INSERT INTO `ut_map_user_permissions_unit_all`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `is_obsolete`
+					, `is_update_needed`
+					# Which unit/user
+					, `unee_t_mefe_id`
+					, `unee_t_unit_id`
+					# which role
+					, `unee_t_role_id`
+					, `is_occupant`
+					# additional permissions
+					, `is_default_assignee`
+					, `is_default_invited`
+					, `is_unit_owner`
+					# Visibility rules
+					, `is_public`
+					, `can_see_role_landlord`
+					, `can_see_role_tenant`
+					, `can_see_role_mgt_cny`
+					, `can_see_role_agent`
+					, `can_see_role_contractor`
+					, `can_see_occupant`
+					# Notification rules
+					# - case - information
+					, `is_assigned_to_case`
+					, `is_invited_to_case`
+					, `is_next_step_updated`
+					, `is_deadline_updated`
+					, `is_solution_updated`
+					, `is_case_resolved`
+					, `is_case_blocker`
+					, `is_case_critical`
+					# - case - messages
+					, `is_any_new_message`
+					, `is_message_from_tenant`
+					, `is_message_from_ll`
+					, `is_message_from_occupant`
+					, `is_message_from_agent`
+					, `is_message_from_mgt_cny`
+					, `is_message_from_contractor`
+					# - Inspection Reports
+					, `is_new_ir`
+					# - Inventory
+					, `is_new_item`
+					, `is_item_removed`
+					, `is_item_moved`
+					)
+					SELECT
+						`a`.`syst_created_datetime`
+						, `a`.`creation_system_id`
+						, @creator_mefe_user_id_add_u_l1_1
+						, `a`.`creation_method`
+						, `a`.`organization_id`
+						, `a`.`is_obsolete`
+						, `a`.`is_update_needed`
+						# Which unit/user
+						, `a`.`unee_t_mefe_user_id`
+						, `b`.`unee_t_mefe_unit_id`
+						# which role
+						, @unee_t_role_id_add_u_l1_1
+						, @is_occupant
+						# additional permissions
+						, @is_default_assignee
+						, @is_default_invited
+						, @is_unit_owner
+						# Visibility rules
+						, @is_public
+						, @can_see_role_landlord
+						, @can_see_role_tenant
+						, @can_see_role_mgt_cny
+						, @can_see_role_agent
+						, @can_see_role_contractor
+						, @can_see_occupant
+						# Notification rules
+						# - case - information
+						, @is_assigned_to_case
+						, @is_invited_to_case
+						, @is_next_step_updated
+						, @is_deadline_updated
+						, @is_solution_updated
+						, @is_case_resolved
+						, @is_case_blocker
+						, @is_case_critical
+						# - case - messages
+						, @is_any_new_message
+						, @is_message_from_tenant
+						, @is_message_from_ll
+						, @is_message_from_occupant
+						, @is_message_from_agent
+						, @is_message_from_mgt_cny
+						, @is_message_from_contractor
+						# - Inspection Reports
+						, @is_new_ir
+						# - Inventory
+						, @is_new_item
+						, @is_item_removed
+						, @is_item_moved
+						FROM `temp_user_unit_role_permissions_level_2` AS `a`
+							INNER JOIN `ut_list_mefe_unit_id_level_2_by_area` AS `b`
+								ON (`b`.`level_2_unit_id` = `a`.`unee_t_level_2_id`)
+						ON DUPLICATE KEY UPDATE
+							`syst_updated_datetime` := `a`.`syst_created_datetime`
+							, `update_system_id` := `a`.`creation_system_id`
+							, `updated_by_id` := @creator_mefe_user_id_add_u_l1_1
+							, `update_method` := `a`.`creation_method`
+							, `organization_id` := `a`.`organization_id`
+							, `is_obsolete` := `a`.`is_obsolete`
+							, `is_update_needed` := `a`.`is_update_needed`
+							, `unee_t_mefe_id` :=  `a`.`unee_t_mefe_user_id`
+							, `unee_t_unit_id` := `b`.`unee_t_mefe_unit_id`
+							, `unee_t_role_id` := `a`.`unee_t_role_id`
+							, `is_occupant` := @is_occupant
+							, `is_default_assignee` := @is_default_assignee
+							, `is_default_invited` := @is_default_invited
+							, `is_unit_owner` := @is_unit_owner
+							, `is_public` := @is_public
+							, `can_see_role_landlord` := @can_see_role_landlord
+							, `can_see_role_tenant` := @can_see_role_tenant
+							, `can_see_role_mgt_cny` := @can_see_role_mgt_cny
+							, `can_see_role_agent` := @can_see_role_agent
+							, `can_see_role_contractor` := @can_see_role_contractor
+							, `can_see_occupant` := @can_see_occupant
+							, `is_assigned_to_case` := @is_assigned_to_case
+							, `is_invited_to_case` := @is_invited_to_case
+							, `is_next_step_updated` := @is_next_step_updated
+							, `is_deadline_updated` := @is_deadline_updated
+							, `is_solution_updated` := @is_solution_updated
+							, `is_case_resolved` := @is_case_resolved
+							, `is_case_blocker` := @is_case_blocker
+							, `is_case_critical` := @is_case_critical
+							, `is_any_new_message` := @is_any_new_message
+							, `is_message_from_tenant` := @is_message_from_tenant
+							, `is_message_from_ll` := @is_message_from_ll
+							, `is_message_from_occupant` := @is_message_from_occupant
+							, `is_message_from_agent` := @is_message_from_agent
+							, `is_message_from_mgt_cny` := @is_message_from_mgt_cny
+							, `is_message_from_contractor` := @is_message_from_contractor
+							, `is_new_ir` := @is_new_ir
+							, `is_new_item` := @is_new_item
+							, `is_item_removed` := @is_item_removed
+							, `is_item_moved` := @is_item_moved
+							;
+
+		# Propagate to level 3
+
+			# We only do this IF
+			#	- We need to propagate to level 3 units
+
+			IF @propagate_to_all_level_3_add_u_l1_1 = 1
+			THEN 
+
+			# We create a temporary table to store all the rooms we need to assign
+
+				DROP TEMPORARY TABLE IF EXISTS `temp_user_unit_role_permissions_level_3`;
+
+				CREATE TEMPORARY TABLE `temp_user_unit_role_permissions_level_3` (
+					`id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Unique ID in this table',
+					`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
+					`creation_system_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'What is the id of the sytem that was used for the creation of the record?',
+					`created_by_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
+					`creation_method` varchar(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'How was this record created',
+					`organization_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
+					`is_obsolete` tinyint(1) DEFAULT 0 COMMENT 'is this obsolete?',
+					`is_update_needed` tinyint(1) DEFAULT 0 COMMENT '1 if Unee-T needs to be updated',
+					`unee_t_mefe_user_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
+					`unee_t_level_3_id` int(11) NOT NULL COMMENT 'A FK to the table `property_level_3_rooms`',
+					`external_unee_t_level_3_id` int(11) NOT NULL COMMENT 'A FK to the table `external_property_level_3_rooms`',
+					`unee_t_user_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_user_types`',
+					`unee_t_role_id` mediumint(9) unsigned DEFAULT NULL COMMENT 'FK to the Unee-T BZFE table `ut_role_types` - ID of the Role for this user.',
+					PRIMARY KEY (`unee_t_mefe_user_id`,`unee_t_user_type_id`,`unee_t_level_3_id`,`organization_id`),
+					UNIQUE KEY `unique_id_map_user_unit_role_permissions_rooms` (`id`)
+				) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
+				;
+
+			# We need all the rooms from all the unit in that building
+			#	- The id of the building is in the variable @unee_t_level_1_id_add_u_l1_1
+			#	- The ids of the units in that building are in the table `temp_user_unit_role_permissions_level_2`
+			# We need to insert all these data in the table `temp_user_unit_role_permissions_level_3`
+
+				INSERT INTO `temp_user_unit_role_permissions_level_3`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `is_obsolete`
+					, `is_update_needed`
+					, `unee_t_mefe_user_id`
+					, `unee_t_level_3_id`
+					, `external_unee_t_level_3_id`
+					, `unee_t_user_type_id`
+					, `unee_t_role_id`
+					)
+					SELECT 
+						@syst_created_datetime_add_u_l1_1
+						, @creation_system_id_add_u_l1_1
+						, @source_system_creator_add_u_l1_1
+						, @creation_method_add_u_l1_1
+						, @organization_id_add_u_l1_1
+						, @is_obsolete_add_u_l1_1
+						, @is_update_needed_add_u_l1_1
+						, @unee_t_mefe_user_id_add_u_l1_1
+						, `b`.`level_3_room_id`
+						, `b`.`external_level_3_room_id`
+						, @unee_t_user_type_id_add_u_l1_1
+						, @unee_t_role_id_add_u_l1_1
+						FROM `property_level_3_rooms` AS `a`
+						INNER JOIN `ut_list_mefe_unit_id_level_3_by_area` AS `b`
+							ON (`b`.`level_2_unit_id` = `a`. `system_id_unit`)
+						INNER JOIN `ut_list_mefe_unit_id_level_2_by_area` AS `c`
+							ON (`c`.`level_1_building_id` = `b`.`level_1_building_id`)
+						WHERE `c`.`level_1_building_id` = @unee_t_level_1_id_add_u_l1_1
+						GROUP BY `b`.`level_3_room_id`
+					;
+
+			# We insert the data we need in the table `external_map_user_unit_role_permissions_level_3` 
+
+				INSERT INTO `external_map_user_unit_role_permissions_level_3`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `is_obsolete`
+					, `is_update_needed`
+					, `unee_t_mefe_user_id`
+					, `unee_t_level_3_id`
+					, `unee_t_user_type_id`
+					, `unee_t_role_id`
+					)
+					SELECT 
+						`syst_created_datetime`
+						, `creation_system_id`
+						, `created_by_id`
+						, `creation_method`
+						, `organization_id`
+						, `is_obsolete`
+						, `is_update_needed`
+						, `unee_t_mefe_user_id`
+						, `unee_t_level_3_id`
+						, `unee_t_user_type_id`
+						, `unee_t_role_id`
+						FROM `temp_user_unit_role_permissions_level_3` as `a`
+					ON DUPLICATE KEY UPDATE
+						`syst_updated_datetime` := `a`.`syst_created_datetime`
+						, `update_system_id` := `a`.`creation_system_id`
+						, `updated_by_id` := `a`.`created_by_id`
+						, `update_method` := `a`.`creation_method`
+						, `organization_id` := `a`.`organization_id`
+						, `is_obsolete` := `a`.`is_obsolete`
+						, `is_update_needed` := `a`.`is_update_needed`
+						, `unee_t_mefe_user_id` := `a`.`unee_t_mefe_user_id`
+						, `unee_t_level_3_id` := `a`.`unee_t_level_3_id`
+						, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
+						, `unee_t_role_id` := `a`.`unee_t_role_id`
+					;
+
+			# We insert these in the table `ut_map_user_permissions_unit_level_3` 
+
+						INSERT INTO `ut_map_user_permissions_unit_level_3`
+							(`syst_created_datetime`
+							, `creation_system_id`
+							, `created_by_id`
+							, `creation_method`
+							, `organization_id`
+							, `is_obsolete`
+							, `is_update_needed`
+							# Which unit/user
+							, `unee_t_mefe_id`
+							, `unee_t_unit_id`
+							# which role
+							, `unee_t_role_id`
+							, `is_occupant`
+							# additional permissions
+							, `is_default_assignee`
+							, `is_default_invited`
+							, `is_unit_owner`
+							# Visibility rules
+							, `is_public`
+							, `can_see_role_landlord`
+							, `can_see_role_tenant`
+							, `can_see_role_mgt_cny`
+							, `can_see_role_agent`
+							, `can_see_role_contractor`
+							, `can_see_occupant`
+							# Notification rules
+							# - case - information
+							, `is_assigned_to_case`
+							, `is_invited_to_case`
+							, `is_next_step_updated`
+							, `is_deadline_updated`
+							, `is_solution_updated`
+							, `is_case_resolved`
+							, `is_case_blocker`
+							, `is_case_critical`
+							# - case - messages
+							, `is_any_new_message`
+							, `is_message_from_tenant`
+							, `is_message_from_ll`
+							, `is_message_from_occupant`
+							, `is_message_from_agent`
+							, `is_message_from_mgt_cny`
+							, `is_message_from_contractor`
+							# - Inspection Reports
+							, `is_new_ir`
+							# - Inventory
+							, `is_new_item`
+							, `is_item_removed`
+							, `is_item_moved`
+							)
+							SELECT
+								`a`.`syst_created_datetime`
+								, `a`.`creation_system_id`
+								, @creator_mefe_user_id_add_u_l1_1
+								, `a`.`creation_method`
+								, `a`.`organization_id`
+								, `a`.`is_obsolete`
+								, `a`.`is_update_needed`
+								# Which unit/user
+								, `a`.`unee_t_mefe_user_id`
+								, `b`.`unee_t_mefe_unit_id`
+								# which role
+								, @unee_t_role_id_add_u_l1_1
+								, @is_occupant
+								# additional permissions
+								, @is_default_assignee
+								, @is_default_invited
+								, @is_unit_owner
+								# Visibility rules
+								, @is_public
+								, @can_see_role_landlord
+								, @can_see_role_tenant
+								, @can_see_role_mgt_cny
+								, @can_see_role_agent
+								, @can_see_role_contractor
+								, @can_see_occupant
+								# Notification rules
+								# - case - information
+								, @is_assigned_to_case
+								, @is_invited_to_case
+								, @is_next_step_updated
+								, @is_deadline_updated
+								, @is_solution_updated
+								, @is_case_resolved
+								, @is_case_blocker
+								, @is_case_critical
+								# - case - messages
+								, @is_any_new_message
+								, @is_message_from_tenant
+								, @is_message_from_ll
+								, @is_message_from_occupant
+								, @is_message_from_agent
+								, @is_message_from_mgt_cny
+								, @is_message_from_contractor
+								# - Inspection Reports
+								, @is_new_ir
+								# - Inventory
+								, @is_new_item
+								, @is_item_removed
+								, @is_item_moved
+								FROM `temp_user_unit_role_permissions_level_3` AS `a`
+								INNER JOIN `ut_list_mefe_unit_id_level_3_by_area` AS `b`
+									ON (`b`.`level_3_room_id` = `a`.`unee_t_level_3_id`)
+							ON DUPLICATE KEY UPDATE
+								`syst_updated_datetime` := `a`.`syst_created_datetime`
+								, `update_system_id` := `a`.`creation_system_id`
+								, `updated_by_id` := @creator_mefe_user_id_add_u_l1_1
+								, `update_method` := `a`.`creation_method`
+								, `organization_id` := `a`.`organization_id`
+								, `is_obsolete` := `a`.`is_obsolete`
+								, `is_update_needed` := `a`.`is_update_needed`
+								, `unee_t_mefe_id` := @unee_t_mefe_user_id_add_u_l1_1
+								, `unee_t_unit_id` := `b`.`unee_t_mefe_unit_id`
+								, `unee_t_role_id` := @unee_t_role_id_add_u_l1_1
+								, `is_occupant` := @is_occupant
+								, `is_default_assignee` := @is_default_assignee
+								, `is_default_invited` := @is_default_invited
+								, `is_unit_owner` := @is_unit_owner
+								, `is_public` := @is_public
+								, `can_see_role_landlord` := @can_see_role_landlord
+								, `can_see_role_tenant` := @can_see_role_tenant
+								, `can_see_role_mgt_cny` := @can_see_role_mgt_cny
+								, `can_see_role_agent` := @can_see_role_agent
+								, `can_see_role_contractor` := @can_see_role_contractor
+								, `can_see_occupant` := @can_see_occupant
+								, `is_assigned_to_case` := @is_assigned_to_case
+								, `is_invited_to_case` := @is_invited_to_case
+								, `is_next_step_updated` := @is_next_step_updated
+								, `is_deadline_updated` := @is_deadline_updated
+								, `is_solution_updated` := @is_solution_updated
+								, `is_case_resolved` := @is_case_resolved
+								, `is_case_blocker` := @is_case_blocker
+								, `is_case_critical` := @is_case_critical
+								, `is_any_new_message` := @is_any_new_message
+								, `is_message_from_tenant` := @is_message_from_tenant
+								, `is_message_from_ll` := @is_message_from_ll
+								, `is_message_from_occupant` := @is_message_from_occupant
+								, `is_message_from_agent` := @is_message_from_agent
+								, `is_message_from_mgt_cny` := @is_message_from_mgt_cny
+								, `is_message_from_contractor` := @is_message_from_contractor
+								, `is_new_ir` := @is_new_ir
+								, `is_new_item` := @is_new_item
+								, `is_item_removed` := @is_item_removed
+								, `is_item_moved` := @is_item_moved
+								;
+
+				# We can now include these into the table that triggers the lambda
+
+					INSERT INTO `ut_map_user_permissions_unit_all`
+						(`syst_created_datetime`
+						, `creation_system_id`
+						, `created_by_id`
+						, `creation_method`
+						, `organization_id`
+						, `is_obsolete`
+						, `is_update_needed`
+						, `unee_t_mefe_id`
+						, `unee_t_unit_id`
+						, `unee_t_role_id`
+						, `is_occupant`
+						, `is_default_assignee`
+						, `is_default_invited`
+						, `is_unit_owner`
+						, `is_public`
+						, `can_see_role_landlord`
+						, `can_see_role_tenant`
+						, `can_see_role_mgt_cny`
+						, `can_see_role_agent`
+						, `can_see_role_contractor`
+						, `can_see_occupant`
+						, `is_assigned_to_case`
+						, `is_invited_to_case`
+						, `is_next_step_updated`
+						, `is_deadline_updated`
+						, `is_solution_updated`
+						, `is_case_resolved`
+						, `is_case_blocker`
+						, `is_case_critical`
+						, `is_any_new_message`
+						, `is_message_from_tenant`
+						, `is_message_from_ll`
+						, `is_message_from_occupant`
+						, `is_message_from_agent`
+						, `is_message_from_mgt_cny`
+						, `is_message_from_contractor`
+						, `is_new_ir`
+						, `is_new_item`
+						, `is_item_removed`
+						, `is_item_moved`
+						)
+							SELECT
+								`a`.`syst_created_datetime`
+								, `a`.`creation_system_id`
+								, @creator_mefe_user_id_add_u_l1_1
+								, `a`.`creation_method`
+								, `a`.`organization_id`
+								, `a`.`is_obsolete`
+								, `a`.`is_update_needed`
+								# Which unit/user
+								, `a`.`unee_t_mefe_user_id`
+								, `b`.`unee_t_mefe_unit_id`
+								# which role
+								, @unee_t_role_id_add_u_l1_1
+								, @is_occupant
+								# additional permissions
+								, @is_default_assignee
+								, @is_default_invited
+								, @is_unit_owner
+								# Visibility rules
+								, @is_public
+								, @can_see_role_landlord
+								, @can_see_role_tenant
+								, @can_see_role_mgt_cny
+								, @can_see_role_agent
+								, @can_see_role_contractor
+								, @can_see_occupant
+								# Notification rules
+								# - case - information
+								, @is_assigned_to_case
+								, @is_invited_to_case
+								, @is_next_step_updated
+								, @is_deadline_updated
+								, @is_solution_updated
+								, @is_case_resolved
+								, @is_case_blocker
+								, @is_case_critical
+								# - case - messages
+								, @is_any_new_message
+								, @is_message_from_tenant
+								, @is_message_from_ll
+								, @is_message_from_occupant
+								, @is_message_from_agent
+								, @is_message_from_mgt_cny
+								, @is_message_from_contractor
+								# - Inspection Reports
+								, @is_new_ir
+								# - Inventory
+								, @is_new_item
+								, @is_item_removed
+								, @is_item_moved
+								FROM `temp_user_unit_role_permissions_level_3` AS `a`
+								INNER JOIN `ut_list_mefe_unit_id_level_3_by_area` AS `b`
+									ON (`b`.`level_3_room_id` = `a`.`unee_t_level_3_id`)
+							ON DUPLICATE KEY UPDATE
+								`syst_updated_datetime` := `a`.`syst_created_datetime`
+								, `update_system_id` := `a`.`creation_system_id`
+								, `updated_by_id` := @creator_mefe_user_id_add_u_l1_1
+								, `update_method` := `a`.`creation_method`
+								, `organization_id` := `a`.`organization_id`
+								, `is_obsolete` := `a`.`is_obsolete`
+								, `is_update_needed` := `a`.`is_update_needed`
+								, `unee_t_mefe_id` := @unee_t_mefe_user_id_add_u_l1_1
+								, `unee_t_unit_id` := `b`.`unee_t_mefe_unit_id`
+								, `unee_t_role_id` := @unee_t_role_id_add_u_l1_1
+								, `is_occupant` := @is_occupant
+								, `is_default_assignee` := @is_default_assignee
+								, `is_default_invited` := @is_default_invited
+								, `is_unit_owner` := @is_unit_owner
+								, `is_public` := @is_public
+								, `can_see_role_landlord` := @can_see_role_landlord
+								, `can_see_role_tenant` := @can_see_role_tenant
+								, `can_see_role_mgt_cny` := @can_see_role_mgt_cny
+								, `can_see_role_agent` := @can_see_role_agent
+								, `can_see_role_contractor` := @can_see_role_contractor
+								, `can_see_occupant` := @can_see_occupant
+								, `is_assigned_to_case` := @is_assigned_to_case
+								, `is_invited_to_case` := @is_invited_to_case
+								, `is_next_step_updated` := @is_next_step_updated
+								, `is_deadline_updated` := @is_deadline_updated
+								, `is_solution_updated` := @is_solution_updated
+								, `is_case_resolved` := @is_case_resolved
+								, `is_case_blocker` := @is_case_blocker
+								, `is_case_critical` := @is_case_critical
+								, `is_any_new_message` := @is_any_new_message
+								, `is_message_from_tenant` := @is_message_from_tenant
+								, `is_message_from_ll` := @is_message_from_ll
+								, `is_message_from_occupant` := @is_message_from_occupant
+								, `is_message_from_agent` := @is_message_from_agent
+								, `is_message_from_mgt_cny` := @is_message_from_mgt_cny
+								, `is_message_from_contractor` := @is_message_from_contractor
+								, `is_new_ir` := @is_new_ir
+								, `is_new_item` := @is_new_item
+								, `is_item_removed` := @is_item_removed
+								, `is_item_moved` := @is_item_moved
+								;
+
+			END IF;
+
+		END IF;
+
+	END IF;
+END;
+$$
+DELIMITER ;
 
 #################
 #
@@ -1393,6 +2768,7 @@ BEGIN
 #	- This is done via an authorized insert method:
 #		- 'Assign_Units_to_Users_Add_Page'
 #		- 'Assign_Units_to_Users_Import_Page'
+#		- 'imported_from_hmlet_ipi'
 #		- ''
 #
 
@@ -1434,6 +2810,8 @@ BEGIN
 			OR @upstream_update_method_add_u_l2_1 = 'Assign_Units_to_Users_Add_Page'
 			OR @upstream_create_method_add_u_l2_1 = 'Assign_Units_to_Users_Import_Page'
 			OR @upstream_update_method_add_u_l2_1 = 'Assign_Units_to_Users_Import_Page'
+			OR @upstream_create_method_add_u_l2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_add_u_l2_1 = 'imported_from_hmlet_ipi'
 			)
 	THEN 
 
@@ -1451,7 +2829,6 @@ BEGIN
 		SET @updated_by_id_add_u_l2_1 := @source_system_updater_add_u_l2_1 ;
 		SET @update_method_add_u_l2_1 := @this_trigger_add_u_l2_1 ;
 
-		SET @is_obsolete_add_u_l2_1 := NEW.`is_obsolete` ;
 		SET @is_update_needed_add_u_l2_1 := 1 ;
 
 		SET @propagate_to_all_level_3 := NEW.`propagate_level_3` ;
@@ -2323,15 +3700,11 @@ DELIMITER ;
 
 # This script creates the following triggers:
 #	- `ut_add_user_to_role_in_a_level_3_property`
-#	- `ut_add_user_to_role_in_unit_with_visibility_level_3`
-#	- ``
 #	- ``
 
-# Assign user to an Level_3 property (room) 
-# Insert the record in the tables
-#	- `ut_map_user_permissions_unit_level_3`
+# For properties Level 3 (Rooms)
 
-			DROP TRIGGER IF EXISTS `ut_add_user_to_role_in_a_level_3_property`;
+	DROP TRIGGER IF EXISTS `ut_add_user_to_role_in_a_level_3_property`;
 
 DELIMITER $$
 CREATE TRIGGER `ut_add_user_to_role_in_a_level_3_property`
@@ -2341,213 +3714,213 @@ BEGIN
 
 # We only do this IF
 #	- We have a MEFE user ID for the creator of that record
+#	- We have an organization ID
 #	- This is not an obsolete request
 #	- We have a MEFE user ID for the user that we are adding
 #	- We have a role_type
 #	- We have a user_type
-#	- We have an organization ID
+#	- We have a MEFE unit ID for the level 3 unit.
 #	- This is done via an authorized insert method:
 #		- 'Assign_Rooms_to_Users_Add_Page'
 #		- 'Assign_Rooms_to_Users_Import_Page'
-#		- ''
+#		- 'imported_from_hmlet_ipi'
 #		- ''
 #
 
-	SET @source_system_creator_add_u_l3_1 = NEW.`created_by_id` ;
-	SET @source_system_updater_add_u_l3_1 = NEW.`updated_by_id`;
+	SET @source_system_creator_add_u_l3_1 := NEW.`created_by_id` ;
+	SET @source_system_updater_add_u_l3_1 := NEW.`updated_by_id`;
 
-	SET @creator_mefe_user_id_add_u_l3_1 = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_add_u_l3_1 := (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
 		WHERE `organization_id` = @source_system_creator_add_u_l3_1
 		)
 		;
 
-	SET @upstream_create_method_add_u_l3_1 = NEW.`creation_method` ;
-	SET @upstream_update_method_add_u_l3_1 = NEW.`update_method` ;
+	SET @organization_id_add_u_l3_1 := NEW.`organization_id` ;
 
-	SET @organization_id = NEW.`organization_id` ;
+	SET @is_obsolete_id_add_u_l3_1 := NEW.`is_obsolete` ;
 
-	SET @is_obsolete = NEW.`is_obsolete` ;
+	SET @unee_t_level_3_id_add_u_l3_1 := NEW.`unee_t_level_3_id` ;
 
-	SET @unee_t_level_3_id = NEW.`unee_t_level_3_id` ;
+	SET @unee_t_mefe_user_id_add_u_l3_1 := NEW.`unee_t_mefe_user_id` ;
+	SET @unee_t_user_type_id_add_u_l3_1 := NEW.`unee_t_user_type_id` ;
+	SET @unee_t_role_id_add_u_l3_1 := NEW.`unee_t_role_id` ;
 
-	SET @unee_t_mefe_user_id = NEW.`unee_t_mefe_user_id` ;
-	SET @unee_t_user_type_id = NEW.`unee_t_user_type_id` ;
-	SET @unee_t_role_id = NEW.`unee_t_role_id` ;
+	SET @unee_t_mefe_unit_id_add_u_l3_1 := (SELECT `unee_t_mefe_unit_id`
+		FROM `ut_list_mefe_unit_id_level_3_by_area`
+		WHERE `level_3_room_id` = @unee_t_level_3_id_add_u_l3_1
+		);
+
+	SET @upstream_create_method_add_u_l3_1 := NEW.`creation_method` ;
+	SET @upstream_update_method_add_u_l3_1 := NEW.`update_method` ;
 
 	IF @source_system_creator_add_u_l3_1 IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND @is_obsolete = 0
-		AND @unee_t_mefe_user_id IS NOT NULL
-		AND @unee_t_user_type_id IS NOT NULL
-		AND @unee_t_role_id IS NOT NULL
+		AND @organization_id_add_u_l3_1 IS NOT NULL
+		AND @is_obsolete_id_add_u_l3_1 = 0
+		AND @unee_t_mefe_user_id_add_u_l3_1 IS NOT NULL
+		AND @unee_t_user_type_id_add_u_l3_1 IS NOT NULL
+		AND @unee_t_role_id_add_u_l3_1 IS NOT NULL
+		AND @unee_t_mefe_unit_id_add_u_l3_1 IS NOT NULL
 		AND (@upstream_create_method_add_u_l3_1 = 'Assign_Rooms_to_Users_Add_Page'
 			OR @upstream_update_method_add_u_l3_1 = 'Assign_Rooms_to_Users_Add_Page'
 			OR @upstream_create_method_add_u_l3_1 = 'Assign_Rooms_to_Users_Import_Page'
 			OR @upstream_update_method_add_u_l3_1 = 'Assign_Rooms_to_Users_Import_Page'
+			OR @upstream_create_method_add_u_l3_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_add_u_l3_1 = 'imported_from_hmlet_ipi'
 			)
 	THEN 
 
 	# We capture the variables that we need:
 
-		SET @this_trigger = 'ut_add_user_to_role_in_a_level_3_property' ;
+		SET @this_trigger_id_add_u_l3_1 := 'ut_add_user_to_role_in_a_level_3_property' ;
 
-		SET @syst_created_datetime = NOW() ;
-		SET @creation_system_id = 2 ;
-		SET @created_by_id_add_u_l3_1 = @source_system_creator_add_u_l3_1 ;
-		SET @creation_method = @this_trigger ;
+		SET @syst_created_datetime_add_u_l3_1 := NOW() ;
+		SET @creation_system_id_add_u_l3_1 := 2 ;
+		SET @created_by_id_add_u_l3_1 := @source_system_creator_add_u_l3_1 ;
+		SET @creation_method_add_u_l3_1 := @this_trigger_id_add_u_l3_1 ;
 
-		SET @syst_updated_datetime = NOW() ;
-		SET @update_system_id = 2 ;
-		SET @updated_by_id_add_u_l3_1 = @source_system_updater_add_u_l3_1 ;
-		SET @update_method = @this_trigger ;
+		SET @syst_updated_datetime_add_u_l3_1 := NOW() ;
+		SET @update_system_id_add_u_l3_1 := 2 ;
+		SET @updated_by_id_add_u_l3_1 := @source_system_updater_add_u_l3_1 ;
+		SET @update_method_add_u_l3_1 := @this_trigger_id_add_u_l3_1 ;
 
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @is_update_needed = 1 ;
+		SET @is_update_needed_add_u_l3_1 := 1 ;
 
 	# We insert these permissions in the table `ut_map_user_permissions_unit_level_3`
-
-	# We need the MEFE unit_id for each of the level_3 properties:
-
-		SET @unee_t_mefe_unit_id = (SELECT `unee_t_mefe_unit_id`
-			FROM `ut_list_mefe_unit_id_level_3_by_area`
-			WHERE `level_3_room_id` = @unee_t_level_3_id
-			);
-
 	# We need the values for each of the preferences
 
-		SET @is_occupant = (SELECT `is_occupant` 
+		SET @is_occupant := (SELECT `is_occupant` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
 
 		# additional permissions 
-		SET @is_default_assignee = (SELECT `is_default_assignee` 
+		SET @is_default_assignee := (SELECT `is_default_assignee` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_default_invited = (SELECT `is_default_invited` 
+		SET @is_default_invited := (SELECT `is_default_invited` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_unit_owner = (SELECT `is_unit_owner` 
+		SET @is_unit_owner := (SELECT `is_unit_owner` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
 
 		# Visibility rules 
-		SET @is_public = (SELECT `is_public` 
+		SET @is_public := (SELECT `is_public` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @can_see_role_landlord = (SELECT `can_see_role_landlord` 
+		SET @can_see_role_landlord := (SELECT `can_see_role_landlord` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @can_see_role_tenant = (SELECT `can_see_role_tenant` 
+		SET @can_see_role_tenant := (SELECT `can_see_role_tenant` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @can_see_role_mgt_cny = (SELECT `can_see_role_mgt_cny` 
+		SET @can_see_role_mgt_cny := (SELECT `can_see_role_mgt_cny` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @can_see_role_agent = (SELECT `can_see_role_agent` 
+		SET @can_see_role_agent := (SELECT `can_see_role_agent` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @can_see_role_contractor = (SELECT `can_see_role_contractor` 
+		SET @can_see_role_contractor := (SELECT `can_see_role_contractor` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @can_see_occupant = (SELECT `can_see_occupant` 
+		SET @can_see_occupant := (SELECT `can_see_occupant` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
 
 		# Notification rules 
 		# - case - information 
-		SET @is_assigned_to_case = (SELECT `is_assigned_to_case` 
+		SET @is_assigned_to_case := (SELECT `is_assigned_to_case` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_invited_to_case = (SELECT `is_invited_to_case` 
+		SET @is_invited_to_case := (SELECT `is_invited_to_case` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_next_step_updated = (SELECT `is_next_step_updated` 
+		SET @is_next_step_updated := (SELECT `is_next_step_updated` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_deadline_updated = (SELECT `is_deadline_updated` 
+		SET @is_deadline_updated := (SELECT `is_deadline_updated` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_solution_updated = (SELECT `is_solution_updated` 
+		SET @is_solution_updated := (SELECT `is_solution_updated` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_case_resolved = (SELECT `is_case_resolved` 
+		SET @is_case_resolved := (SELECT `is_case_resolved` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_case_blocker = (SELECT `is_case_blocker` 
+		SET @is_case_blocker := (SELECT `is_case_blocker` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_case_critical = (SELECT `is_case_critical` 
+		SET @is_case_critical := (SELECT `is_case_critical` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
 
 		# - case - messages 
-		SET @is_any_new_message = (SELECT `is_any_new_message` 
+		SET @is_any_new_message := (SELECT `is_any_new_message` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_message_from_tenant = (SELECT `is_message_from_tenant` 
+		SET @is_message_from_tenant := (SELECT `is_message_from_tenant` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_message_from_ll = (SELECT `is_message_from_ll` 
+		SET @is_message_from_ll := (SELECT `is_message_from_ll` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_message_from_occupant = (SELECT `is_message_from_occupant` 
+		SET @is_message_from_occupant := (SELECT `is_message_from_occupant` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_message_from_agent = (SELECT `is_message_from_agent` 
+		SET @is_message_from_agent := (SELECT `is_message_from_agent` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_message_from_mgt_cny = (SELECT `is_message_from_mgt_cny` 
+		SET @is_message_from_mgt_cny := (SELECT `is_message_from_mgt_cny` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_message_from_contractor = (SELECT `is_message_from_contractor` 
+		SET @is_message_from_contractor := (SELECT `is_message_from_contractor` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
 
 		# - Inspection Reports 
-		SET @is_new_ir = (SELECT `is_new_ir` 
+		SET @is_new_ir := (SELECT `is_new_ir` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
 
 		# - Inventory 
-		SET @is_new_item = (SELECT `is_new_item` 
+		SET @is_new_item := (SELECT `is_new_item` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_item_removed = (SELECT `is_item_removed` 
+		SET @is_item_removed := (SELECT `is_item_removed` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
-		SET @is_item_moved = (SELECT `is_item_moved` 
+		SET @is_item_moved := (SELECT `is_item_moved` 
 			FROM `ut_user_types` 
-			WHERE `id_unee_t_user_type` = @unee_t_user_type_id
+			WHERE `id_unee_t_user_type` = @unee_t_user_type_id_add_u_l3_1
 			);
 
 	# We can now include these into the table for the Level_3 properties
@@ -2604,18 +3977,18 @@ BEGIN
 				, `is_item_moved`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
+					(@syst_created_datetime_add_u_l3_1
+					, @creation_system_id_add_u_l3_1
 					, @creator_mefe_user_id_add_u_l3_1
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
+					, @creation_method_add_u_l3_1
+					, @organization_id_add_u_l3_1
+					, @is_obsolete_id_add_u_l3_1
+					, @is_update_needed_add_u_l3_1
 					# Which unit/user
-					, @unee_t_mefe_user_id
-					, @unee_t_mefe_unit_id
+					, @unee_t_mefe_user_id_add_u_l3_1
+					, @unee_t_mefe_unit_id_add_u_l3_1
 					# which role
-					, @unee_t_role_id
+					, @unee_t_role_id_add_u_l3_1
 					, @is_occupant
 					# additional permissions
 					, @is_default_assignee
@@ -2654,107 +4027,57 @@ BEGIN
 					, @is_item_removed
 					, @is_item_moved
 					)
+				ON DUPLICATE KEY UPDATE
+					`syst_updated_datetime` := @syst_updated_datetime_add_u_l3_1
+					, `update_system_id` := @update_system_id_add_u_l3_1
+					, `updated_by_id` := @creator_mefe_user_id_add_u_l3_1
+					, `update_method` := @update_method_add_u_l3_1
+					, `organization_id` := @organization_id_add_u_l3_1
+					, `is_obsolete` := @is_obsolete_add_u_l3_1
+					, `is_update_needed` := @is_update_needed_add_u_l3_1
+					# Which unit/user
+					, `unee_t_mefe_id` := @unee_t_mefe_user_id_add_u_l3_1
+					, `unee_t_unit_id` := @unee_t_mefe_unit_id_add_u_l3_1
+					# which role
+					, `unee_t_role_id` := @unee_t_role_id_add_u_l3_1
+					, `is_occupant` := @is_occupant
+					# additional permissions
+					, `is_default_assignee` := @is_default_assignee
+					, `is_default_invited` := @is_default_invited
+					, `is_unit_owner` := @is_unit_owner
+					# Visibility rules
+					, `is_public` := @is_public
+					, `can_see_role_landlord` := @can_see_role_landlord
+					, `can_see_role_tenant` := @can_see_role_tenant
+					, `can_see_role_mgt_cny` := @can_see_role_mgt_cny
+					, `can_see_role_agent` := @can_see_role_agent
+					, `can_see_role_contractor` := @can_see_role_contractor
+					, `can_see_occupant` := @can_see_occupant
+					# Notification rules
+					# - case - information
+					, `is_assigned_to_case` := @is_assigned_to_case
+					, `is_invited_to_case` := @is_invited_to_case
+					, `is_next_step_updated` := @is_next_step_updated
+					, `is_deadline_updated` := @is_deadline_updated
+					, `is_solution_updated` := @is_solution_updated
+					, `is_case_resolved` := @is_case_resolved
+					, `is_case_blocker` := @is_case_blocker
+					, `is_case_critical` := @is_case_critical
+					# - case - messages
+					, `is_any_new_message` := @is_any_new_message
+					, `is_message_from_tenant` := @is_message_from_tenant
+					, `is_message_from_ll` := @is_message_from_ll
+					, `is_message_from_occupant` := @is_message_from_occupant
+					, `is_message_from_agent` := @is_message_from_agent
+					, `is_message_from_mgt_cny` := @is_message_from_mgt_cny
+					, `is_message_from_contractor` := @is_message_from_contractor
+					# - Inspection Reports
+					, `is_new_ir` := @is_new_ir
+					# - Inventory
+					, `is_new_item` := @is_new_item
+					, `is_item_removed` := @is_item_removed
+					, `is_item_moved` := @is_item_moved
 					;
-
-	END IF;
-END;
-$$
-DELIMITER ;
-
-# We insert the information in the table `ut_map_user_permissions_unit_all` too
-# insert in the table `ut_map_user_permissions_unit_all` triggers the lambda to associate user and unit.
-
-	DROP TRIGGER IF EXISTS `ut_add_user_to_role_in_unit_with_visibility_level_3`;
-
-DELIMITER $$
-CREATE TRIGGER `ut_add_user_to_role_in_unit_with_visibility_level_3`
-AFTER INSERT ON `ut_map_user_permissions_unit_level_3`
-FOR EACH ROW
-BEGIN
-
-# We only do this IF
-#	- This is done via an authorized insert method:
-#		- 'ut_add_user_to_role_in_a_level_3_property'
-#
-
-	SET @upstream_create_method_add_u_l3_2 = NEW.`creation_method` ;
-	SET @upstream_update_method_add_u_l3_2 = NEW.`update_method` ;
-
-	IF (@upstream_update_method_add_u_l3_2 = 'ut_add_user_to_role_in_a_level_3_property'
-		)
-	THEN 
-
-	# We capture the variables that we need:
-
-		SET @this_trigger = 'ut_add_user_to_role_in_unit_with_visibility_level_3' ;
-
-		SET @syst_created_datetime = NOW() ;
-		SET @creation_system_id = NEW.`creation_system_id` ;
-		SET @created_by_id_add_u_l3_1 = NEW.`created_by_id` ;
-		SET @creation_method = @this_trigger ;
-
-
-		SET @syst_updated_datetime = NOW() ;
-		SET @update_system_id = NEW.`creation_system_id` ;
-		SET @updated_by_id_add_u_l3_1 = NEW.`created_by_id` ;
-		SET @update_method = @this_trigger ;
-
-		SET @organization_id = NEW.`organization_id`; 
-
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @is_update_needed = NULL ;
-
-		SET @unee_t_mefe_user_id = NEW.`unee_t_mefe_id` ;
-		SET @unee_t_mefe_unit_id = NEW.`unee_t_unit_id` ;
-
-		SET @system_id_level_2 = (SELECT `new_record_id`
-			FROM `ut_map_external_source_units`
-			WHERE `unee_t_mefe_unit_id` = @unee_t_mefe_unit_id
-				AND `external_property_type_id` = 2
-			)
-			;
-
-		SET @unee_t_role_id = NEW.`unee_t_role_id` ;
-		SET @is_occupant = NEW.`is_occupant` ;
-
-		SET @is_default_assignee = NEW.`is_default_assignee` ;
-		SET @is_default_invited = NEW.`is_default_invited` ;
-
-		SET @is_unit_owner = NEW.`is_unit_owner` ;
-
-		SET @is_public = NEW.`is_public` ;
-
-		SET @can_see_role_landlord = NEW.`can_see_role_landlord` ;
-		SET @can_see_role_tenant = NEW.`can_see_role_tenant` ;
-		SET @can_see_role_mgt_cny = NEW.`can_see_role_mgt_cny` ;
-		SET @can_see_role_agent = NEW.`can_see_role_agent` ;
-		SET @can_see_role_contractor = NEW.`can_see_role_contractor` ;
-		SET @can_see_occupant = NEW.`can_see_occupant` ;
-
-		SET @is_assigned_to_case = NEW.`is_assigned_to_case` ;
-		SET @is_invited_to_case = NEW.`is_invited_to_case` ;
-		SET @is_next_step_updated = NEW.`is_next_step_updated` ;
-		SET @is_deadline_updated = NEW.`is_deadline_updated` ;
-		SET @is_solution_updated = NEW.`is_solution_updated` ;
-		SET @is_case_resolved = NEW.`is_case_resolved` ;
-
-		SET @is_case_blocker = NEW.`is_case_blocker` ;
-		SET @is_case_critical = NEW.`is_case_critical` ;
-
-		SET @is_any_new_message = NEW.`is_any_new_message` ;
-
-		SET @is_message_from_tenant = NEW.`is_message_from_tenant` ;
-		SET @is_message_from_ll = NEW.`is_message_from_ll` ;
-		SET @is_message_from_occupant = NEW.`is_message_from_occupant` ;
-		SET @is_message_from_agent = NEW.`is_message_from_agent` ;
-		SET @is_message_from_mgt_cny = NEW.`is_message_from_mgt_cny` ;
-		SET @is_message_from_contractor = NEW.`is_message_from_contractor` ;
-
-		SET @is_new_ir = NEW.`is_new_ir` ;
-
-		SET @is_new_item = NEW.`is_new_item` ;
-		SET @is_item_removed = NEW.`is_item_removed` ;
-		SET @is_item_moved = NEW.`is_item_moved` ;
 
 	# We can now include these into the table that triggers the lambda
 
@@ -2766,13 +4089,17 @@ BEGIN
 			, `organization_id`
 			, `is_obsolete`
 			, `is_update_needed`
+			# Which unit/user
 			, `unee_t_mefe_id`
 			, `unee_t_unit_id`
+			# which role
 			, `unee_t_role_id`
 			, `is_occupant`
+			# additional permissions
 			, `is_default_assignee`
 			, `is_default_invited`
 			, `is_unit_owner`
+			# Visibility rules
 			, `is_public`
 			, `can_see_role_landlord`
 			, `can_see_role_tenant`
@@ -2780,6 +4107,8 @@ BEGIN
 			, `can_see_role_agent`
 			, `can_see_role_contractor`
 			, `can_see_occupant`
+			# Notification rules
+			# - case - information
 			, `is_assigned_to_case`
 			, `is_invited_to_case`
 			, `is_next_step_updated`
@@ -2788,6 +4117,7 @@ BEGIN
 			, `is_case_resolved`
 			, `is_case_blocker`
 			, `is_case_critical`
+			# - case - messages
 			, `is_any_new_message`
 			, `is_message_from_tenant`
 			, `is_message_from_ll`
@@ -2795,26 +4125,32 @@ BEGIN
 			, `is_message_from_agent`
 			, `is_message_from_mgt_cny`
 			, `is_message_from_contractor`
+			# - Inspection Reports
 			, `is_new_ir`
+			# - Inventory
 			, `is_new_item`
 			, `is_item_removed`
 			, `is_item_moved`
 			)
 			VALUES
-				(@syst_created_datetime
-				, @creation_system_id
-				, @created_by_id_add_u_l3_1
-				, @creation_method
-				, @organization_id
+				(@syst_created_datetime_add_u_l3_1
+				, @creation_system_id_add_u_l3_1
+				, @creator_mefe_user_id_add_u_l3_1
+				, @creation_method_add_u_l3_1
+				, @organization_id_add_u_l3_1
 				, @is_obsolete
-				, @is_update_needed
-				, @unee_t_mefe_user_id
-				, @unee_t_mefe_unit_id
-				, @unee_t_role_id
+				, @is_update_needed_add_u_l3_1
+				# Which unit/user
+				, @unee_t_mefe_user_id_add_u_l3_1
+				, @unee_t_mefe_unit_id_add_u_l3_1
+				# which role
+				, @unee_t_role_id_add_u_l3_1
 				, @is_occupant
+				# additional permissions
 				, @is_default_assignee
 				, @is_default_invited
 				, @is_unit_owner
+				# Visibility rules
 				, @is_public
 				, @can_see_role_landlord
 				, @can_see_role_tenant
@@ -2822,6 +4158,8 @@ BEGIN
 				, @can_see_role_agent
 				, @can_see_role_contractor
 				, @can_see_occupant
+				# Notification rules
+				# - case - information
 				, @is_assigned_to_case
 				, @is_invited_to_case
 				, @is_next_step_updated
@@ -2830,6 +4168,7 @@ BEGIN
 				, @is_case_resolved
 				, @is_case_blocker
 				, @is_case_critical
+				# - case - messages
 				, @is_any_new_message
 				, @is_message_from_tenant
 				, @is_message_from_ll
@@ -2837,52 +4176,54 @@ BEGIN
 				, @is_message_from_agent
 				, @is_message_from_mgt_cny
 				, @is_message_from_contractor
+				# - Inspection Reports
 				, @is_new_ir
+				# - Inventory
 				, @is_new_item
 				, @is_item_removed
 				, @is_item_moved
 				)
 			ON DUPLICATE KEY UPDATE
-				`syst_updated_datetime` = @syst_updated_datetime
-				, `update_system_id` = @update_system_id
-				, `updated_by_id` = @updated_by_id_add_u_l3_1
-				, `update_method` = @update_method
-				, `organization_id` = @organization_id
-				, `is_obsolete` = @is_obsolete
-				, `is_update_needed` = 1
-				, `unee_t_mefe_id` = @unee_t_mefe_user_id
-				, `unee_t_unit_id` = @unee_t_mefe_unit_id
-				, `unee_t_role_id` = @unee_t_role_id
-				, `is_occupant` = @is_occupant
-				, `is_default_assignee` = @is_default_assignee
-				, `is_default_invited` = @is_default_invited
-				, `is_unit_owner` = @is_unit_owner
-				, `is_public` = @is_public
-				, `can_see_role_landlord` = @can_see_role_landlord
-				, `can_see_role_tenant` = @can_see_role_tenant
-				, `can_see_role_mgt_cny` = @can_see_role_mgt_cny
-				, `can_see_role_agent` = @can_see_role_agent
-				, `can_see_role_contractor` = @can_see_role_contractor
-				, `can_see_occupant` = @can_see_occupant
-				, `is_assigned_to_case` = @is_assigned_to_case
-				, `is_invited_to_case` = @is_invited_to_case
-				, `is_next_step_updated` = @is_next_step_updated
-				, `is_deadline_updated` = @is_deadline_updated
-				, `is_solution_updated` = @is_solution_updated
-				, `is_case_resolved` = @is_case_resolved
-				, `is_case_blocker` = @is_case_blocker
-				, `is_case_critical` = @is_case_critical
-				, `is_any_new_message` = @is_any_new_message
-				, `is_message_from_tenant` = @is_message_from_tenant
-				, `is_message_from_ll` = @is_message_from_ll
-				, `is_message_from_occupant` = @is_message_from_occupant
-				, `is_message_from_agent` = @is_message_from_agent
-				, `is_message_from_mgt_cny` = @is_message_from_mgt_cny
-				, `is_message_from_contractor` = @is_message_from_contractor
-				, `is_new_ir` = @is_new_ir
-				, `is_new_item` = @is_new_item
-				, `is_item_removed` = @is_item_removed
-				, `is_item_moved` = @is_item_moved
+				`syst_updated_datetime` := @syst_updated_datetime_add_u_l3_1
+				, `update_system_id` := @update_system_id_add_u_l3_1
+				, `updated_by_id` := @creator_mefe_user_id_add_u_l3_1
+				, `update_method` := @update_method_add_u_l3_1
+				, `organization_id` := @organization_id_add_u_l3_1
+				, `is_obsolete` := @is_obsolete
+				, `is_update_needed` := 1
+				, `unee_t_mefe_id` := @unee_t_mefe_user_id_add_u_l3_1
+				, `unee_t_unit_id` := @unee_t_mefe_unit_id_add_u_l3_1
+				, `unee_t_role_id` := @unee_t_role_id_add_u_l3_1
+				, `is_occupant` := @is_occupant
+				, `is_default_assignee` := @is_default_assignee
+				, `is_default_invited` := @is_default_invited
+				, `is_unit_owner` := @is_unit_owner
+				, `is_public` := @is_public
+				, `can_see_role_landlord` := @can_see_role_landlord
+				, `can_see_role_tenant` := @can_see_role_tenant
+				, `can_see_role_mgt_cny` := @can_see_role_mgt_cny
+				, `can_see_role_agent` := @can_see_role_agent
+				, `can_see_role_contractor` := @can_see_role_contractor
+				, `can_see_occupant` := @can_see_occupant
+				, `is_assigned_to_case` := @is_assigned_to_case
+				, `is_invited_to_case` := @is_invited_to_case
+				, `is_next_step_updated` := @is_next_step_updated
+				, `is_deadline_updated` := @is_deadline_updated
+				, `is_solution_updated` := @is_solution_updated
+				, `is_case_resolved` := @is_case_resolved
+				, `is_case_blocker` := @is_case_blocker
+				, `is_case_critical` := @is_case_critical
+				, `is_any_new_message` := @is_any_new_message
+				, `is_message_from_tenant` := @is_message_from_tenant
+				, `is_message_from_ll` := @is_message_from_ll
+				, `is_message_from_occupant` := @is_message_from_occupant
+				, `is_message_from_agent` := @is_message_from_agent
+				, `is_message_from_mgt_cny` := @is_message_from_mgt_cny
+				, `is_message_from_contractor` := @is_message_from_contractor
+				, `is_new_ir` := @is_new_ir
+				, `is_new_item` := @is_new_item
+				, `is_item_removed` := @is_item_removed
+				, `is_item_moved` := @is_item_moved
 				;
 
 	END IF;
@@ -5741,6 +7082,1839 @@ END $$
 DELIMITER ;
 
 #################
+#
+# Views and procedures we need if we need to re-try
+#   - Association user to unit
+# The source of the error was:
+#	- `[the requestor] is not an owner of unit`
+#	- `The invited user already has a role in this unit`
+#
+#################
+#
+# This script creates the following tables:
+#	- `retry_assign_user_to_units_list`
+#
+# This script will create or update the following:
+#	- Views:
+#		- `ut_analysis_errors_user_already_has_a_role_list`
+#		- `ut_analysis_errors_user_already_has_a_role_count`
+#		- `ut_analysis_errors_not_an_owner_list`
+#		- `ut_analysis_errors_not_an_owner_count`
+#
+# 	- Procedures
+#		- `ut_retry_assign_user_to_units_error_ownership`
+#		- `ut_retry_assign_user_to_units_error_already_has_role`
+#		- ``
+
+
+# We Create a table that will be used to activate the trigger for re-creation
+
+	DROP TABLE IF EXISTS `retry_assign_user_to_units_list` ;
+
+	CREATE TABLE `retry_assign_user_to_units_list` (
+		`id_map_user_unit_permissions` INT(11) NOT NULL COMMENT 'Id in this table',
+  		`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
+  		`creation_system_id` int(11) NOT NULL DEFAULT 1 COMMENT 'What is the id of the sytem that was used for the creation of the record?',
+		`created_by_id` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
+		`creation_method` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL,
+		`mefe_user_id` VARCHAR (255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
+		`uneet_login_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The MEFE login of the user we invite',
+		`mefe_unit_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'ID of that Unit in Unee-T. This is the value of the field _id in the Mongo collection units',
+		`uneet_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The name of the unit in the MEFE',
+		`unee_t_role_id` smallint(6) DEFAULT NULL COMMENT 'FK to the Unee-T BZFE table `ut_role_types` - ID of the Role for this user.',
+		`is_occupant` tinyint(1) DEFAULT 0 COMMENT '1 is the user is an occupant of the unit',
+		`is_default_assignee` tinyint(1) DEFAULT 0 COMMENT '1 if this user is the default assignee for this role for this unit.',
+		`is_default_invited` tinyint(1) DEFAULT 0 COMMENT '1 if the user is automatically invited to all the new cases in this role for this unit',
+		`is_unit_owner` tinyint(1) DEFAULT 0 COMMENT '1 if this user is one of the Unee-T `owner` of that unit',
+		`is_public` tinyint(1) DEFAULT 0 COMMENT '1 if the user is Visible to other Unee-T users in other roles for this unit. If yes/1/TRUE then all other roles will be able to see this user. IF No/FALSE/0 then only the users in the same role for that unit will be able to see this user in this unit',
+		`can_see_role_landlord` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `landlord` (2) for this unit',
+		`can_see_role_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `tenant` (1) for this unit',
+		`can_see_role_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `Mgt Company` (4) for this unit',
+		`can_see_role_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `agent` (5) for this unit',
+		`can_see_role_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `contractor` (3) for this unit',
+		`can_see_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC occupants for this unit',
+		`is_assigned_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_invited_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_next_step_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_deadline_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_solution_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_resolved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_blocker` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_critical` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_any_new_message` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_my_role` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_ll` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_new_ir` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_new_item` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_item_removed` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_item_moved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		PRIMARY KEY (`mefe_user_id`,`mefe_unit_id`),
+		UNIQUE KEY `map_user_unit_role_permissions` (`id_map_user_unit_permissions`),
+		KEY `retry_mefe_unit_must_exist` (`mefe_unit_id`)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
+		;
+
+# We create a view to list all the error where the user already has a role in the unit
+
+	DROP VIEW IF EXISTS `ut_analysis_errors_user_already_has_a_role_list` ;
+
+	CREATE VIEW `ut_analysis_errors_user_already_has_a_role_list`
+	AS
+		SELECT
+		`a`.`id_map_user_unit_permissions`
+		, `a`.`syst_created_datetime`
+		, `a`.`unee_t_update_ts`
+		, `a`.`is_mefe_api_success`
+		, `a`.`mefe_api_error_message`
+		, `a`.`unee_t_mefe_id` AS `mefe_user_id`
+		, `b`.`uneet_login_name`
+		, `a`.`unee_t_unit_id`
+		, `c`.`uneet_name`
+		, `d`.`role_type`
+	FROM
+		`ut_map_user_permissions_unit_all` AS `a`
+		LEFT JOIN `ut_map_external_source_users` AS `b`
+		ON (`a`.`unee_t_mefe_id` = `b`.`unee_t_mefe_user_id`)
+		LEFT JOIN `ut_map_external_source_units` AS `c`
+		ON (`a`.`unee_t_unit_id` = `c`.`unee_t_mefe_unit_id`)
+		LEFT JOIN `ut_user_role_types` AS `d`
+		ON (`a`.`unee_t_role_id` = `d`.`id_role_type`)
+	WHERE (`a`.`is_mefe_api_success` = 0
+		AND `a`.`mefe_api_error_message` LIKE '%The invited user already has a role in this unit%')
+		;
+
+# We create a view to count all the error where the user already has a role in the unit
+
+	DROP VIEW IF EXISTS `ut_analysis_errors_user_already_has_a_role_count` ;
+
+	CREATE VIEW `ut_analysis_errors_user_already_has_a_role_count`
+	AS	
+	SELECT
+		COUNT(`id_map_user_unit_permissions`) AS `count_user_already_has_role`
+	FROM
+		`ut_analysis_errors_user_already_has_a_role_list`
+	GROUP BY `is_mefe_api_success`
+	;
+
+# We create a view to list all the error where the unit the reqestor is not an owner of the unit
+
+	DROP VIEW IF EXISTS `ut_analysis_errors_not_an_owner_list` ;
+
+	CREATE VIEW `ut_analysis_errors_not_an_owner_list`
+	AS
+		SELECT
+		`a`.`id_map_user_unit_permissions`
+		, `a`.`syst_created_datetime`
+		, `a`.`unee_t_update_ts`
+		, `a`.`is_mefe_api_success`
+		, `a`.`mefe_api_error_message`
+		, `a`.`unee_t_mefe_id` AS `mefe_user_id`
+		, `b`.`uneet_login_name`
+		, `a`.`unee_t_unit_id`
+		, `c`.`uneet_name`
+		, `d`.`role_type`
+	FROM
+		`ut_map_user_permissions_unit_all` AS `a`
+		LEFT JOIN `ut_map_external_source_users` AS `b`
+		ON (`a`.`unee_t_mefe_id` = `b`.`unee_t_mefe_user_id`)
+		LEFT JOIN `ut_map_external_source_units` AS `c`
+		ON (`a`.`unee_t_unit_id` = `c`.`unee_t_mefe_unit_id`)
+		LEFT JOIN `ut_user_role_types` AS `d`
+		ON (`a`.`unee_t_role_id` = `d`.`id_role_type`)
+	WHERE (`a`.`is_mefe_api_success` = 0
+		AND `a`.`mefe_api_error_message` LIKE '%not an owner of unit%')
+		;
+
+# We create a view to count all the error where the user already has a role in the unit
+
+	DROP VIEW IF EXISTS `ut_analysis_errors_not_an_owner_count` ;
+
+	CREATE VIEW `ut_analysis_errors_not_an_owner_count`
+	AS	
+	SELECT
+		COUNT(`id_map_user_unit_permissions`) AS `count_reuquestor_not_an_owner`
+	FROM
+		`ut_analysis_errors_not_an_owner_list`
+	GROUP BY `is_mefe_api_success`
+	;
+
+# Error `[the requestor] is not an owner of unit`
+# Create the procedure to re-try creating the association user to unit if the API failed
+
+	DROP PROCEDURE IF EXISTS `ut_retry_assign_user_to_units_error_ownership`;
+
+DELIMITER $$
+CREATE PROCEDURE `ut_retry_assign_user_to_units_error_ownership`()
+	LANGUAGE SQL
+SQL SECURITY INVOKER
+BEGIN
+
+####################
+#
+# WARNING!!
+# Only run this if you are CERTAIN that the API has failed somehow
+#
+####################
+
+# Clean slate - remove all data from `retry_assign_user_to_units_list`
+
+	TRUNCATE TABLE `retry_assign_user_to_units_list` ;
+
+# We insert the data we need in the table `retry_assign_user_to_units_list`
+# This will trigger a retry of the lambda call
+
+	INSERT INTO `retry_assign_user_to_units_list`
+		( `id_map_user_unit_permissions`
+		, `syst_created_datetime`
+		, `creation_system_id`
+		, `created_by_id`
+		, `creation_method`
+		, `mefe_user_id`
+		, `uneet_login_name`
+		, `mefe_unit_id`
+		, `uneet_name`
+		, `unee_t_role_id`
+		, `is_occupant`
+		, `is_default_assignee`
+		, `is_default_invited`
+		, `is_unit_owner`
+		, `is_public`
+		, `can_see_role_landlord`
+		, `can_see_role_tenant`
+		, `can_see_role_mgt_cny`
+		, `can_see_role_agent`
+		, `can_see_role_contractor`
+		, `can_see_occupant`
+		, `is_assigned_to_case`
+		, `is_invited_to_case`
+		, `is_next_step_updated`
+		, `is_deadline_updated`
+		, `is_solution_updated`
+		, `is_case_resolved`
+		, `is_case_blocker`
+		, `is_case_critical`
+		, `is_any_new_message`
+		, `is_message_from_my_role`
+		, `is_message_from_tenant`
+		, `is_message_from_ll`
+		, `is_message_from_occupant`
+		, `is_message_from_agent`
+		, `is_message_from_mgt_cny`
+		, `is_message_from_contractor`
+		, `is_new_ir`
+		, `is_new_item`
+		, `is_item_removed`
+		, `is_item_moved`
+		)
+	SELECT
+		`a`.`id_map_user_unit_permissions`
+		, `b`.`syst_created_datetime`
+		, `b`.`creation_system_id`
+		, `b`.`created_by_id`
+		, 'ut_retry_assign_user_to_units_error_ownership'
+		, `a`.`mefe_user_id`
+		, `a`.`uneet_login_name`
+		, `a`.`unee_t_unit_id`
+		, `a`.`uneet_name`
+		, `b`.`unee_t_role_id`
+		, `b`.`is_occupant`
+		, `b`.`is_default_assignee`
+		, `b`.`is_default_invited`
+		, `b`.`is_unit_owner`
+		, `b`.`is_public`
+		, `b`.`can_see_role_landlord`
+		, `b`.`can_see_role_tenant`
+		, `b`.`can_see_role_mgt_cny`
+		, `b`.`can_see_role_agent`
+		, `b`.`can_see_role_contractor`
+		, `b`.`can_see_occupant`
+		, `b`.`is_assigned_to_case`
+		, `b`.`is_invited_to_case`
+		, `b`.`is_next_step_updated`
+		, `b`.`is_deadline_updated`
+		, `b`.`is_solution_updated`
+		, `b`.`is_case_resolved`
+		, `b`.`is_case_blocker`
+		, `b`.`is_case_critical`
+		, `b`.`is_any_new_message`
+		, `b`.`is_message_from_my_role`
+		, `b`.`is_message_from_tenant`
+		, `b`.`is_message_from_ll`
+		, `b`.`is_message_from_occupant`
+		, `b`.`is_message_from_agent`
+		, `b`.`is_message_from_mgt_cny`
+		, `b`.`is_message_from_contractor`
+		, `b`.`is_new_ir`
+		, `b`.`is_new_item`
+		, `b`.`is_item_removed`
+		, `b`.`is_item_moved`
+	FROM `ut_analysis_errors_not_an_owner_list` AS `a`
+		INNER JOIN `ut_map_user_permissions_unit_all` AS `b`
+			ON (`a`.`id_map_user_unit_permissions` = `b`.`id_map_user_unit_permissions`)
+		;
+
+END $$
+DELIMITER ;
+
+# Error `The invited user already has a role in this unit`
+# Create the procedure to re-try creating the association user to unit if the API failed
+
+	DROP PROCEDURE IF EXISTS `ut_retry_assign_user_to_units_error_already_has_role`;
+
+DELIMITER $$
+CREATE PROCEDURE `ut_retry_assign_user_to_units_error_already_has_role`()
+	LANGUAGE SQL
+SQL SECURITY INVOKER
+BEGIN
+
+####################
+#
+# WARNING!!
+# Only run this if you are CERTAIN that the API has failed somehow
+#
+####################
+
+	SET @creation_method := 'ut_retry_assign_user_to_units_error_already_has_role' ;
+
+# Level 1 units first
+# We create a TEMP table that will store the info so they can be accessible after deletion
+
+	DROP TEMPORARY TABLE IF EXISTS `retry_assign_user_to_units_list_temporary_level_1` ;
+
+	CREATE TEMPORARY TABLE `retry_assign_user_to_units_list_temporary_level_1` (
+		`id_map_user_unit_permissions` INT(11) NOT NULL COMMENT 'Id in this table',
+  		`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
+  		`creation_system_id` int(11) NOT NULL DEFAULT 1 COMMENT 'What is the id of the sytem that was used for the creation of the record?',
+		`created_by_id` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
+		`creation_method` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL,
+		`organization_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
+		`mefe_user_id` VARCHAR (255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
+		`uneet_login_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The MEFE login of the user we invite',
+		`mefe_unit_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'ID of that Unit in Unee-T. This is the value of the field _id in the Mongo collection units',
+		`unee_t_level_1_id` int(11) NOT NULL COMMENT 'A FK to the table `property_level_1_buildings`',
+		`unee_t_user_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_user_types`',
+		`external_property_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_property_types`',
+		`uneet_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The name of the unit in the MEFE',
+		`unee_t_role_id` smallint(6) DEFAULT NULL COMMENT 'FK to the Unee-T BZFE table `ut_role_types` - ID of the Role for this user.',
+		`is_occupant` tinyint(1) DEFAULT 0 COMMENT '1 is the user is an occupant of the unit',
+		`is_default_assignee` tinyint(1) DEFAULT 0 COMMENT '1 if this user is the default assignee for this role for this unit.',
+		`is_default_invited` tinyint(1) DEFAULT 0 COMMENT '1 if the user is automatically invited to all the new cases in this role for this unit',
+		`is_unit_owner` tinyint(1) DEFAULT 0 COMMENT '1 if this user is one of the Unee-T `owner` of that unit',
+		`is_public` tinyint(1) DEFAULT 0 COMMENT '1 if the user is Visible to other Unee-T users in other roles for this unit. If yes/1/TRUE then all other roles will be able to see this user. IF No/FALSE/0 then only the users in the same role for that unit will be able to see this user in this unit',
+		`can_see_role_landlord` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `landlord` (2) for this unit',
+		`can_see_role_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `tenant` (1) for this unit',
+		`can_see_role_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `Mgt Company` (4) for this unit',
+		`can_see_role_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `agent` (5) for this unit',
+		`can_see_role_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `contractor` (3) for this unit',
+		`can_see_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC occupants for this unit',
+		`is_assigned_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_invited_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_next_step_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_deadline_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_solution_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_resolved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_blocker` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_critical` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_any_new_message` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_my_role` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_ll` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_new_ir` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_new_item` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_item_removed` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_item_moved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		PRIMARY KEY (`mefe_user_id`,`mefe_unit_id`),
+		UNIQUE KEY `map_user_unit_role_permissions` (`id_map_user_unit_permissions`),
+		KEY `retry_mefe_unit_must_exist` (`mefe_unit_id`)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
+		;
+
+# We insert the data we need in the table `retry_assign_user_to_units_list_temporary_level_1`
+# We start with the Level 1 units.
+
+	INSERT INTO `retry_assign_user_to_units_list_temporary_level_1`
+		( `id_map_user_unit_permissions`
+		, `syst_created_datetime`
+		, `creation_system_id`
+		, `created_by_id`
+		, `creation_method`
+		, `organization_id`
+		, `mefe_user_id`
+		, `uneet_login_name`
+		, `mefe_unit_id`
+		, `unee_t_level_1_id`
+		, `unee_t_user_type_id`
+		, `external_property_type_id`
+		, `uneet_name`
+		, `unee_t_role_id`
+		, `is_occupant`
+		, `is_default_assignee`
+		, `is_default_invited`
+		, `is_unit_owner`
+		, `is_public`
+		, `can_see_role_landlord`
+		, `can_see_role_tenant`
+		, `can_see_role_mgt_cny`
+		, `can_see_role_agent`
+		, `can_see_role_contractor`
+		, `can_see_occupant`
+		, `is_assigned_to_case`
+		, `is_invited_to_case`
+		, `is_next_step_updated`
+		, `is_deadline_updated`
+		, `is_solution_updated`
+		, `is_case_resolved`
+		, `is_case_blocker`
+		, `is_case_critical`
+		, `is_any_new_message`
+		, `is_message_from_my_role`
+		, `is_message_from_tenant`
+		, `is_message_from_ll`
+		, `is_message_from_occupant`
+		, `is_message_from_agent`
+		, `is_message_from_mgt_cny`
+		, `is_message_from_contractor`
+		, `is_new_ir`
+		, `is_new_item`
+		, `is_item_removed`
+		, `is_item_moved`
+		)
+	SELECT
+		`a`.`id_map_user_unit_permissions`
+		, `b`.`syst_created_datetime`
+		, `b`.`creation_system_id`
+		, `b`.`organization_id`
+		, @creation_method
+		, `b`.`organization_id`
+		, `a`.`mefe_user_id`
+		, `a`.`uneet_login_name`
+		, `a`.`unee_t_unit_id`
+		, `c`.`new_record_id`
+		, `e`.`unee_t_user_type_id`
+		, `c`.`external_property_type_id`
+		, `a`.`uneet_name`
+		, `b`.`unee_t_role_id`
+		, `b`.`is_occupant`
+		, `b`.`is_default_assignee`
+		, `b`.`is_default_invited`
+		, `b`.`is_unit_owner`
+		, `b`.`is_public`
+		, `b`.`can_see_role_landlord`
+		, `b`.`can_see_role_tenant`
+		, `b`.`can_see_role_mgt_cny`
+		, `b`.`can_see_role_agent`
+		, `b`.`can_see_role_contractor`
+		, `b`.`can_see_occupant`
+		, `b`.`is_assigned_to_case`
+		, `b`.`is_invited_to_case`
+		, `b`.`is_next_step_updated`
+		, `b`.`is_deadline_updated`
+		, `b`.`is_solution_updated`
+		, `b`.`is_case_resolved`
+		, `b`.`is_case_blocker`
+		, `b`.`is_case_critical`
+		, `b`.`is_any_new_message`
+		, `b`.`is_message_from_my_role`
+		, `b`.`is_message_from_tenant`
+		, `b`.`is_message_from_ll`
+		, `b`.`is_message_from_occupant`
+		, `b`.`is_message_from_agent`
+		, `b`.`is_message_from_mgt_cny`
+		, `b`.`is_message_from_contractor`
+		, `b`.`is_new_ir`
+		, `b`.`is_new_item`
+		, `b`.`is_item_removed`
+		, `b`.`is_item_moved`
+	FROM `ut_analysis_errors_user_already_has_a_role_list` AS `a`
+		INNER JOIN `ut_map_user_permissions_unit_all` AS `b`
+			ON (`a`.`id_map_user_unit_permissions` = `b`.`id_map_user_unit_permissions`)
+		INNER JOIN `ut_map_external_source_units` AS `c`
+			ON (`a`.`unee_t_unit_id` = `c`.`unee_t_mefe_unit_id`)
+		INNER JOIN `ut_map_external_source_users` AS `d`
+			ON (`a`.`mefe_user_id` = `d`.`unee_t_mefe_user_id`)
+		INNER JOIN `persons` AS `e`
+			ON (`e`.`id_person` = `d`.`person_id`)
+		WHERE `c`.`external_property_type_id` = 1
+		;
+
+# We can now DELETE all the offending records from the table `external_map_user_unit_role_permissions_level_1`
+# The deletion will cascase to Level 2 and level 3 units.
+
+	DELETE `external_map_user_unit_role_permissions_level_1` FROM `external_map_user_unit_role_permissions_level_1`
+		INNER JOIN `retry_assign_user_to_units_list_temporary_level_1`
+			ON (`external_map_user_unit_role_permissions_level_1`.`unee_t_level_1_id` = `retry_assign_user_to_units_list_temporary_level_1`.`unee_t_level_1_id`
+				AND `external_map_user_unit_role_permissions_level_1`.`unee_t_mefe_user_id` = `retry_assign_user_to_units_list_temporary_level_1`.`mefe_user_id`)
+		;
+
+# Clean slate - remove all data from `retry_assign_user_to_units_list`
+
+	TRUNCATE TABLE `retry_assign_user_to_units_list` ;
+
+# Are now re-inserting the records that were deleted for the Level 1 units:
+
+	INSERT INTO `external_map_user_unit_role_permissions_level_1`
+		( `syst_created_datetime`
+		, `creation_system_id`
+		, `created_by_id`
+		, `creation_method`
+		, `organization_id`
+		, `unee_t_mefe_user_id`
+		, `unee_t_level_1_id`
+		, `unee_t_user_type_id`
+		, `unee_t_role_id`
+		, `propagate_level_2`
+		, `propagate_level_3`
+		)
+	SELECT
+		`a`.`syst_created_datetime`
+		, `a`.`creation_system_id`
+		, `a`.`created_by_id`
+		, `a`.`creation_method`
+		, `a`.`organization_id`
+		, `a`.`mefe_user_id`
+		, `a`.`unee_t_level_1_id`
+		, `a`.`unee_t_user_type_id`
+		, `a`.`unee_t_role_id`
+		, 1
+		, 1
+	FROM `retry_assign_user_to_units_list_temporary_level_1` AS `a`
+		;
+
+# Level 2 units
+# We create a TEMP table that will store the info so they can be accessible after deletion
+
+	DROP TEMPORARY TABLE IF EXISTS `retry_assign_user_to_units_list_temporary_level_2` ;
+
+	CREATE TEMPORARY TABLE `retry_assign_user_to_units_list_temporary_level_2` (
+		`id_map_user_unit_permissions` INT(11) NOT NULL COMMENT 'Id in this table',
+  		`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
+  		`creation_system_id` int(11) NOT NULL DEFAULT 1 COMMENT 'What is the id of the sytem that was used for the creation of the record?',
+		`created_by_id` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
+		`creation_method` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL,
+		`organization_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
+		`mefe_user_id` VARCHAR (255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
+		`uneet_login_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The MEFE login of the user we invite',
+		`mefe_unit_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'ID of that Unit in Unee-T. This is the value of the field _id in the Mongo collection units',
+		`unee_t_level_2_id` int(11) NOT NULL COMMENT 'A FK to the table `property_level_1_buildings`',
+		`unee_t_user_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_user_types`',
+		`external_property_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_property_types`',
+		`uneet_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The name of the unit in the MEFE',
+		`unee_t_role_id` smallint(6) DEFAULT NULL COMMENT 'FK to the Unee-T BZFE table `ut_role_types` - ID of the Role for this user.',
+		`is_occupant` tinyint(1) DEFAULT 0 COMMENT '1 is the user is an occupant of the unit',
+		`is_default_assignee` tinyint(1) DEFAULT 0 COMMENT '1 if this user is the default assignee for this role for this unit.',
+		`is_default_invited` tinyint(1) DEFAULT 0 COMMENT '1 if the user is automatically invited to all the new cases in this role for this unit',
+		`is_unit_owner` tinyint(1) DEFAULT 0 COMMENT '1 if this user is one of the Unee-T `owner` of that unit',
+		`is_public` tinyint(1) DEFAULT 0 COMMENT '1 if the user is Visible to other Unee-T users in other roles for this unit. If yes/1/TRUE then all other roles will be able to see this user. IF No/FALSE/0 then only the users in the same role for that unit will be able to see this user in this unit',
+		`can_see_role_landlord` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `landlord` (2) for this unit',
+		`can_see_role_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `tenant` (1) for this unit',
+		`can_see_role_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `Mgt Company` (4) for this unit',
+		`can_see_role_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `agent` (5) for this unit',
+		`can_see_role_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `contractor` (3) for this unit',
+		`can_see_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC occupants for this unit',
+		`is_assigned_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_invited_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_next_step_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_deadline_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_solution_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_resolved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_blocker` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_case_critical` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_any_new_message` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_my_role` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_ll` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_message_from_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_new_ir` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_new_item` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_item_removed` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		`is_item_moved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+		PRIMARY KEY (`mefe_user_id`,`mefe_unit_id`),
+		UNIQUE KEY `map_user_unit_role_permissions` (`id_map_user_unit_permissions`),
+		KEY `retry_mefe_unit_must_exist` (`mefe_unit_id`)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
+		;
+
+# We insert the data we need in the table `retry_assign_user_to_units_list_temporary_level_2`
+# Level 2 units.
+
+	INSERT INTO `retry_assign_user_to_units_list_temporary_level_2`
+		( `id_map_user_unit_permissions`
+		, `syst_created_datetime`
+		, `creation_system_id`
+		, `created_by_id`
+		, `creation_method`
+		, `organization_id`
+		, `mefe_user_id`
+		, `uneet_login_name`
+		, `mefe_unit_id`
+		, `unee_t_level_2_id`
+		, `unee_t_user_type_id`
+		, `external_property_type_id`
+		, `uneet_name`
+		, `unee_t_role_id`
+		, `is_occupant`
+		, `is_default_assignee`
+		, `is_default_invited`
+		, `is_unit_owner`
+		, `is_public`
+		, `can_see_role_landlord`
+		, `can_see_role_tenant`
+		, `can_see_role_mgt_cny`
+		, `can_see_role_agent`
+		, `can_see_role_contractor`
+		, `can_see_occupant`
+		, `is_assigned_to_case`
+		, `is_invited_to_case`
+		, `is_next_step_updated`
+		, `is_deadline_updated`
+		, `is_solution_updated`
+		, `is_case_resolved`
+		, `is_case_blocker`
+		, `is_case_critical`
+		, `is_any_new_message`
+		, `is_message_from_my_role`
+		, `is_message_from_tenant`
+		, `is_message_from_ll`
+		, `is_message_from_occupant`
+		, `is_message_from_agent`
+		, `is_message_from_mgt_cny`
+		, `is_message_from_contractor`
+		, `is_new_ir`
+		, `is_new_item`
+		, `is_item_removed`
+		, `is_item_moved`
+		)
+	SELECT
+		`a`.`id_map_user_unit_permissions`
+		, `b`.`syst_created_datetime`
+		, `b`.`creation_system_id`
+		, `b`.`organization_id`
+		, @creation_method
+		, `b`.`organization_id`
+		, `a`.`mefe_user_id`
+		, `a`.`uneet_login_name`
+		, `a`.`unee_t_unit_id`
+		, `c`.`new_record_id`
+		, `e`.`unee_t_user_type_id`
+		, `c`.`external_property_type_id`
+		, `a`.`uneet_name`
+		, `b`.`unee_t_role_id`
+		, `b`.`is_occupant`
+		, `b`.`is_default_assignee`
+		, `b`.`is_default_invited`
+		, `b`.`is_unit_owner`
+		, `b`.`is_public`
+		, `b`.`can_see_role_landlord`
+		, `b`.`can_see_role_tenant`
+		, `b`.`can_see_role_mgt_cny`
+		, `b`.`can_see_role_agent`
+		, `b`.`can_see_role_contractor`
+		, `b`.`can_see_occupant`
+		, `b`.`is_assigned_to_case`
+		, `b`.`is_invited_to_case`
+		, `b`.`is_next_step_updated`
+		, `b`.`is_deadline_updated`
+		, `b`.`is_solution_updated`
+		, `b`.`is_case_resolved`
+		, `b`.`is_case_blocker`
+		, `b`.`is_case_critical`
+		, `b`.`is_any_new_message`
+		, `b`.`is_message_from_my_role`
+		, `b`.`is_message_from_tenant`
+		, `b`.`is_message_from_ll`
+		, `b`.`is_message_from_occupant`
+		, `b`.`is_message_from_agent`
+		, `b`.`is_message_from_mgt_cny`
+		, `b`.`is_message_from_contractor`
+		, `b`.`is_new_ir`
+		, `b`.`is_new_item`
+		, `b`.`is_item_removed`
+		, `b`.`is_item_moved`
+	FROM `ut_analysis_errors_user_already_has_a_role_list` AS `a`
+		INNER JOIN `ut_map_user_permissions_unit_all` AS `b`
+			ON (`a`.`id_map_user_unit_permissions` = `b`.`id_map_user_unit_permissions`)
+		INNER JOIN `ut_map_external_source_units` AS `c`
+			ON (`a`.`unee_t_unit_id` = `c`.`unee_t_mefe_unit_id`)
+		INNER JOIN `ut_map_external_source_users` AS `d`
+			ON (`a`.`mefe_user_id` = `d`.`unee_t_mefe_user_id`)
+		INNER JOIN `persons` AS `e`
+			ON (`e`.`id_person` = `d`.`person_id`)
+		WHERE `c`.`external_property_type_id` = 2
+		;
+
+# We can now DELETE all the offending records from the table `external_map_user_unit_role_permissions_level_2`
+# The deletion will cascase to Level 2 and level 3 units.
+
+	DELETE `external_map_user_unit_role_permissions_level_2` FROM `external_map_user_unit_role_permissions_level_2`
+		INNER JOIN `retry_assign_user_to_units_list_temporary_level_2`
+			ON (`external_map_user_unit_role_permissions_level_2`.`unee_t_level_2_id` = `retry_assign_user_to_units_list_temporary_level_2`.`unee_t_level_2_id`
+				AND `external_map_user_unit_role_permissions_level_2`.`unee_t_mefe_user_id` = `retry_assign_user_to_units_list_temporary_level_2`.`mefe_user_id`)
+		;
+
+# Clean slate - remove all data from `retry_assign_user_to_units_list`
+
+	TRUNCATE TABLE `retry_assign_user_to_units_list` ;
+
+# Are now re-inserting the records that were deleted for the Level 2 units:
+
+	INSERT INTO `external_map_user_unit_role_permissions_level_2`
+		( `syst_created_datetime`
+		, `creation_system_id`
+		, `created_by_id`
+		, `creation_method`
+		, `organization_id`
+		, `unee_t_mefe_user_id`
+		, `unee_t_level_2_id`
+		, `unee_t_user_type_id`
+		, `unee_t_role_id`
+		, `propagate_level_3`
+		)
+	SELECT
+		`a`.`syst_created_datetime`
+		, `a`.`creation_system_id`
+		, `a`.`created_by_id`
+		, `a`.`creation_method`
+		, `a`.`organization_id`
+		, `a`.`mefe_user_id`
+		, `a`.`unee_t_level_2_id`
+		, `a`.`unee_t_user_type_id`
+		, `a`.`unee_t_role_id`
+		, 1
+	FROM `retry_assign_user_to_units_list_temporary_level_2` AS `a`
+		;
+
+
+
+END $$
+DELIMITER ;
+
+
+#################
+#	
+# When a new MEFE unit is created, auto assign all the users if needed:
+#	- Users who can see all units in the organization for the unit
+#	- Users who can see all units in the country for the unit
+#	- Users who can see all units in the area  for the unit
+#
+#################
+
+
+# After we have received a MEFE unit Id from the API, we need to assign that property 
+# to the users who need access to that property:
+
+	DROP TRIGGER IF EXISTS `ut_update_mefe_unit_id_assign_users_to_property`;
+
+DELIMITER $$
+CREATE TRIGGER `ut_update_mefe_unit_id_assign_users_to_property`
+AFTER UPDATE ON `ut_map_external_source_units`
+FOR EACH ROW
+BEGIN
+
+# We only do this IF
+#	- We have a MEFE unit unit for that property
+#	- This is an authorized update method
+#		- `ut_creation_unit_mefe_api_reply`
+
+	SET @unee_t_mefe_unit_id_trig_auto_assign_1 := NEW.`unee_t_mefe_unit_id` ;
+	SET @upstream_update_method_trig_auto_assign_1 := NEW.`update_method` ;
+
+	SET @requestor_id_trig_auto_assign_1 := NEW.`updated_by_id` ;
+
+	SET @created_by_id_trig_auto_assign_1 := (SELECT `organization_id`
+		FROM `ut_api_keys`
+		WHERE `mefe_user_id` = @requestor_id_trig_auto_assign_1
+		);
+
+	IF @requestor_id_trig_auto_assign_1 IS NOT NULL
+		AND @unee_t_mefe_unit_id_trig_auto_assign_1 IS NOT NULL
+		AND @upstream_update_method_trig_auto_assign_1 = 'ut_creation_unit_mefe_api_reply'
+	THEN 
+
+	# We need to list all the users that we should assign to this new property:
+	# These users are users who need to be assigned to:
+	#	- All the properties in the organization
+	#	- All the properties in the country where this property is
+	#	- All the properties in the Area where this property is
+
+		SET @external_property_type_id_trig_auto_assign_1 := NEW.`external_property_type_id` ;
+
+		SET @property_id_trig_auto_assign_1 := NEW.`new_record_id` ;
+
+		SET @organization_id_trig_auto_assign_1 := NEW.`organization_id` ;
+
+	# What is the country for that property
+
+		SET @property_country_code_trig_auto_assign_1 := (IF (@external_property_type_id_trig_auto_assign_1 = 1
+				, (SELECT `country_code`
+					FROM `ut_list_mefe_unit_id_level_1_by_area`
+					WHERE `level_1_building_id` = @property_id_trig_auto_assign_1
+					)
+				, IF (@external_property_type_id_trig_auto_assign_1 = 2
+					, (SELECT `country_code`
+						FROM `ut_list_mefe_unit_id_level_2_by_area`
+						WHERE `level_2_unit_id` = @property_id_trig_auto_assign_1
+						)
+					, IF (@external_property_type_id_trig_auto_assign_1 = 3
+						, (SELECT `country_code`
+							FROM `ut_list_mefe_unit_id_level_3_by_area`
+							WHERE `level_3_room_id` = @property_id_trig_auto_assign_1
+							)
+						, 'error - 1308'
+						)
+					)
+				)
+			);
+
+	# We get the other variables we need:
+
+		SET @syst_created_datetime_trig_auto_assign_1 := NOW() ;
+		SET @creation_system_id_trig_auto_assign_1 := 2 ;
+		SET @creation_method_trig_auto_assign_1 := 'ut_update_mefe_unit_id_assign_users_to_property' ;
+
+	# We create a temporary table to list all the users we need to add to that property:
+
+		DROP TEMPORARY TABLE IF EXISTS `temp_list_users_auto_assign_new_property` ;
+
+		CREATE TEMPORARY TABLE `temp_list_users_auto_assign_new_property` (
+			`id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Unique ID in this table',
+			`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
+			`creation_system_id` int(11) NOT NULL DEFAULT 1 COMMENT 'What is the id of the sytem that was used for the creation of the record?',
+			`requestor_id` varchar(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
+			`created_by_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
+ 			`creation_method` varchar(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'How was this record created',
+			`organization_id` int(11) unsigned DEFAULT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
+			`country_code` varchar(10) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The 2 letter version of the country code',
+			`mefe_user_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
+			`email` varchar(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The primary email address of the person',
+			`unee_t_user_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_user_types`',
+			`mefe_unit_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'ID of that Unit in Unee-T. This is a the value in the Mongo collection',
+			`unee_t_role_id` smallint(6) DEFAULT NULL COMMENT 'The ID of the Role Type for this user - this is a FK to the Unee-T BZFE table `ut_role_types`',
+			`is_occupant` tinyint(1) DEFAULT 0 COMMENT '1 is the user is an occupant of the unit',
+			`is_default_assignee` tinyint(1) DEFAULT 0 COMMENT '1 if this user is the default assignee for this role for this unit.',
+			`is_default_invited` tinyint(1) DEFAULT 0 COMMENT '1 if the user is automatically invited to all the new cases in this role for this unit',
+			`is_unit_owner` tinyint(1) DEFAULT 0 COMMENT '1 if this user is one of the Unee-T `owner` of that unit',
+			`is_public` tinyint(1) DEFAULT 0 COMMENT '1 if the user is Visible to other Unee-T users in other roles for this unit. If yes/1/TRUE then all other roles will be able to see this user. IF No/FALSE/0 then only the users in the same role for that unit will be able to see this user in this unit',
+			`can_see_role_landlord` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `landlord` (2) for this unit',
+			`can_see_role_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `tenant` (1) for this unit',
+			`can_see_role_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `Mgt Company` (4) for this unit',
+			`can_see_role_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `agent` (5) for this unit',
+			`can_see_role_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `contractor` (3) for this unit',
+			`can_see_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC occupants for this unit',
+			`is_assigned_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_invited_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_next_step_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_deadline_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_solution_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_case_resolved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_case_blocker` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_case_critical` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_any_new_message` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_message_from_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_message_from_ll` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_message_from_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_message_from_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_message_from_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_message_from_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_new_ir` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_new_item` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_item_removed` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			`is_item_moved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
+			PRIMARY KEY (`mefe_user_id`,`mefe_unit_id`),
+			UNIQUE KEY `temp_list_users_auto_assign_new_property_id` (`id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
+			;
+
+	# We insert all the user that should see all the units in the organization
+
+		INSERT INTO `temp_list_users_auto_assign_new_property`
+			(`syst_created_datetime`
+			, `creation_system_id`
+			, `requestor_id`
+			, `created_by_id`
+			, `creation_method`
+			, `organization_id`
+			, `mefe_user_id`
+			, `email`
+			, `unee_t_user_type_id`
+			, `mefe_unit_id`
+			, `unee_t_role_id`
+			, `is_occupant`
+			, `is_default_assignee`
+			, `is_default_invited`
+			, `is_unit_owner`
+			, `is_public`
+			, `can_see_role_landlord`
+			, `can_see_role_tenant`
+			, `can_see_role_mgt_cny`
+			, `can_see_role_agent`
+			, `can_see_role_contractor`
+			, `can_see_occupant`
+			, `is_assigned_to_case`
+			, `is_invited_to_case`
+			, `is_next_step_updated`
+			, `is_deadline_updated`
+			, `is_solution_updated`
+			, `is_case_resolved`
+			, `is_case_blocker`
+			, `is_case_critical`
+			, `is_any_new_message`
+			, `is_message_from_tenant`
+			, `is_message_from_ll`
+			, `is_message_from_occupant`
+			, `is_message_from_agent`
+			, `is_message_from_mgt_cny`
+			, `is_message_from_contractor`
+			, `is_new_ir`
+			, `is_new_item`
+			, `is_item_removed`
+			, `is_item_moved`
+			)
+		SELECT 
+			@syst_created_datetime_trig_auto_assign_1
+			, @creation_system_id_trig_auto_assign_1
+			, @requestor_id_trig_auto_assign_1
+			, @created_by_id_trig_auto_assign_1
+			, @creation_method_trig_auto_assign_1
+			, @organization_id_trig_auto_assign_1
+			, `a`.`mefe_user_id`
+			, `a`.`email`
+			, `a`.`unee_t_user_type_id`
+			, @unee_t_mefe_unit_id_trig_auto_assign_1
+			, `a`.`unee_t_role_id`
+			, `a`.`is_occupant`
+			, `a`.`is_default_assignee`
+			, `a`.`is_default_invited`
+			, `a`.`is_unit_owner`
+			, `a`.`is_public`
+			, `a`.`can_see_role_landlord`
+			, `a`.`can_see_role_tenant`
+			, `a`.`can_see_role_mgt_cny`
+			, `a`.`can_see_role_agent`
+			, `a`.`can_see_role_contractor`
+			, `a`.`can_see_occupant`
+			, `a`.`is_assigned_to_case`
+			, `a`.`is_invited_to_case`
+			, `a`.`is_next_step_updated`
+			, `a`.`is_deadline_updated`
+			, `a`.`is_solution_updated`
+			, `a`.`is_case_resolved`
+			, `a`.`is_case_blocker`
+			, `a`.`is_case_critical`
+			, `a`.`is_any_new_message`
+			, `a`.`is_message_from_tenant`
+			, `a`.`is_message_from_ll`
+			, `a`.`is_message_from_occupant`
+			, `a`.`is_message_from_agent`
+			, `a`.`is_message_from_mgt_cny`
+			, `a`.`is_message_from_contractor`
+			, `a`.`is_new_ir`
+			, `a`.`is_new_item`
+			, `a`.`is_item_removed`
+			, `a`.`is_item_moved`
+			FROM `ut_list_users_default_permissions` AS `a`
+				WHERE 
+					`a`.`organization_id` = @organization_id_trig_auto_assign_1
+					AND `a`.`is_all_unit` = 1
+			;
+
+	# We insert all the user that should see all the unit in the country where this unit is
+
+		INSERT INTO `temp_list_users_auto_assign_new_property`
+			(`syst_created_datetime`
+			, `creation_system_id`
+			, `requestor_id`
+			, `created_by_id`
+			, `creation_method`
+			, `organization_id`
+			, `country_code`
+			, `mefe_user_id`
+			, `email`
+			, `unee_t_user_type_id`
+			, `mefe_unit_id`
+			, `unee_t_role_id`
+			, `is_occupant`
+			, `is_default_assignee`
+			, `is_default_invited`
+			, `is_unit_owner`
+			, `is_public`
+			, `can_see_role_landlord`
+			, `can_see_role_tenant`
+			, `can_see_role_mgt_cny`
+			, `can_see_role_agent`
+			, `can_see_role_contractor`
+			, `can_see_occupant`
+			, `is_assigned_to_case`
+			, `is_invited_to_case`
+			, `is_next_step_updated`
+			, `is_deadline_updated`
+			, `is_solution_updated`
+			, `is_case_resolved`
+			, `is_case_blocker`
+			, `is_case_critical`
+			, `is_any_new_message`
+			, `is_message_from_tenant`
+			, `is_message_from_ll`
+			, `is_message_from_occupant`
+			, `is_message_from_agent`
+			, `is_message_from_mgt_cny`
+			, `is_message_from_contractor`
+			, `is_new_ir`
+			, `is_new_item`
+			, `is_item_removed`
+			, `is_item_moved`
+			)
+			SELECT 
+				@syst_created_datetime_trig_auto_assign_1
+				, @creation_system_id_trig_auto_assign_1
+				, @requestor_id_trig_auto_assign_1
+				, @created_by_id_trig_auto_assign_1
+				, @creation_method_trig_auto_assign_1
+				, @organization_id_trig_auto_assign_1
+				, `a`.`country_code`
+				, `a`.`mefe_user_id`
+				, `a`.`email`
+				, `a`.`unee_t_user_type_id`
+				, @unee_t_mefe_unit_id_trig_auto_assign_1
+				, `a`.`unee_t_role_id`
+				, `a`.`is_occupant`
+				, `a`.`is_default_assignee`
+				, `a`.`is_default_invited`
+				, `a`.`is_unit_owner`
+				, `a`.`is_public`
+				, `a`.`can_see_role_landlord`
+				, `a`.`can_see_role_tenant`
+				, `a`.`can_see_role_mgt_cny`
+				, `a`.`can_see_role_agent`
+				, `a`.`can_see_role_contractor`
+				, `a`.`can_see_occupant`
+				, `a`.`is_assigned_to_case`
+				, `a`.`is_invited_to_case`
+				, `a`.`is_next_step_updated`
+				, `a`.`is_deadline_updated`
+				, `a`.`is_solution_updated`
+				, `a`.`is_case_resolved`
+				, `a`.`is_case_blocker`
+				, `a`.`is_case_critical`
+				, `a`.`is_any_new_message`
+				, `a`.`is_message_from_tenant`
+				, `a`.`is_message_from_ll`
+				, `a`.`is_message_from_occupant`
+				, `a`.`is_message_from_agent`
+				, `a`.`is_message_from_mgt_cny`
+				, `a`.`is_message_from_contractor`
+				, `a`.`is_new_ir`
+				, `a`.`is_new_item`
+				, `a`.`is_item_removed`
+				, `a`.`is_item_moved`
+				FROM `ut_list_users_default_permissions` AS `a`
+					WHERE 
+						`a`.`organization_id` = @organization_id_trig_auto_assign_1
+						AND `a`.`country_code` = @property_country_code_trig_auto_assign_1
+						AND `a`.`is_all_units_in_country` = 1
+				;
+
+	# We assign the user to the unit
+
+		# For Level 1 Properties, this is done in the table 
+		# `external_map_user_unit_role_permissions_level_1`
+
+			SET @propagate_to_all_level_2_trig_auto_assign_1 := 1 ;
+			SET @propagate_to_all_level_3_trig_auto_assign_1 := 1;
+
+			SET @is_obsolete_trig_auto_assign_1 := 0 ;
+			SET @is_update_needed_trig_auto_assign_1 := 1 ;
+
+			IF @external_property_type_id_trig_auto_assign_1 = 1
+			THEN
+
+				INSERT INTO `external_map_user_unit_role_permissions_level_1`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `is_obsolete`
+					, `is_update_needed`
+					# Which unit/user
+					, `unee_t_mefe_user_id`
+					, `unee_t_level_1_id`
+					, `unee_t_user_type_id`
+					, `propagate_level_2`
+					, `propagate_level_3`
+					)
+					SELECT 
+						@syst_created_datetime_trig_auto_assign_1
+						, @creation_system_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @is_obsolete_trig_auto_assign_1
+						, @is_update_needed_trig_auto_assign_1
+						# Which unit/user
+						, `a`.`mefe_user_id`
+						, @property_id_trig_auto_assign_1
+						, `a`.`unee_t_user_type_id`
+						, @propagate_to_all_level_2_trig_auto_assign_1
+						, @propagate_to_all_level_3_trig_auto_assign_1
+					FROM `temp_list_users_auto_assign_new_property` AS `a`
+						ON DUPLICATE KEY UPDATE
+							`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+							, `update_system_id` := @creation_system_id_trig_auto_assign_1
+							, `updated_by_id` := @created_by_id_trig_auto_assign_1
+							, `update_method` := @creation_method_trig_auto_assign_1
+							, `organization_id` := @organization_id_trig_auto_assign_1
+							, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+							, `is_update_needed` := @is_update_needed_trig_auto_assign_1
+							# Which unit/user
+							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
+							, `unee_t_level_1_id` := @property_id_trig_auto_assign_1
+							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
+							, `propagate_level_2`:= @propagate_to_all_level_2_trig_auto_assign_1
+							, `propagate_level_3` := @propagate_to_all_level_3_trig_auto_assign_1
+						;
+
+				# We insert these in the table `ut_map_user_permissions_unit_level_1`
+
+					INSERT INTO `ut_map_user_permissions_unit_level_1`
+						(`syst_created_datetime`
+						, `creation_system_id`
+						, `created_by_id`
+						, `creation_method`
+						, `organization_id`
+						, `is_obsolete`
+						, `is_update_needed`
+						# Which unit/user
+						, `unee_t_mefe_id`
+						, `unee_t_unit_id`
+						# which role
+						, `unee_t_role_id`
+						, `is_occupant`
+						# additional permissions
+						, `is_default_assignee`
+						, `is_default_invited`
+						, `is_unit_owner`
+						# Visibility rules
+						, `is_public`
+						, `can_see_role_landlord`
+						, `can_see_role_tenant`
+						, `can_see_role_mgt_cny`
+						, `can_see_role_agent`
+						, `can_see_role_contractor`
+						, `can_see_occupant`
+						# Notification rules
+						# - case - information
+						, `is_assigned_to_case`
+						, `is_invited_to_case`
+						, `is_next_step_updated`
+						, `is_deadline_updated`
+						, `is_solution_updated`
+						, `is_case_resolved`
+						, `is_case_blocker`
+						, `is_case_critical`
+						# - case - messages
+						, `is_any_new_message`
+						, `is_message_from_tenant`
+						, `is_message_from_ll`
+						, `is_message_from_occupant`
+						, `is_message_from_agent`
+						, `is_message_from_mgt_cny`
+						, `is_message_from_contractor`
+						# - Inspection Reports
+						, `is_new_ir`
+						# - Inventory
+						, `is_new_item`
+						, `is_item_removed`
+						, `is_item_moved`
+						, `propagate_to_all_level_2`
+						, `propagate_to_all_level_3`
+						)
+						SELECT
+							@syst_created_datetime_trig_auto_assign_1
+							, @creation_system_id_trig_auto_assign_1
+							, @requestor_id_trig_auto_assign_1
+							, @creation_method_trig_auto_assign_1
+							, @organization_id_trig_auto_assign_1
+							, @is_obsolete_trig_auto_assign_1
+							, @is_update_needed_trig_auto_assign_1
+							# Which unit/user
+							, `a`.`mefe_user_id`
+							, @unee_t_mefe_unit_id_trig_auto_assign_1
+							# which role
+							, `a`.`unee_t_role_id`
+							, `a`.`is_occupant`
+							# additional permissions
+							, `a`.`is_default_assignee`
+							, `a`.`is_default_invited`
+							, `a`.`is_unit_owner`
+							# Visibility rules
+							, `a`.`is_public`
+							, `a`.`can_see_role_landlord`
+							, `a`.`can_see_role_tenant`
+							, `a`.`can_see_role_mgt_cny`
+							, `a`.`can_see_role_agent`
+							, `a`.`can_see_role_contractor`
+							, `a`.`can_see_occupant`
+							# Notification rules
+							# - case - information
+							, `a`.`is_assigned_to_case`
+							, `a`.`is_invited_to_case`
+							, `a`.`is_next_step_updated`
+							, `a`.`is_deadline_updated`
+							, `a`.`is_solution_updated`
+							, `a`.`is_case_resolved`
+							, `a`.`is_case_blocker`
+							, `a`.`is_case_critical`
+							# - case - messages
+							, `a`.`is_any_new_message`
+							, `a`.`is_message_from_tenant`
+							, `a`.`is_message_from_ll`
+							, `a`.`is_message_from_occupant`
+							, `a`.`is_message_from_agent`
+							, `a`.`is_message_from_mgt_cny`
+							, `a`.`is_message_from_contractor`
+							# - Inspection Reports
+							, `a`.`is_new_ir`
+							# - Inventory
+							, `a`.`is_new_item`
+							, `a`.`is_item_removed`
+							, `a`.`is_item_moved`
+							, @propagate_to_all_level_2_trig_auto_assign_1
+							, @propagate_to_all_level_3_trig_auto_assign_1
+							FROM `temp_list_users_auto_assign_new_property` AS `a`
+							ON DUPLICATE KEY UPDATE
+								`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+								, `update_system_id` := @creation_system_id_trig_auto_assign_1
+								, `updated_by_id` := @requestor_id_trig_auto_assign_1
+								, `update_method` := @creation_method_trig_auto_assign_1
+								, `organization_id` := @organization_id_trig_auto_assign_1
+								, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+								, `is_update_needed` := @is_update_needed_trig_auto_assign_1
+								# Which unit/user
+								, `unee_t_mefe_id` := `a`.`mefe_user_id`
+								, `unee_t_unit_id` := @unee_t_mefe_unit_id_trig_auto_assign_1
+								# which role
+								, `unee_t_role_id` := `a`.`unee_t_role_id`
+								, `is_occupant` := `a`.`is_occupant`
+								# additional permissions
+								, `is_default_assignee` := `a`.`is_default_assignee`
+								, `is_default_invited` := `a`.`is_default_invited`
+								, `is_unit_owner` := `a`.`is_unit_owner`
+								# Visibility rules
+								, `is_public` := `a`.`is_public`
+								, `can_see_role_landlord` := `a`.`can_see_role_landlord`
+								, `can_see_role_tenant` := `a`.`can_see_role_tenant`
+								, `can_see_role_mgt_cny` := `a`.`can_see_role_mgt_cny`
+								, `can_see_role_agent` := `a`.`can_see_role_agent`
+								, `can_see_role_contractor` := `a`.`can_see_role_contractor`
+								, `can_see_occupant` := `a`.`can_see_occupant`
+								# Notification rules
+								# - case - information
+								, `is_assigned_to_case` := `a`.`is_assigned_to_case`
+								, `is_invited_to_case` := `a`.`is_invited_to_case`
+								, `is_next_step_updated` := `a`.`is_next_step_updated`
+								, `is_deadline_updated` := `a`.`is_deadline_updated`
+								, `is_solution_updated` := `a`.`is_solution_updated`
+								, `is_case_resolved` := `a`.`is_case_resolved`
+								, `is_case_blocker` := `a`.`is_case_blocker`
+								, `is_case_critical` := `a`.`is_case_critical`
+								# - case - messages
+								, `is_any_new_message` := `a`.`is_any_new_message`
+								, `is_message_from_tenant` := `a`.`is_message_from_tenant`
+								, `is_message_from_ll` := `a`.`is_message_from_ll`
+								, `is_message_from_occupant` := `a`.`is_message_from_occupant`
+								, `is_message_from_agent` := `a`.`is_message_from_agent`
+								, `is_message_from_mgt_cny` := `a`.`is_message_from_mgt_cny`
+								, `is_message_from_contractor` := `a`.`is_message_from_contractor`
+								# - Inspection Reports
+								, `is_new_ir` := `a`.`is_new_ir`
+								# - Inventory
+								, `is_new_item` := `a`.`is_new_item`
+								, `is_item_removed` := `a`.`is_item_removed`
+								, `is_item_moved` := `a`.`is_item_moved`
+								, `propagate_to_all_level_2` = @propagate_to_all_level_2_trig_auto_assign_1
+								, `propagate_to_all_level_3` = @propagate_to_all_level_3_trig_auto_assign_1
+								;
+
+			ELSEIF @external_property_type_id_trig_auto_assign_1 = 2
+			THEN 
+
+				INSERT INTO `external_map_user_unit_role_permissions_level_2`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `is_obsolete`
+					, `is_update_needed`
+					# Which unit/user
+					, `unee_t_mefe_user_id`
+					, `unee_t_level_2_id`
+					, `unee_t_user_type_id`
+					, `propagate_level_3`
+					)
+					SELECT 
+						@syst_created_datetime_trig_auto_assign_1
+						, @creation_system_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @is_obsolete_trig_auto_assign_1
+						, @is_update_needed_trig_auto_assign_1
+						# Which unit/user
+						, `a`.`mefe_user_id`
+						, @property_id_trig_auto_assign_1
+						, `a`.`unee_t_user_type_id`
+						, @propagate_to_all_level_3_trig_auto_assign_1
+					FROM `temp_list_users_auto_assign_new_property` AS `a`
+						ON DUPLICATE KEY UPDATE
+							`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+							, `update_system_id` := @creation_system_id_trig_auto_assign_1
+							, `updated_by_id` := @created_by_id_trig_auto_assign_1
+							, `update_method` := @creation_method_trig_auto_assign_1
+							, `organization_id` := @organization_id_trig_auto_assign_1
+							, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+							, `is_update_needed` := @is_update_needed_trig_auto_assign_1
+							# Which unit/user
+							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
+							, `unee_t_level_2_id` := @property_id_trig_auto_assign_1
+							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
+							, `propagate_level_3` := @propagate_to_all_level_3_trig_auto_assign_1
+						;
+
+				# We insert these in the table `ut_map_user_permissions_unit_level_2` 
+
+					INSERT INTO `ut_map_user_permissions_unit_level_2`
+						(`syst_created_datetime`
+						, `creation_system_id`
+						, `created_by_id`
+						, `creation_method`
+						, `organization_id`
+						, `is_obsolete`
+						, `is_update_needed`
+						# Which unit/user
+						, `unee_t_mefe_id`
+						, `unee_t_unit_id`
+						# which role
+						, `unee_t_role_id`
+						, `is_occupant`
+						# additional permissions
+						, `is_default_assignee`
+						, `is_default_invited`
+						, `is_unit_owner`
+						# Visibility rules
+						, `is_public`
+						, `can_see_role_landlord`
+						, `can_see_role_tenant`
+						, `can_see_role_mgt_cny`
+						, `can_see_role_agent`
+						, `can_see_role_contractor`
+						, `can_see_occupant`
+						# Notification rules
+						# - case - information
+						, `is_assigned_to_case`
+						, `is_invited_to_case`
+						, `is_next_step_updated`
+						, `is_deadline_updated`
+						, `is_solution_updated`
+						, `is_case_resolved`
+						, `is_case_blocker`
+						, `is_case_critical`
+						# - case - messages
+						, `is_any_new_message`
+						, `is_message_from_tenant`
+						, `is_message_from_ll`
+						, `is_message_from_occupant`
+						, `is_message_from_agent`
+						, `is_message_from_mgt_cny`
+						, `is_message_from_contractor`
+						# - Inspection Reports
+						, `is_new_ir`
+						# - Inventory
+						, `is_new_item`
+						, `is_item_removed`
+						, `is_item_moved`
+						, `propagate_to_all_level_3`
+						)
+						SELECT
+							@syst_created_datetime_trig_auto_assign_1
+							, @creation_system_id_trig_auto_assign_1
+							, @requestor_id_trig_auto_assign_1
+							, @creation_method_trig_auto_assign_1
+							, @organization_id_trig_auto_assign_1
+							, @is_obsolete_trig_auto_assign_1
+							, @is_update_needed_trig_auto_assign_1
+							# Which unit/user
+							, `a`.`mefe_user_id`
+							, @unee_t_mefe_unit_id_trig_auto_assign_1
+							# which role
+							, `a`.`unee_t_role_id`
+							, `a`.`is_occupant`
+							# additional permissions
+							, `a`.`is_default_assignee`
+							, `a`.`is_default_invited`
+							, `a`.`is_unit_owner`
+							# Visibility rules
+							, `a`.`is_public`
+							, `a`.`can_see_role_landlord`
+							, `a`.`can_see_role_tenant`
+							, `a`.`can_see_role_mgt_cny`
+							, `a`.`can_see_role_agent`
+							, `a`.`can_see_role_contractor`
+							, `a`.`can_see_occupant`
+							# Notification rules
+							# - case - information
+							, `a`.`is_assigned_to_case`
+							, `a`.`is_invited_to_case`
+							, `a`.`is_next_step_updated`
+							, `a`.`is_deadline_updated`
+							, `a`.`is_solution_updated`
+							, `a`.`is_case_resolved`
+							, `a`.`is_case_blocker`
+							, `a`.`is_case_critical`
+							# - case - messages
+							, `a`.`is_any_new_message`
+							, `a`.`is_message_from_tenant`
+							, `a`.`is_message_from_ll`
+							, `a`.`is_message_from_occupant`
+							, `a`.`is_message_from_agent`
+							, `a`.`is_message_from_mgt_cny`
+							, `a`.`is_message_from_contractor`
+							# - Inspection Reports
+							, `a`.`is_new_ir`
+							# - Inventory
+							, `a`.`is_new_item`
+							, `a`.`is_item_removed`
+							, `a`.`is_item_moved`
+							, @propagate_to_all_level_3_trig_auto_assign_1
+							FROM `temp_list_users_auto_assign_new_property` AS `a`
+							ON DUPLICATE KEY UPDATE
+								`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+								, `update_system_id` := @creation_system_id_trig_auto_assign_1
+								, `updated_by_id` := @requestor_id_trig_auto_assign_1
+								, `update_method` := @creation_method_trig_auto_assign_1
+								, `organization_id` := @organization_id_trig_auto_assign_1
+								, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+								, `is_update_needed` := @is_update_needed_trig_auto_assign_1
+								# Which unit/user
+								, `unee_t_mefe_id` := `a`.`mefe_user_id`
+								, `unee_t_unit_id` := @unee_t_mefe_unit_id_trig_auto_assign_1
+								# which role
+								, `unee_t_role_id` := `a`.`unee_t_role_id`
+								, `is_occupant` := `a`.`is_occupant`
+								# additional permissions
+								, `is_default_assignee` := `a`.`is_default_assignee`
+								, `is_default_invited` := `a`.`is_default_invited`
+								, `is_unit_owner` := `a`.`is_unit_owner`
+								# Visibility rules
+								, `is_public` := `a`.`is_public`
+								, `can_see_role_landlord` := `a`.`can_see_role_landlord`
+								, `can_see_role_tenant` := `a`.`can_see_role_tenant`
+								, `can_see_role_mgt_cny` := `a`.`can_see_role_mgt_cny`
+								, `can_see_role_agent` := `a`.`can_see_role_agent`
+								, `can_see_role_contractor` := `a`.`can_see_role_contractor`
+								, `can_see_occupant` := `a`.`can_see_occupant`
+								# Notification rules
+								# - case - information
+								, `is_assigned_to_case` := `a`.`is_assigned_to_case`
+								, `is_invited_to_case` := `a`.`is_invited_to_case`
+								, `is_next_step_updated` := `a`.`is_next_step_updated`
+								, `is_deadline_updated` := `a`.`is_deadline_updated`
+								, `is_solution_updated` := `a`.`is_solution_updated`
+								, `is_case_resolved` := `a`.`is_case_resolved`
+								, `is_case_blocker` := `a`.`is_case_blocker`
+								, `is_case_critical` := `a`.`is_case_critical`
+								# - case - messages
+								, `is_any_new_message` := `a`.`is_any_new_message`
+								, `is_message_from_tenant` := `a`.`is_message_from_tenant`
+								, `is_message_from_ll` := `a`.`is_message_from_ll`
+								, `is_message_from_occupant` := `a`.`is_message_from_occupant`
+								, `is_message_from_agent` := `a`.`is_message_from_agent`
+								, `is_message_from_mgt_cny` := `a`.`is_message_from_mgt_cny`
+								, `is_message_from_contractor` := `a`.`is_message_from_contractor`
+								# - Inspection Reports
+								, `is_new_ir` := `a`.`is_new_ir`
+								# - Inventory
+								, `is_new_item` := `a`.`is_new_item`
+								, `is_item_removed` := `a`.`is_item_removed`
+								, `is_item_moved` := `a`.`is_item_moved`
+								, `propagate_to_all_level_3` = @propagate_to_all_level_3_trig_auto_assign_1
+								;
+
+			ELSEIF @external_property_type_id_trig_auto_assign_1 = 3
+			THEN 
+
+				INSERT INTO `external_map_user_unit_role_permissions_level_3`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `is_obsolete`
+					, `is_update_needed`
+					# Which unit/user
+					, `unee_t_mefe_user_id`
+					, `unee_t_level_3_id`
+					, `unee_t_user_type_id`
+					)
+					SELECT 
+						@syst_created_datetime_trig_auto_assign_1
+						, @creation_system_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @is_obsolete_trig_auto_assign_1
+						, @is_update_needed_trig_auto_assign_1
+						# Which unit/user
+						, `a`.`mefe_user_id`
+						, @property_id_trig_auto_assign_1
+						, `a`.`unee_t_user_type_id`
+					FROM `temp_list_users_auto_assign_new_property` AS `a`
+						ON DUPLICATE KEY UPDATE
+							`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+							, `update_system_id` := @creation_system_id_trig_auto_assign_1
+							, `updated_by_id` := @created_by_id_trig_auto_assign_1
+							, `update_method` := @creation_method_trig_auto_assign_1
+							, `organization_id` := @organization_id_trig_auto_assign_1
+							, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+							, `is_update_needed` := @is_update_needed_trig_auto_assign_1
+							# Which unit/user
+							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
+							, `unee_t_level_3_id` := @property_id_trig_auto_assign_1
+							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
+						;
+
+				# We insert these in the table `ut_map_user_permissions_unit_level_3` 
+
+					INSERT INTO `ut_map_user_permissions_unit_level_3`
+						(`syst_created_datetime`
+						, `creation_system_id`
+						, `created_by_id`
+						, `creation_method`
+						, `organization_id`
+						, `is_obsolete`
+						, `is_update_needed`
+						# Which unit/user
+						, `unee_t_mefe_id`
+						, `unee_t_unit_id`
+						# which role
+						, `unee_t_role_id`
+						, `is_occupant`
+						# additional permissions
+						, `is_default_assignee`
+						, `is_default_invited`
+						, `is_unit_owner`
+						# Visibility rules
+						, `is_public`
+						, `can_see_role_landlord`
+						, `can_see_role_tenant`
+						, `can_see_role_mgt_cny`
+						, `can_see_role_agent`
+						, `can_see_role_contractor`
+						, `can_see_occupant`
+						# Notification rules
+						# - case - information
+						, `is_assigned_to_case`
+						, `is_invited_to_case`
+						, `is_next_step_updated`
+						, `is_deadline_updated`
+						, `is_solution_updated`
+						, `is_case_resolved`
+						, `is_case_blocker`
+						, `is_case_critical`
+						# - case - messages
+						, `is_any_new_message`
+						, `is_message_from_tenant`
+						, `is_message_from_ll`
+						, `is_message_from_occupant`
+						, `is_message_from_agent`
+						, `is_message_from_mgt_cny`
+						, `is_message_from_contractor`
+						# - Inspection Reports
+						, `is_new_ir`
+						# - Inventory
+						, `is_new_item`
+						, `is_item_removed`
+						, `is_item_moved`
+						)
+						SELECT
+							@syst_created_datetime_trig_auto_assign_1
+							, @creation_system_id_trig_auto_assign_1
+							, @requestor_id_trig_auto_assign_1
+							, @creation_method_trig_auto_assign_1
+							, @organization_id_trig_auto_assign_1
+							, @is_obsolete_trig_auto_assign_1
+							, @is_update_needed_trig_auto_assign_1
+							# Which unit/user
+							, `a`.`mefe_user_id`
+							, @unee_t_mefe_unit_id_trig_auto_assign_1
+							# which role
+							, `a`.`unee_t_role_id`
+							, `a`.`is_occupant`
+							# additional permissions
+							, `a`.`is_default_assignee`
+							, `a`.`is_default_invited`
+							, `a`.`is_unit_owner`
+							# Visibility rules
+							, `a`.`is_public`
+							, `a`.`can_see_role_landlord`
+							, `a`.`can_see_role_tenant`
+							, `a`.`can_see_role_mgt_cny`
+							, `a`.`can_see_role_agent`
+							, `a`.`can_see_role_contractor`
+							, `a`.`can_see_occupant`
+							# Notification rules
+							# - case - information
+							, `a`.`is_assigned_to_case`
+							, `a`.`is_invited_to_case`
+							, `a`.`is_next_step_updated`
+							, `a`.`is_deadline_updated`
+							, `a`.`is_solution_updated`
+							, `a`.`is_case_resolved`
+							, `a`.`is_case_blocker`
+							, `a`.`is_case_critical`
+							# - case - messages
+							, `a`.`is_any_new_message`
+							, `a`.`is_message_from_tenant`
+							, `a`.`is_message_from_ll`
+							, `a`.`is_message_from_occupant`
+							, `a`.`is_message_from_agent`
+							, `a`.`is_message_from_mgt_cny`
+							, `a`.`is_message_from_contractor`
+							# - Inspection Reports
+							, `a`.`is_new_ir`
+							# - Inventory
+							, `a`.`is_new_item`
+							, `a`.`is_item_removed`
+							, `a`.`is_item_moved`
+							FROM `temp_list_users_auto_assign_new_property` AS `a`
+							ON DUPLICATE KEY UPDATE
+								`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+								, `update_system_id` := @creation_system_id_trig_auto_assign_1
+								, `updated_by_id` := @requestor_id_trig_auto_assign_1
+								, `update_method` := @creation_method_trig_auto_assign_1
+								, `organization_id` := @organization_id_trig_auto_assign_1
+								, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+								, `is_update_needed` := @is_update_needed_trig_auto_assign_1
+								# Which unit/user
+								, `unee_t_mefe_id` := `a`.`mefe_user_id`
+								, `unee_t_unit_id` := @unee_t_mefe_unit_id_trig_auto_assign_1
+								# which role
+								, `unee_t_role_id` := `a`.`unee_t_role_id`
+								, `is_occupant` := `a`.`is_occupant`
+								# additional permissions
+								, `is_default_assignee` := `a`.`is_default_assignee`
+								, `is_default_invited` := `a`.`is_default_invited`
+								, `is_unit_owner` := `a`.`is_unit_owner`
+								# Visibility rules
+								, `is_public` := `a`.`is_public`
+								, `can_see_role_landlord` := `a`.`can_see_role_landlord`
+								, `can_see_role_tenant` := `a`.`can_see_role_tenant`
+								, `can_see_role_mgt_cny` := `a`.`can_see_role_mgt_cny`
+								, `can_see_role_agent` := `a`.`can_see_role_agent`
+								, `can_see_role_contractor` := `a`.`can_see_role_contractor`
+								, `can_see_occupant` := `a`.`can_see_occupant`
+								# Notification rules
+								# - case - information
+								, `is_assigned_to_case` := `a`.`is_assigned_to_case`
+								, `is_invited_to_case` := `a`.`is_invited_to_case`
+								, `is_next_step_updated` := `a`.`is_next_step_updated`
+								, `is_deadline_updated` := `a`.`is_deadline_updated`
+								, `is_solution_updated` := `a`.`is_solution_updated`
+								, `is_case_resolved` := `a`.`is_case_resolved`
+								, `is_case_blocker` := `a`.`is_case_blocker`
+								, `is_case_critical` := `a`.`is_case_critical`
+								# - case - messages
+								, `is_any_new_message` := `a`.`is_any_new_message`
+								, `is_message_from_tenant` := `a`.`is_message_from_tenant`
+								, `is_message_from_ll` := `a`.`is_message_from_ll`
+								, `is_message_from_occupant` := `a`.`is_message_from_occupant`
+								, `is_message_from_agent` := `a`.`is_message_from_agent`
+								, `is_message_from_mgt_cny` := `a`.`is_message_from_mgt_cny`
+								, `is_message_from_contractor` := `a`.`is_message_from_contractor`
+								# - Inspection Reports
+								, `is_new_ir` := `a`.`is_new_ir`
+								# - Inventory
+								, `is_new_item` := `a`.`is_new_item`
+								, `is_item_removed` := `a`.`is_item_removed`
+								, `is_item_moved` := `a`.`is_item_moved`
+								;
+
+			END IF;
+
+		# We can now include these into the table that triggers the lambda
+
+			INSERT INTO `ut_map_user_permissions_unit_all`
+				(`syst_created_datetime`
+				, `creation_system_id`
+				, `created_by_id`
+				, `creation_method`
+				, `organization_id`
+				, `is_obsolete`
+				, `is_update_needed`
+				# Which unit/user
+				, `unee_t_mefe_id`
+				, `unee_t_unit_id`
+				# which role
+				, `unee_t_role_id`
+				, `is_occupant`
+				# additional permissions
+				, `is_default_assignee`
+				, `is_default_invited`
+				, `is_unit_owner`
+				# Visibility rules
+				, `is_public`
+				, `can_see_role_landlord`
+				, `can_see_role_tenant`
+				, `can_see_role_mgt_cny`
+				, `can_see_role_agent`
+				, `can_see_role_contractor`
+				, `can_see_occupant`
+				# Notification rules
+				# - case - information
+				, `is_assigned_to_case`
+				, `is_invited_to_case`
+				, `is_next_step_updated`
+				, `is_deadline_updated`
+				, `is_solution_updated`
+				, `is_case_resolved`
+				, `is_case_blocker`
+				, `is_case_critical`
+				# - case - messages
+				, `is_any_new_message`
+				, `is_message_from_tenant`
+				, `is_message_from_ll`
+				, `is_message_from_occupant`
+				, `is_message_from_agent`
+				, `is_message_from_mgt_cny`
+				, `is_message_from_contractor`
+				# - Inspection Reports
+				, `is_new_ir`
+				# - Inventory
+				, `is_new_item`
+				, `is_item_removed`
+				, `is_item_moved`
+				)
+				SELECT
+					@syst_created_datetime_trig_auto_assign_1
+					, @creation_system_id_trig_auto_assign_1
+					, @requestor_id_trig_auto_assign_1
+					, @creation_method_trig_auto_assign_1
+					, @organization_id_trig_auto_assign_1
+					, @is_obsolete_trig_auto_assign_1
+					, @is_update_needed_trig_auto_assign_1
+					# Which unit/user
+					, `a`.`mefe_user_id`
+					, @unee_t_mefe_unit_id_trig_auto_assign_1
+					# which role
+					, `a`.`unee_t_role_id`
+					, `a`.`is_occupant`
+					# additional permissions
+					, `a`.`is_default_assignee`
+					, `a`.`is_default_invited`
+					, `a`.`is_unit_owner`
+					# Visibility rules
+					, `a`.`is_public`
+					, `a`.`can_see_role_landlord`
+					, `a`.`can_see_role_tenant`
+					, `a`.`can_see_role_mgt_cny`
+					, `a`.`can_see_role_agent`
+					, `a`.`can_see_role_contractor`
+					, `a`.`can_see_occupant`
+					# Notification rules
+					# - case - information
+					, `a`.`is_assigned_to_case`
+					, `a`.`is_invited_to_case`
+					, `a`.`is_next_step_updated`
+					, `a`.`is_deadline_updated`
+					, `a`.`is_solution_updated`
+					, `a`.`is_case_resolved`
+					, `a`.`is_case_blocker`
+					, `a`.`is_case_critical`
+					# - case - messages
+					, `a`.`is_any_new_message`
+					, `a`.`is_message_from_tenant`
+					, `a`.`is_message_from_ll`
+					, `a`.`is_message_from_occupant`
+					, `a`.`is_message_from_agent`
+					, `a`.`is_message_from_mgt_cny`
+					, `a`.`is_message_from_contractor`
+					# - Inspection Reports
+					, `a`.`is_new_ir`
+					# - Inventory
+					, `a`.`is_new_item`
+					, `a`.`is_item_removed`
+					, `a`.`is_item_moved`
+					FROM `temp_list_users_auto_assign_new_property` AS `a`
+					ON DUPLICATE KEY UPDATE
+						`syst_updated_datetime` := @syst_created_datetime_trig_auto_assign_1
+						, `update_system_id` := @creation_system_id_trig_auto_assign_1
+						, `updated_by_id` := @requestor_id_trig_auto_assign_1
+						, `update_method` := @creation_method_trig_auto_assign_1
+						, `organization_id` := @organization_id_trig_auto_assign_1
+						, `is_obsolete` := @is_obsolete_trig_auto_assign_1
+						, `is_update_needed` := @is_update_needed_trig_auto_assign_1
+						# Which unit/user
+						, `unee_t_mefe_id` := `a`.`mefe_user_id`
+						, `unee_t_unit_id` := @unee_t_mefe_unit_id_trig_auto_assign_1
+						# which role
+						, `unee_t_role_id` := `a`.`unee_t_role_id`
+						, `is_occupant` := `a`.`is_occupant`
+						# additional permissions
+						, `is_default_assignee` := `a`.`is_default_assignee`
+						, `is_default_invited` := `a`.`is_default_invited`
+						, `is_unit_owner` := `a`.`is_unit_owner`
+						# Visibility rules
+						, `is_public` := `a`.`is_public`
+						, `can_see_role_landlord` := `a`.`can_see_role_landlord`
+						, `can_see_role_tenant` := `a`.`can_see_role_tenant`
+						, `can_see_role_mgt_cny` := `a`.`can_see_role_mgt_cny`
+						, `can_see_role_agent` := `a`.`can_see_role_agent`
+						, `can_see_role_contractor` := `a`.`can_see_role_contractor`
+						, `can_see_occupant` := `a`.`can_see_occupant`
+						# Notification rules
+						# - case - information
+						, `is_assigned_to_case` := `a`.`is_assigned_to_case`
+						, `is_invited_to_case` := `a`.`is_invited_to_case`
+						, `is_next_step_updated` := `a`.`is_next_step_updated`
+						, `is_deadline_updated` := `a`.`is_deadline_updated`
+						, `is_solution_updated` := `a`.`is_solution_updated`
+						, `is_case_resolved` := `a`.`is_case_resolved`
+						, `is_case_blocker` := `a`.`is_case_blocker`
+						, `is_case_critical` := `a`.`is_case_critical`
+						# - case - messages
+						, `is_any_new_message` := `a`.`is_any_new_message`
+						, `is_message_from_tenant` := `a`.`is_message_from_tenant`
+						, `is_message_from_ll` := `a`.`is_message_from_ll`
+						, `is_message_from_occupant` := `a`.`is_message_from_occupant`
+						, `is_message_from_agent` := `a`.`is_message_from_agent`
+						, `is_message_from_mgt_cny` := `a`.`is_message_from_mgt_cny`
+						, `is_message_from_contractor` := `a`.`is_message_from_contractor`
+						# - Inspection Reports
+						, `is_new_ir` := `a`.`is_new_ir`
+						# - Inventory
+						, `is_new_item` := `a`.`is_new_item`
+						, `is_item_removed` := `a`.`is_item_removed`
+						, `is_item_moved` := `a`.`is_item_moved`
+						;
+
+	END IF;
+END;
+$$
+DELIMITER ;
+
+#################
 #	
 # This is part 7
 # Procedures to update the Db after downstream system calls back
@@ -5897,7 +9071,7 @@ SQL SECURITY INVOKER
 BEGIN
 
 # This procedure needs the following variables:
-#	- @mefe_api_request_id
+#	- @id_map_user_unit_permissions
 #	- @creation_datetime 
 #	- @mefe_api_error_message
 
@@ -5928,7 +9102,7 @@ BEGIN
 			, `unee_t_update_ts` := @creation_datetime
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
-			WHERE `id_map_user_unit_permissions` = @mefe_api_request_id
+			WHERE `id_map_user_unit_permissions` = @id_map_user_unit_permissions
 		;
 
 END $$
@@ -6189,1540 +9363,6 @@ BEGIN
 			DROP TABLE IF EXISTS `temp_table_retry_mefe_user_creation`;
 
 END $$
-DELIMITER ;
-
-#################
-#	
-# When a new MEFE unit is created, auto assign all the users if needed:
-#	- Users who can see all units in the organization for the unit
-#	- Users who can see all units in the country for the unit
-#	- Users who can see all units in the area  for the unit
-#
-#################
-
-
-# After we have received a MEFE unit Id from the API, we need to assign that property 
-# to the users who need access to that property:
-
-	DROP TRIGGER IF EXISTS `ut_update_mefe_unit_id_assign_users_to_property`;
-
-DELIMITER $$
-CREATE TRIGGER `ut_update_mefe_unit_id_assign_users_to_property`
-AFTER UPDATE ON `ut_map_external_source_units`
-FOR EACH ROW
-BEGIN
-
-# We only do this IF
-#	- We have a MEFE unit unit for that property
-#	- This is an authorized update method
-#		- `ut_creation_unit_mefe_api_reply`
-
-	SET @unee_t_mefe_unit_id := NEW.`unee_t_mefe_unit_id` ;
-	SET @upstream_update_method := NEW.`update_method` ;
-
-	SET @requestor_id := NEW.`updated_by_id` ;
-
-	SET @created_by_id := (SELECT `organization_id`
-		FROM `ut_api_keys`
-		WHERE `mefe_user_id` = @requestor_id
-		);
-
-	IF @requestor_id IS NOT NULL
-		AND @unee_t_mefe_unit_id IS NOT NULL
-		AND @upstream_update_method = 'ut_creation_unit_mefe_api_reply'
-	THEN 
-
-	# We need to list all the users that we should assign to this new property:
-	# These users are users who need to be assigned to:
-	#	- All the properties in the organization
-	#	- All the properties in the country where this property is
-	#	- All the properties in the Area where this property is
-
-		SET @external_property_type_id := NEW.`external_property_type_id` ;
-
-		SET @property_id := NEW.`new_record_id` ;
-
-		SET @organization_id := NEW.`organization_id` ;
-
-	# What is the country for that property
-
-		SET @property_country_code := (IF (@external_property_type_id = 1
-				, (SELECT `country_code`
-					FROM `ut_list_mefe_unit_id_level_1_by_area`
-					WHERE `level_1_building_id` = @property_id
-					)
-				, IF (@external_property_type_id = 2
-					, (SELECT `country_code`
-						FROM `ut_list_mefe_unit_id_level_2_by_area`
-						WHERE `level_2_unit_id` = @property_id
-						)
-					, IF (@external_property_type_id = 3
-						, (SELECT `country_code`
-							FROM `ut_list_mefe_unit_id_level_3_by_area`
-							WHERE `level_3_room_id` = @property_id
-							)
-						, 'error - 1308'
-						)
-					)
-				)
-			);
-
-	# We get the other variables we need:
-
-		SET @syst_created_datetime := NOW() ;
-		SET @creation_system_id := 2 ;
-		SET @creation_method := 'ut_update_mefe_unit_id_assign_users_to_property' ;
-
-	# We create a temporary table to list all the users we need to add to that property:
-
-		DROP TEMPORARY TABLE IF EXISTS `temp_list_users_auto_assign_new_property` ;
-
-		CREATE TEMPORARY TABLE `temp_list_users_auto_assign_new_property` (
-			`id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Unique ID in this table',
-			`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
-			`creation_system_id` int(11) NOT NULL DEFAULT 1 COMMENT 'What is the id of the sytem that was used for the creation of the record?',
-			`requestor_id` varchar(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
-			`created_by_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
- 			`creation_method` varchar(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'How was this record created',
-			`organization_id` int(11) unsigned DEFAULT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
-			`country_code` varchar(10) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The 2 letter version of the country code',
-			`mefe_user_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
-			`email` varchar(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The primary email address of the person',
-			`unee_t_user_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_user_types`',
-			`mefe_unit_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'ID of that Unit in Unee-T. This is a the value in the Mongo collection',
-			`unee_t_role_id` smallint(6) DEFAULT NULL COMMENT 'The ID of the Role Type for this user - this is a FK to the Unee-T BZFE table `ut_role_types`',
-			`is_occupant` tinyint(1) DEFAULT 0 COMMENT '1 is the user is an occupant of the unit',
-			`is_default_assignee` tinyint(1) DEFAULT 0 COMMENT '1 if this user is the default assignee for this role for this unit.',
-			`is_default_invited` tinyint(1) DEFAULT 0 COMMENT '1 if the user is automatically invited to all the new cases in this role for this unit',
-			`is_unit_owner` tinyint(1) DEFAULT 0 COMMENT '1 if this user is one of the Unee-T `owner` of that unit',
-			`is_public` tinyint(1) DEFAULT 0 COMMENT '1 if the user is Visible to other Unee-T users in other roles for this unit. If yes/1/TRUE then all other roles will be able to see this user. IF No/FALSE/0 then only the users in the same role for that unit will be able to see this user in this unit',
-			`can_see_role_landlord` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `landlord` (2) for this unit',
-			`can_see_role_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `tenant` (1) for this unit',
-			`can_see_role_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `Mgt Company` (4) for this unit',
-			`can_see_role_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `agent` (5) for this unit',
-			`can_see_role_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `contractor` (3) for this unit',
-			`can_see_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC occupants for this unit',
-			`is_assigned_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_invited_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_next_step_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_deadline_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_solution_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_case_resolved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_case_blocker` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_case_critical` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_any_new_message` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_message_from_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_message_from_ll` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_message_from_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_message_from_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_message_from_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_message_from_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_new_ir` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_new_item` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_item_removed` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			`is_item_moved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-			PRIMARY KEY (`mefe_user_id`,`mefe_unit_id`),
-			UNIQUE KEY `temp_list_users_auto_assign_new_property_id` (`id`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
-			;
-
-	# We insert all the user that should see all the units in the organization
-
-		INSERT INTO `temp_list_users_auto_assign_new_property`
-			(`syst_created_datetime`
-			, `creation_system_id`
-			, `requestor_id`
-			, `created_by_id`
-			, `creation_method`
-			, `organization_id`
-			, `mefe_user_id`
-			, `email`
-			, `unee_t_user_type_id`
-			, `mefe_unit_id`
-			, `unee_t_role_id`
-			, `is_occupant`
-			, `is_default_assignee`
-			, `is_default_invited`
-			, `is_unit_owner`
-			, `is_public`
-			, `can_see_role_landlord`
-			, `can_see_role_tenant`
-			, `can_see_role_mgt_cny`
-			, `can_see_role_agent`
-			, `can_see_role_contractor`
-			, `can_see_occupant`
-			, `is_assigned_to_case`
-			, `is_invited_to_case`
-			, `is_next_step_updated`
-			, `is_deadline_updated`
-			, `is_solution_updated`
-			, `is_case_resolved`
-			, `is_case_blocker`
-			, `is_case_critical`
-			, `is_any_new_message`
-			, `is_message_from_tenant`
-			, `is_message_from_ll`
-			, `is_message_from_occupant`
-			, `is_message_from_agent`
-			, `is_message_from_mgt_cny`
-			, `is_message_from_contractor`
-			, `is_new_ir`
-			, `is_new_item`
-			, `is_item_removed`
-			, `is_item_moved`
-			)
-		SELECT 
-			@syst_created_datetime
-			, @creation_system_id
-			, @requestor_id
-			, @created_by_id
-			, @creation_method
-			, @organization_id
-			, `a`.`mefe_user_id`
-			, `a`.`email`
-			, `a`.`unee_t_user_type_id`
-			, @unee_t_mefe_unit_id
-			, `a`.`unee_t_role_id`
-			, `a`.`is_occupant`
-			, `a`.`is_default_assignee`
-			, `a`.`is_default_invited`
-			, `a`.`is_unit_owner`
-			, `a`.`is_public`
-			, `a`.`can_see_role_landlord`
-			, `a`.`can_see_role_tenant`
-			, `a`.`can_see_role_mgt_cny`
-			, `a`.`can_see_role_agent`
-			, `a`.`can_see_role_contractor`
-			, `a`.`can_see_occupant`
-			, `a`.`is_assigned_to_case`
-			, `a`.`is_invited_to_case`
-			, `a`.`is_next_step_updated`
-			, `a`.`is_deadline_updated`
-			, `a`.`is_solution_updated`
-			, `a`.`is_case_resolved`
-			, `a`.`is_case_blocker`
-			, `a`.`is_case_critical`
-			, `a`.`is_any_new_message`
-			, `a`.`is_message_from_tenant`
-			, `a`.`is_message_from_ll`
-			, `a`.`is_message_from_occupant`
-			, `a`.`is_message_from_agent`
-			, `a`.`is_message_from_mgt_cny`
-			, `a`.`is_message_from_contractor`
-			, `a`.`is_new_ir`
-			, `a`.`is_new_item`
-			, `a`.`is_item_removed`
-			, `a`.`is_item_moved`
-			FROM `ut_list_users_default_permissions` AS `a`
-				WHERE 
-					`a`.`organization_id` = @organization_id
-					AND `a`.`is_all_unit` = 1
-			;
-
-	# We insert all the user that should see all the unit in the country where this unit is
-
-		INSERT INTO `temp_list_users_auto_assign_new_property`
-			(`syst_created_datetime`
-			, `creation_system_id`
-			, `requestor_id`
-			, `created_by_id`
-			, `creation_method`
-			, `organization_id`
-			, `country_code`
-			, `mefe_user_id`
-			, `email`
-			, `unee_t_user_type_id`
-			, `mefe_unit_id`
-			, `unee_t_role_id`
-			, `is_occupant`
-			, `is_default_assignee`
-			, `is_default_invited`
-			, `is_unit_owner`
-			, `is_public`
-			, `can_see_role_landlord`
-			, `can_see_role_tenant`
-			, `can_see_role_mgt_cny`
-			, `can_see_role_agent`
-			, `can_see_role_contractor`
-			, `can_see_occupant`
-			, `is_assigned_to_case`
-			, `is_invited_to_case`
-			, `is_next_step_updated`
-			, `is_deadline_updated`
-			, `is_solution_updated`
-			, `is_case_resolved`
-			, `is_case_blocker`
-			, `is_case_critical`
-			, `is_any_new_message`
-			, `is_message_from_tenant`
-			, `is_message_from_ll`
-			, `is_message_from_occupant`
-			, `is_message_from_agent`
-			, `is_message_from_mgt_cny`
-			, `is_message_from_contractor`
-			, `is_new_ir`
-			, `is_new_item`
-			, `is_item_removed`
-			, `is_item_moved`
-			)
-			SELECT 
-				@syst_created_datetime
-				, @creation_system_id
-				, @requestor_id
-				, @created_by_id
-				, @creation_method
-				, @organization_id
-				, `a`.`country_code`
-				, `a`.`mefe_user_id`
-				, `a`.`email`
-				, `a`.`unee_t_user_type_id`
-				, @unee_t_mefe_unit_id
-				, `a`.`unee_t_role_id`
-				, `a`.`is_occupant`
-				, `a`.`is_default_assignee`
-				, `a`.`is_default_invited`
-				, `a`.`is_unit_owner`
-				, `a`.`is_public`
-				, `a`.`can_see_role_landlord`
-				, `a`.`can_see_role_tenant`
-				, `a`.`can_see_role_mgt_cny`
-				, `a`.`can_see_role_agent`
-				, `a`.`can_see_role_contractor`
-				, `a`.`can_see_occupant`
-				, `a`.`is_assigned_to_case`
-				, `a`.`is_invited_to_case`
-				, `a`.`is_next_step_updated`
-				, `a`.`is_deadline_updated`
-				, `a`.`is_solution_updated`
-				, `a`.`is_case_resolved`
-				, `a`.`is_case_blocker`
-				, `a`.`is_case_critical`
-				, `a`.`is_any_new_message`
-				, `a`.`is_message_from_tenant`
-				, `a`.`is_message_from_ll`
-				, `a`.`is_message_from_occupant`
-				, `a`.`is_message_from_agent`
-				, `a`.`is_message_from_mgt_cny`
-				, `a`.`is_message_from_contractor`
-				, `a`.`is_new_ir`
-				, `a`.`is_new_item`
-				, `a`.`is_item_removed`
-				, `a`.`is_item_moved`
-				FROM `ut_list_users_default_permissions` AS `a`
-					WHERE 
-						`a`.`organization_id` = @organization_id
-						AND `a`.`country_code` = @property_country_code
-						AND `a`.`is_all_units_in_country` = 1
-				;
-
-	# We assign the user to the unit
-
-		# For Level 1 Properties, this is done in the table 
-		# `external_map_user_unit_role_permissions_level_1`
-
-			SET @propagate_to_all_level_2 := 1 ;
-			SET @propagate_to_all_level_3 := 1;
-
-			SET @is_obsolete := 0 ;
-			SET @is_update_needed := 1 ;
-
-			IF @external_property_type_id = 1
-			THEN
-
-				INSERT INTO `external_map_user_unit_role_permissions_level_1`
-					(`syst_created_datetime`
-					, `creation_system_id`
-					, `created_by_id`
-					, `creation_method`
-					, `organization_id`
-					, `is_obsolete`
-					, `is_update_needed`
-					# Which unit/user
-					, `unee_t_mefe_user_id`
-					, `unee_t_level_1_id`
-					, `unee_t_user_type_id`
-					, `propagate_level_2`
-					, `propagate_level_3`
-					)
-					SELECT 
-						@syst_created_datetime
-						, @creation_system_id
-						, @created_by_id
-						, @creation_method
-						, @organization_id
-						, @is_obsolete
-						, @is_update_needed
-						# Which unit/user
-						, `a`.`mefe_user_id`
-						, @property_id
-						, `a`.`unee_t_user_type_id`
-						, @propagate_to_all_level_2
-						, @propagate_to_all_level_3
-					FROM `temp_list_users_auto_assign_new_property` AS `a`
-						ON DUPLICATE KEY UPDATE
-							`syst_updated_datetime` := @syst_created_datetime
-							, `update_system_id` := @creation_system_id
-							, `updated_by_id` := @created_by_id
-							, `update_method` := @creation_method
-							, `organization_id` := @organization_id
-							, `is_obsolete` := @is_obsolete
-							, `is_update_needed` := @is_update_needed
-							# Which unit/user
-							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
-							, `unee_t_level_1_id` := @property_id
-							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
-							, `propagate_level_2`:= @propagate_to_all_level_2
-							, `propagate_level_3` := @propagate_to_all_level_3
-						;
-
-				# We insert these in the table `ut_map_user_permissions_unit_level_1`
-
-					INSERT INTO `ut_map_user_permissions_unit_level_1`
-						(`syst_created_datetime`
-						, `creation_system_id`
-						, `created_by_id`
-						, `creation_method`
-						, `organization_id`
-						, `is_obsolete`
-						, `is_update_needed`
-						# Which unit/user
-						, `unee_t_mefe_id`
-						, `unee_t_unit_id`
-						# which role
-						, `unee_t_role_id`
-						, `is_occupant`
-						# additional permissions
-						, `is_default_assignee`
-						, `is_default_invited`
-						, `is_unit_owner`
-						# Visibility rules
-						, `is_public`
-						, `can_see_role_landlord`
-						, `can_see_role_tenant`
-						, `can_see_role_mgt_cny`
-						, `can_see_role_agent`
-						, `can_see_role_contractor`
-						, `can_see_occupant`
-						# Notification rules
-						# - case - information
-						, `is_assigned_to_case`
-						, `is_invited_to_case`
-						, `is_next_step_updated`
-						, `is_deadline_updated`
-						, `is_solution_updated`
-						, `is_case_resolved`
-						, `is_case_blocker`
-						, `is_case_critical`
-						# - case - messages
-						, `is_any_new_message`
-						, `is_message_from_tenant`
-						, `is_message_from_ll`
-						, `is_message_from_occupant`
-						, `is_message_from_agent`
-						, `is_message_from_mgt_cny`
-						, `is_message_from_contractor`
-						# - Inspection Reports
-						, `is_new_ir`
-						# - Inventory
-						, `is_new_item`
-						, `is_item_removed`
-						, `is_item_moved`
-						, `propagate_to_all_level_2`
-						, `propagate_to_all_level_3`
-						)
-						SELECT
-							@syst_created_datetime
-							, @creation_system_id
-							, @requestor_id
-							, @creation_method
-							, @organization_id
-							, @is_obsolete
-							, @is_update_needed
-							# Which unit/user
-							, `a`.`mefe_user_id`
-							, @unee_t_mefe_unit_id
-							# which role
-							, `a`.`unee_t_role_id`
-							, `a`.`is_occupant`
-							# additional permissions
-							, `a`.`is_default_assignee`
-							, `a`.`is_default_invited`
-							, `a`.`is_unit_owner`
-							# Visibility rules
-							, `a`.`is_public`
-							, `a`.`can_see_role_landlord`
-							, `a`.`can_see_role_tenant`
-							, `a`.`can_see_role_mgt_cny`
-							, `a`.`can_see_role_agent`
-							, `a`.`can_see_role_contractor`
-							, `a`.`can_see_occupant`
-							# Notification rules
-							# - case - information
-							, `a`.`is_assigned_to_case`
-							, `a`.`is_invited_to_case`
-							, `a`.`is_next_step_updated`
-							, `a`.`is_deadline_updated`
-							, `a`.`is_solution_updated`
-							, `a`.`is_case_resolved`
-							, `a`.`is_case_blocker`
-							, `a`.`is_case_critical`
-							# - case - messages
-							, `a`.`is_any_new_message`
-							, `a`.`is_message_from_tenant`
-							, `a`.`is_message_from_ll`
-							, `a`.`is_message_from_occupant`
-							, `a`.`is_message_from_agent`
-							, `a`.`is_message_from_mgt_cny`
-							, `a`.`is_message_from_contractor`
-							# - Inspection Reports
-							, `a`.`is_new_ir`
-							# - Inventory
-							, `a`.`is_new_item`
-							, `a`.`is_item_removed`
-							, `a`.`is_item_moved`
-							, @propagate_to_all_level_2
-							, @propagate_to_all_level_3
-							FROM `temp_list_users_auto_assign_new_property` AS `a`
-							ON DUPLICATE KEY UPDATE
-								`syst_updated_datetime` := @syst_created_datetime
-								, `update_system_id` := @creation_system_id
-								, `updated_by_id` := @requestor_id
-								, `update_method` := @creation_method
-								, `organization_id` := @organization_id
-								, `is_obsolete` := @is_obsolete
-								, `is_update_needed` := @is_update_needed
-								# Which unit/user
-								, `unee_t_mefe_id` := `a`.`mefe_user_id`
-								, `unee_t_unit_id` := @unee_t_mefe_unit_id
-								# which role
-								, `unee_t_role_id` := `a`.`unee_t_role_id`
-								, `is_occupant` := `a`.`is_occupant`
-								# additional permissions
-								, `is_default_assignee` := `a`.`is_default_assignee`
-								, `is_default_invited` := `a`.`is_default_invited`
-								, `is_unit_owner` := `a`.`is_unit_owner`
-								# Visibility rules
-								, `is_public` := `a`.`is_public`
-								, `can_see_role_landlord` := `a`.`can_see_role_landlord`
-								, `can_see_role_tenant` := `a`.`can_see_role_tenant`
-								, `can_see_role_mgt_cny` := `a`.`can_see_role_mgt_cny`
-								, `can_see_role_agent` := `a`.`can_see_role_agent`
-								, `can_see_role_contractor` := `a`.`can_see_role_contractor`
-								, `can_see_occupant` := `a`.`can_see_occupant`
-								# Notification rules
-								# - case - information
-								, `is_assigned_to_case` := `a`.`is_assigned_to_case`
-								, `is_invited_to_case` := `a`.`is_invited_to_case`
-								, `is_next_step_updated` := `a`.`is_next_step_updated`
-								, `is_deadline_updated` := `a`.`is_deadline_updated`
-								, `is_solution_updated` := `a`.`is_solution_updated`
-								, `is_case_resolved` := `a`.`is_case_resolved`
-								, `is_case_blocker` := `a`.`is_case_blocker`
-								, `is_case_critical` := `a`.`is_case_critical`
-								# - case - messages
-								, `is_any_new_message` := `a`.`is_any_new_message`
-								, `is_message_from_tenant` := `a`.`is_message_from_tenant`
-								, `is_message_from_ll` := `a`.`is_message_from_ll`
-								, `is_message_from_occupant` := `a`.`is_message_from_occupant`
-								, `is_message_from_agent` := `a`.`is_message_from_agent`
-								, `is_message_from_mgt_cny` := `a`.`is_message_from_mgt_cny`
-								, `is_message_from_contractor` := `a`.`is_message_from_contractor`
-								# - Inspection Reports
-								, `is_new_ir` := `a`.`is_new_ir`
-								# - Inventory
-								, `is_new_item` := `a`.`is_new_item`
-								, `is_item_removed` := `a`.`is_item_removed`
-								, `is_item_moved` := `a`.`is_item_moved`
-								, `propagate_to_all_level_2` = @propagate_to_all_level_2
-								, `propagate_to_all_level_3` = @propagate_to_all_level_3
-								;
-
-			ELSEIF @external_property_type_id = 2
-			THEN 
-
-				INSERT INTO `external_map_user_unit_role_permissions_level_2`
-					(`syst_created_datetime`
-					, `creation_system_id`
-					, `created_by_id`
-					, `creation_method`
-					, `organization_id`
-					, `is_obsolete`
-					, `is_update_needed`
-					# Which unit/user
-					, `unee_t_mefe_user_id`
-					, `unee_t_level_2_id`
-					, `unee_t_user_type_id`
-					, `propagate_level_3`
-					)
-					SELECT 
-						@syst_created_datetime
-						, @creation_system_id
-						, @created_by_id
-						, @creation_method
-						, @organization_id
-						, @is_obsolete
-						, @is_update_needed
-						# Which unit/user
-						, `a`.`mefe_user_id`
-						, @property_id
-						, `a`.`unee_t_user_type_id`
-						, @propagate_to_all_level_3
-					FROM `temp_list_users_auto_assign_new_property` AS `a`
-						ON DUPLICATE KEY UPDATE
-							`syst_updated_datetime` := @syst_created_datetime
-							, `update_system_id` := @creation_system_id
-							, `updated_by_id` := @created_by_id
-							, `update_method` := @creation_method
-							, `organization_id` := @organization_id
-							, `is_obsolete` := @is_obsolete
-							, `is_update_needed` := @is_update_needed
-							# Which unit/user
-							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
-							, `unee_t_level_2_id` := @property_id
-							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
-							, `propagate_level_3` := @propagate_to_all_level_3
-						;
-
-				# We insert these in the table `ut_map_user_permissions_unit_level_2` 
-
-					INSERT INTO `ut_map_user_permissions_unit_level_2`
-						(`syst_created_datetime`
-						, `creation_system_id`
-						, `created_by_id`
-						, `creation_method`
-						, `organization_id`
-						, `is_obsolete`
-						, `is_update_needed`
-						# Which unit/user
-						, `unee_t_mefe_id`
-						, `unee_t_unit_id`
-						# which role
-						, `unee_t_role_id`
-						, `is_occupant`
-						# additional permissions
-						, `is_default_assignee`
-						, `is_default_invited`
-						, `is_unit_owner`
-						# Visibility rules
-						, `is_public`
-						, `can_see_role_landlord`
-						, `can_see_role_tenant`
-						, `can_see_role_mgt_cny`
-						, `can_see_role_agent`
-						, `can_see_role_contractor`
-						, `can_see_occupant`
-						# Notification rules
-						# - case - information
-						, `is_assigned_to_case`
-						, `is_invited_to_case`
-						, `is_next_step_updated`
-						, `is_deadline_updated`
-						, `is_solution_updated`
-						, `is_case_resolved`
-						, `is_case_blocker`
-						, `is_case_critical`
-						# - case - messages
-						, `is_any_new_message`
-						, `is_message_from_tenant`
-						, `is_message_from_ll`
-						, `is_message_from_occupant`
-						, `is_message_from_agent`
-						, `is_message_from_mgt_cny`
-						, `is_message_from_contractor`
-						# - Inspection Reports
-						, `is_new_ir`
-						# - Inventory
-						, `is_new_item`
-						, `is_item_removed`
-						, `is_item_moved`
-						, `propagate_to_all_level_3`
-						)
-						SELECT
-							@syst_created_datetime
-							, @creation_system_id
-							, @requestor_id
-							, @creation_method
-							, @organization_id
-							, @is_obsolete
-							, @is_update_needed
-							# Which unit/user
-							, `a`.`mefe_user_id`
-							, @unee_t_mefe_unit_id
-							# which role
-							, `a`.`unee_t_role_id`
-							, `a`.`is_occupant`
-							# additional permissions
-							, `a`.`is_default_assignee`
-							, `a`.`is_default_invited`
-							, `a`.`is_unit_owner`
-							# Visibility rules
-							, `a`.`is_public`
-							, `a`.`can_see_role_landlord`
-							, `a`.`can_see_role_tenant`
-							, `a`.`can_see_role_mgt_cny`
-							, `a`.`can_see_role_agent`
-							, `a`.`can_see_role_contractor`
-							, `a`.`can_see_occupant`
-							# Notification rules
-							# - case - information
-							, `a`.`is_assigned_to_case`
-							, `a`.`is_invited_to_case`
-							, `a`.`is_next_step_updated`
-							, `a`.`is_deadline_updated`
-							, `a`.`is_solution_updated`
-							, `a`.`is_case_resolved`
-							, `a`.`is_case_blocker`
-							, `a`.`is_case_critical`
-							# - case - messages
-							, `a`.`is_any_new_message`
-							, `a`.`is_message_from_tenant`
-							, `a`.`is_message_from_ll`
-							, `a`.`is_message_from_occupant`
-							, `a`.`is_message_from_agent`
-							, `a`.`is_message_from_mgt_cny`
-							, `a`.`is_message_from_contractor`
-							# - Inspection Reports
-							, `a`.`is_new_ir`
-							# - Inventory
-							, `a`.`is_new_item`
-							, `a`.`is_item_removed`
-							, `a`.`is_item_moved`
-							, @propagate_to_all_level_3
-							FROM `temp_list_users_auto_assign_new_property` AS `a`
-							ON DUPLICATE KEY UPDATE
-								`syst_updated_datetime` := @syst_created_datetime
-								, `update_system_id` := @creation_system_id
-								, `updated_by_id` := @requestor_id
-								, `update_method` := @creation_method
-								, `organization_id` := @organization_id
-								, `is_obsolete` := @is_obsolete
-								, `is_update_needed` := @is_update_needed
-								# Which unit/user
-								, `unee_t_mefe_id` := `a`.`mefe_user_id`
-								, `unee_t_unit_id` := @unee_t_mefe_unit_id
-								# which role
-								, `unee_t_role_id` := `a`.`unee_t_role_id`
-								, `is_occupant` := `a`.`is_occupant`
-								# additional permissions
-								, `is_default_assignee` := `a`.`is_default_assignee`
-								, `is_default_invited` := `a`.`is_default_invited`
-								, `is_unit_owner` := `a`.`is_unit_owner`
-								# Visibility rules
-								, `is_public` := `a`.`is_public`
-								, `can_see_role_landlord` := `a`.`can_see_role_landlord`
-								, `can_see_role_tenant` := `a`.`can_see_role_tenant`
-								, `can_see_role_mgt_cny` := `a`.`can_see_role_mgt_cny`
-								, `can_see_role_agent` := `a`.`can_see_role_agent`
-								, `can_see_role_contractor` := `a`.`can_see_role_contractor`
-								, `can_see_occupant` := `a`.`can_see_occupant`
-								# Notification rules
-								# - case - information
-								, `is_assigned_to_case` := `a`.`is_assigned_to_case`
-								, `is_invited_to_case` := `a`.`is_invited_to_case`
-								, `is_next_step_updated` := `a`.`is_next_step_updated`
-								, `is_deadline_updated` := `a`.`is_deadline_updated`
-								, `is_solution_updated` := `a`.`is_solution_updated`
-								, `is_case_resolved` := `a`.`is_case_resolved`
-								, `is_case_blocker` := `a`.`is_case_blocker`
-								, `is_case_critical` := `a`.`is_case_critical`
-								# - case - messages
-								, `is_any_new_message` := `a`.`is_any_new_message`
-								, `is_message_from_tenant` := `a`.`is_message_from_tenant`
-								, `is_message_from_ll` := `a`.`is_message_from_ll`
-								, `is_message_from_occupant` := `a`.`is_message_from_occupant`
-								, `is_message_from_agent` := `a`.`is_message_from_agent`
-								, `is_message_from_mgt_cny` := `a`.`is_message_from_mgt_cny`
-								, `is_message_from_contractor` := `a`.`is_message_from_contractor`
-								# - Inspection Reports
-								, `is_new_ir` := `a`.`is_new_ir`
-								# - Inventory
-								, `is_new_item` := `a`.`is_new_item`
-								, `is_item_removed` := `a`.`is_item_removed`
-								, `is_item_moved` := `a`.`is_item_moved`
-								, `propagate_to_all_level_3` = @propagate_to_all_level_3
-								;
-
-			ELSEIF @external_property_type_id = 3
-			THEN 
-
-				INSERT INTO `external_map_user_unit_role_permissions_level_3`
-					(`syst_created_datetime`
-					, `creation_system_id`
-					, `created_by_id`
-					, `creation_method`
-					, `organization_id`
-					, `is_obsolete`
-					, `is_update_needed`
-					# Which unit/user
-					, `unee_t_mefe_user_id`
-					, `unee_t_level_3_id`
-					, `unee_t_user_type_id`
-					)
-					SELECT 
-						@syst_created_datetime
-						, @creation_system_id
-						, @created_by_id
-						, @creation_method
-						, @organization_id
-						, @is_obsolete
-						, @is_update_needed
-						# Which unit/user
-						, `a`.`mefe_user_id`
-						, @property_id
-						, `a`.`unee_t_user_type_id`
-					FROM `temp_list_users_auto_assign_new_property` AS `a`
-						ON DUPLICATE KEY UPDATE
-							`syst_updated_datetime` := @syst_created_datetime
-							, `update_system_id` := @creation_system_id
-							, `updated_by_id` := @created_by_id
-							, `update_method` := @creation_method
-							, `organization_id` := @organization_id
-							, `is_obsolete` := @is_obsolete
-							, `is_update_needed` := @is_update_needed
-							# Which unit/user
-							, `unee_t_mefe_user_id` := `a`.`mefe_user_id`
-							, `unee_t_level_3_id` := @property_id
-							, `unee_t_user_type_id` := `a`.`unee_t_user_type_id`
-						;
-
-				# We insert these in the table `ut_map_user_permissions_unit_level_3` 
-
-					INSERT INTO `ut_map_user_permissions_unit_level_3`
-						(`syst_created_datetime`
-						, `creation_system_id`
-						, `created_by_id`
-						, `creation_method`
-						, `organization_id`
-						, `is_obsolete`
-						, `is_update_needed`
-						# Which unit/user
-						, `unee_t_mefe_id`
-						, `unee_t_unit_id`
-						# which role
-						, `unee_t_role_id`
-						, `is_occupant`
-						# additional permissions
-						, `is_default_assignee`
-						, `is_default_invited`
-						, `is_unit_owner`
-						# Visibility rules
-						, `is_public`
-						, `can_see_role_landlord`
-						, `can_see_role_tenant`
-						, `can_see_role_mgt_cny`
-						, `can_see_role_agent`
-						, `can_see_role_contractor`
-						, `can_see_occupant`
-						# Notification rules
-						# - case - information
-						, `is_assigned_to_case`
-						, `is_invited_to_case`
-						, `is_next_step_updated`
-						, `is_deadline_updated`
-						, `is_solution_updated`
-						, `is_case_resolved`
-						, `is_case_blocker`
-						, `is_case_critical`
-						# - case - messages
-						, `is_any_new_message`
-						, `is_message_from_tenant`
-						, `is_message_from_ll`
-						, `is_message_from_occupant`
-						, `is_message_from_agent`
-						, `is_message_from_mgt_cny`
-						, `is_message_from_contractor`
-						# - Inspection Reports
-						, `is_new_ir`
-						# - Inventory
-						, `is_new_item`
-						, `is_item_removed`
-						, `is_item_moved`
-						)
-						SELECT
-							@syst_created_datetime
-							, @creation_system_id
-							, @requestor_id
-							, @creation_method
-							, @organization_id
-							, @is_obsolete
-							, @is_update_needed
-							# Which unit/user
-							, `a`.`mefe_user_id`
-							, @unee_t_mefe_unit_id
-							# which role
-							, `a`.`unee_t_role_id`
-							, `a`.`is_occupant`
-							# additional permissions
-							, `a`.`is_default_assignee`
-							, `a`.`is_default_invited`
-							, `a`.`is_unit_owner`
-							# Visibility rules
-							, `a`.`is_public`
-							, `a`.`can_see_role_landlord`
-							, `a`.`can_see_role_tenant`
-							, `a`.`can_see_role_mgt_cny`
-							, `a`.`can_see_role_agent`
-							, `a`.`can_see_role_contractor`
-							, `a`.`can_see_occupant`
-							# Notification rules
-							# - case - information
-							, `a`.`is_assigned_to_case`
-							, `a`.`is_invited_to_case`
-							, `a`.`is_next_step_updated`
-							, `a`.`is_deadline_updated`
-							, `a`.`is_solution_updated`
-							, `a`.`is_case_resolved`
-							, `a`.`is_case_blocker`
-							, `a`.`is_case_critical`
-							# - case - messages
-							, `a`.`is_any_new_message`
-							, `a`.`is_message_from_tenant`
-							, `a`.`is_message_from_ll`
-							, `a`.`is_message_from_occupant`
-							, `a`.`is_message_from_agent`
-							, `a`.`is_message_from_mgt_cny`
-							, `a`.`is_message_from_contractor`
-							# - Inspection Reports
-							, `a`.`is_new_ir`
-							# - Inventory
-							, `a`.`is_new_item`
-							, `a`.`is_item_removed`
-							, `a`.`is_item_moved`
-							FROM `temp_list_users_auto_assign_new_property` AS `a`
-							ON DUPLICATE KEY UPDATE
-								`syst_updated_datetime` := @syst_created_datetime
-								, `update_system_id` := @creation_system_id
-								, `updated_by_id` := @requestor_id
-								, `update_method` := @creation_method
-								, `organization_id` := @organization_id
-								, `is_obsolete` := @is_obsolete
-								, `is_update_needed` := @is_update_needed
-								# Which unit/user
-								, `unee_t_mefe_id` := `a`.`mefe_user_id`
-								, `unee_t_unit_id` := @unee_t_mefe_unit_id
-								# which role
-								, `unee_t_role_id` := `a`.`unee_t_role_id`
-								, `is_occupant` := `a`.`is_occupant`
-								# additional permissions
-								, `is_default_assignee` := `a`.`is_default_assignee`
-								, `is_default_invited` := `a`.`is_default_invited`
-								, `is_unit_owner` := `a`.`is_unit_owner`
-								# Visibility rules
-								, `is_public` := `a`.`is_public`
-								, `can_see_role_landlord` := `a`.`can_see_role_landlord`
-								, `can_see_role_tenant` := `a`.`can_see_role_tenant`
-								, `can_see_role_mgt_cny` := `a`.`can_see_role_mgt_cny`
-								, `can_see_role_agent` := `a`.`can_see_role_agent`
-								, `can_see_role_contractor` := `a`.`can_see_role_contractor`
-								, `can_see_occupant` := `a`.`can_see_occupant`
-								# Notification rules
-								# - case - information
-								, `is_assigned_to_case` := `a`.`is_assigned_to_case`
-								, `is_invited_to_case` := `a`.`is_invited_to_case`
-								, `is_next_step_updated` := `a`.`is_next_step_updated`
-								, `is_deadline_updated` := `a`.`is_deadline_updated`
-								, `is_solution_updated` := `a`.`is_solution_updated`
-								, `is_case_resolved` := `a`.`is_case_resolved`
-								, `is_case_blocker` := `a`.`is_case_blocker`
-								, `is_case_critical` := `a`.`is_case_critical`
-								# - case - messages
-								, `is_any_new_message` := `a`.`is_any_new_message`
-								, `is_message_from_tenant` := `a`.`is_message_from_tenant`
-								, `is_message_from_ll` := `a`.`is_message_from_ll`
-								, `is_message_from_occupant` := `a`.`is_message_from_occupant`
-								, `is_message_from_agent` := `a`.`is_message_from_agent`
-								, `is_message_from_mgt_cny` := `a`.`is_message_from_mgt_cny`
-								, `is_message_from_contractor` := `a`.`is_message_from_contractor`
-								# - Inspection Reports
-								, `is_new_ir` := `a`.`is_new_ir`
-								# - Inventory
-								, `is_new_item` := `a`.`is_new_item`
-								, `is_item_removed` := `a`.`is_item_removed`
-								, `is_item_moved` := `a`.`is_item_moved`
-								;
-
-			END IF;
-
-		# We can now include these into the table that triggers the lambda
-
-			INSERT INTO `ut_map_user_permissions_unit_all`
-				(`syst_created_datetime`
-				, `creation_system_id`
-				, `created_by_id`
-				, `creation_method`
-				, `organization_id`
-				, `is_obsolete`
-				, `is_update_needed`
-				# Which unit/user
-				, `unee_t_mefe_id`
-				, `unee_t_unit_id`
-				# which role
-				, `unee_t_role_id`
-				, `is_occupant`
-				# additional permissions
-				, `is_default_assignee`
-				, `is_default_invited`
-				, `is_unit_owner`
-				# Visibility rules
-				, `is_public`
-				, `can_see_role_landlord`
-				, `can_see_role_tenant`
-				, `can_see_role_mgt_cny`
-				, `can_see_role_agent`
-				, `can_see_role_contractor`
-				, `can_see_occupant`
-				# Notification rules
-				# - case - information
-				, `is_assigned_to_case`
-				, `is_invited_to_case`
-				, `is_next_step_updated`
-				, `is_deadline_updated`
-				, `is_solution_updated`
-				, `is_case_resolved`
-				, `is_case_blocker`
-				, `is_case_critical`
-				# - case - messages
-				, `is_any_new_message`
-				, `is_message_from_tenant`
-				, `is_message_from_ll`
-				, `is_message_from_occupant`
-				, `is_message_from_agent`
-				, `is_message_from_mgt_cny`
-				, `is_message_from_contractor`
-				# - Inspection Reports
-				, `is_new_ir`
-				# - Inventory
-				, `is_new_item`
-				, `is_item_removed`
-				, `is_item_moved`
-				)
-				SELECT
-					@syst_created_datetime
-					, @creation_system_id
-					, @requestor_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					# Which unit/user
-					, `a`.`mefe_user_id`
-					, @unee_t_mefe_unit_id
-					# which role
-					, `a`.`unee_t_role_id`
-					, `a`.`is_occupant`
-					# additional permissions
-					, `a`.`is_default_assignee`
-					, `a`.`is_default_invited`
-					, `a`.`is_unit_owner`
-					# Visibility rules
-					, `a`.`is_public`
-					, `a`.`can_see_role_landlord`
-					, `a`.`can_see_role_tenant`
-					, `a`.`can_see_role_mgt_cny`
-					, `a`.`can_see_role_agent`
-					, `a`.`can_see_role_contractor`
-					, `a`.`can_see_occupant`
-					# Notification rules
-					# - case - information
-					, `a`.`is_assigned_to_case`
-					, `a`.`is_invited_to_case`
-					, `a`.`is_next_step_updated`
-					, `a`.`is_deadline_updated`
-					, `a`.`is_solution_updated`
-					, `a`.`is_case_resolved`
-					, `a`.`is_case_blocker`
-					, `a`.`is_case_critical`
-					# - case - messages
-					, `a`.`is_any_new_message`
-					, `a`.`is_message_from_tenant`
-					, `a`.`is_message_from_ll`
-					, `a`.`is_message_from_occupant`
-					, `a`.`is_message_from_agent`
-					, `a`.`is_message_from_mgt_cny`
-					, `a`.`is_message_from_contractor`
-					# - Inspection Reports
-					, `a`.`is_new_ir`
-					# - Inventory
-					, `a`.`is_new_item`
-					, `a`.`is_item_removed`
-					, `a`.`is_item_moved`
-					FROM `temp_list_users_auto_assign_new_property` AS `a`
-					ON DUPLICATE KEY UPDATE
-						`syst_updated_datetime` := @syst_created_datetime
-						, `update_system_id` := @creation_system_id
-						, `updated_by_id` := @requestor_id
-						, `update_method` := @creation_method
-						, `organization_id` := @organization_id
-						, `is_obsolete` := @is_obsolete
-						, `is_update_needed` := @is_update_needed
-						# Which unit/user
-						, `unee_t_mefe_id` := `a`.`mefe_user_id`
-						, `unee_t_unit_id` := @unee_t_mefe_unit_id
-						# which role
-						, `unee_t_role_id` := `a`.`unee_t_role_id`
-						, `is_occupant` := `a`.`is_occupant`
-						# additional permissions
-						, `is_default_assignee` := `a`.`is_default_assignee`
-						, `is_default_invited` := `a`.`is_default_invited`
-						, `is_unit_owner` := `a`.`is_unit_owner`
-						# Visibility rules
-						, `is_public` := `a`.`is_public`
-						, `can_see_role_landlord` := `a`.`can_see_role_landlord`
-						, `can_see_role_tenant` := `a`.`can_see_role_tenant`
-						, `can_see_role_mgt_cny` := `a`.`can_see_role_mgt_cny`
-						, `can_see_role_agent` := `a`.`can_see_role_agent`
-						, `can_see_role_contractor` := `a`.`can_see_role_contractor`
-						, `can_see_occupant` := `a`.`can_see_occupant`
-						# Notification rules
-						# - case - information
-						, `is_assigned_to_case` := `a`.`is_assigned_to_case`
-						, `is_invited_to_case` := `a`.`is_invited_to_case`
-						, `is_next_step_updated` := `a`.`is_next_step_updated`
-						, `is_deadline_updated` := `a`.`is_deadline_updated`
-						, `is_solution_updated` := `a`.`is_solution_updated`
-						, `is_case_resolved` := `a`.`is_case_resolved`
-						, `is_case_blocker` := `a`.`is_case_blocker`
-						, `is_case_critical` := `a`.`is_case_critical`
-						# - case - messages
-						, `is_any_new_message` := `a`.`is_any_new_message`
-						, `is_message_from_tenant` := `a`.`is_message_from_tenant`
-						, `is_message_from_ll` := `a`.`is_message_from_ll`
-						, `is_message_from_occupant` := `a`.`is_message_from_occupant`
-						, `is_message_from_agent` := `a`.`is_message_from_agent`
-						, `is_message_from_mgt_cny` := `a`.`is_message_from_mgt_cny`
-						, `is_message_from_contractor` := `a`.`is_message_from_contractor`
-						# - Inspection Reports
-						, `is_new_ir` := `a`.`is_new_ir`
-						# - Inventory
-						, `is_new_item` := `a`.`is_new_item`
-						, `is_item_removed` := `a`.`is_item_removed`
-						, `is_item_moved` := `a`.`is_item_moved`
-						;
-
-	END IF;
-END;
-$$
-DELIMITER ;
-
-#################
-#
-# This lists all the triggers we use to create 
-# an area
-# via the Unee-T Enterprise Interface
-#
-#################
-
-# We create a trigger when a record is added to the `external_property_groups_areas` table
-
-	DROP TRIGGER IF EXISTS `ut_insert_external_area`;
-
-DELIMITER $$
-CREATE TRIGGER `ut_insert_external_area`
-AFTER INSERT ON `external_property_groups_areas`
-FOR EACH ROW
-BEGIN
-
-# We only do this if 
-#	- We need to create the area in Unee-T
-#	  by default we should create ALL areas but we want maximum flexibility here...
-#	- This is a valid insert method:
-#		- 'imported_from_hmlet_ipi'
-#		- `Manage_Areas_Add_Page`
-#		- `Manage_Areas_Edit_Page`
-#		- 'Manage_Areas_Import_Page'
-#		- 'Export_and_Import_Areas_Import_Page'
-#		- ''
-
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = NEW.`updated_by_id`;
-
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
-		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
-		)
-		;
-
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
-
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
-
-	IF @is_creation_needed_in_unee_t = 1
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND (@upstream_create_method = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method = 'Manage_Areas_Add_Page'
-			OR @upstream_create_method = 'Manage_Areas_Edit_Page'
-			OR @upstream_create_method = 'Manage_Areas_Import_Page'
-			OR @upstream_create_method = 'Export_and_Import_Areas_Import_Page'
-			OR @upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'Manage_Areas_Add_Page'
-			OR @upstream_update_method = 'Manage_Areas_Edit_Page'
-			OR @upstream_update_method = 'Manage_Areas_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Areas_Import_Page'
-			)
-	THEN 
-
-	# We capture the values we need for the insert/udpate to the `property_groups_areas` table:
-
-		SET @this_trigger = 'ut_insert_external_area' ;
-
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
-			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
-			)
-			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
-
-		SET @syst_updated_datetime = NOW();
-
-		SET @source_system_updater = NEW.`updated_by_id` ; 
-
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
-			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
-			)
-			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
-
-		SET @organization_id_create = @source_system_creator ;
-		SET @organization_id_update = @source_system_updater;
-
-		SET @country_code = NEW.`country_code` ;
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @is_default = NEW.`is_default` ;
-		SET @order = NEW.`order` ;
-		SET @area_name = NEW.`area_name` ;
-		SET @area_definition = NEW.`area_definition` ;
-
-	# We insert the record in the table `property_groups_areas`
-
-			INSERT INTO `property_groups_areas`
-				(`external_id`
-				, `external_system_id` 
-				, `external_table`
-				, `syst_created_datetime`
-				, `creation_system_id`
-				, `created_by_id`
-				, `creation_method`
-				, `organization_id`
-				, `country_code`
-				, `is_obsolete`
-				, `is_default`
-				, `order`
-				, `area_name`
-				, `area_definition`
-				)
-				VALUES
-					(@external_id
-					, @external_system_id
-					, @external_table
-					, @syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @downstream_creation_method
-					, @organization_id_create
-					, @country_code
-					, @is_obsolete
-					, @is_default
-					, @order
-					, @area_name
-					, @area_definition
-					)
-				ON DUPLICATE KEY UPDATE
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @downstream_update_method
-					, `country_code` = @country_code
-					, `is_obsolete` = @is_obsolete
-					, `is_default` = @is_default
-					, `order` = @order
-					, `area_definition` = @area_definition
-					, `area_name` = @area_name
-				;
-
-	END IF;
-
-END;
-$$
-DELIMITER ;
-
-# We create a trigger when a record is updated in the `external_property_groups_areas` table
-# The area DOES exist in the table `property_groups_areas`
-
-	DROP TRIGGER IF EXISTS `ut_update_external_area`;
-
-DELIMITER $$
-CREATE TRIGGER `ut_update_external_area`
-AFTER UPDATE ON `external_property_groups_areas`
-FOR EACH ROW
-BEGIN
-
-# We only do this if 
-#	- We need to create the area in Unee-T
-#	  by default we should create ALL areas but we want maximum flexibility here...
-#	- This is a valid update method:
-#		- 'imported_from_hmlet_ipi'
-#		- `Manage_Areas_Add_Page`
-#		- `Manage_Areas_Edit_Page`
-#		- 'Manage_Areas_Import_Page'
-#		- 'Export_and_Import_Areas_Import_Page'
-#		- ''
-
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = NEW.`updated_by_id`;
-
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
-		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
-		)
-		;
-
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
-	
-	SET @organization_id = @source_system_creator ;
-
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
-
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ;
-
-	IF @is_creation_needed_in_unee_t = 1
-		AND @new_is_creation_needed_in_unee_t = @old_is_creation_needed_in_unee_t
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND (@upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'Manage_Areas_Add_Page'
-			OR @upstream_update_method = 'Manage_Areas_Edit_Page'
-			OR @upstream_update_method = 'Manage_Areas_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Areas_Import_Page'
-			)
-	THEN 
-
-	# We capture the values we need for the insert/udpate to the `property_groups_areas` table:
-
-		SET @this_trigger = 'ut_update_external_area' ;
-
-		SET @record_to_update = (SELECT `id_area`
-			FROM `property_groups_areas`
-			WHERE `external_id` = @external_id
-				AND `external_system_id` = @external_system_id
-				AND `external_table` = @external_table
-				AND `organization_id` = @organization_id
-			);
-
-		SET @syst_updated_datetime = NOW();
-
-		SET @source_system_updater = NEW.`updated_by_id` ; 
-
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
-			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
-			)
-			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
-
-		SET @organization_id_create = @source_system_creator;
-		SET @organization_id_update = @source_system_updater;
-
-		SET @country_code = NEW.`country_code` ;
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @is_default = NEW.`is_default` ;
-		SET @order = NEW.`order` ;
-		SET @area_name = NEW.`area_name` ;
-		SET @area_definition = NEW.`area_definition` ;
-
-	# We update the record in the table `property_groups_areas`
-	
-		UPDATE `property_groups_areas`
-		SET
-			`syst_updated_datetime` = @syst_updated_datetime
-			, `update_system_id` = @update_system_id
-			, `updated_by_id` = @updated_by_id
-			, `update_method` = @downstream_update_method
-			, `country_code` = @country_code
-			, `is_obsolete` = @is_obsolete
-			, `is_default` = @is_default
-			, `order` = @order
-			, `area_definition` = @area_definition
-			, `area_name` = @area_name
-			WHERE `id_area` = @record_to_update
-			;
-
-	END IF;
-
-END;
-$$
-DELIMITER ;
-
-# We create a trigger when a record is updated in the `external_property_groups_areas` table
-# AND the area is marked as needed to be created in Unee-T
-# The area does NOT exists in the table `property_groups_areas`
-
-	DROP TRIGGER IF EXISTS `ut_created_external_area_after_insert`;
-
-DELIMITER $$
-CREATE TRIGGER `ut_created_external_area_after_insert`
-AFTER UPDATE ON `external_property_groups_areas`
-FOR EACH ROW
-BEGIN
-
-# We only do this if:
-#	- We need to create the area in Unee-T
-#	  by default we should create ALL areas but we want maximum flexibility here...
-#	- This is a valid update method:
-#		- 'imported_from_hmlet_ipi'
-#		- `Manage_Areas_Add_Page`
-#		- `Manage_Areas_Edit_Page`
-#		- 'Manage_Areas_Import_Page'
-#		- 'Export_and_Import_Areas_Import_Page'
-#		- ''
-
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = NEW.`updated_by_id`;
-
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
-		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
-		)
-		;
-
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
-	
-	SET @organization_id = @source_system_creator ;
-
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
-
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ;
-
-	IF @is_creation_needed_in_unee_t = 1
-		AND @new_is_creation_needed_in_unee_t != @old_is_creation_needed_in_unee_t
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND (@upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'Manage_Areas_Add_Page'
-			OR @upstream_update_method = 'Manage_Areas_Edit_Page'
-			OR @upstream_update_method = 'Manage_Areas_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Areas_Import_Page'
-			)
-	THEN 
-
-	# We capture the values we need for the insert/udpate to the `property_groups_areas` table:
-
-		SET @this_trigger = 'ut_created_external_area_after_insert' ;
-
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
-			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
-			)
-			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
-
-		SET @syst_updated_datetime = NOW();
-
-		SET @source_system_updater = NEW.`updated_by_id` ; 
-
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
-			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
-			)
-			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
-
-		SET @organization_id_create = @source_system_creator;
-		SET @organization_id_update = @source_system_updater;
-
-		SET @country_code = NEW.`country_code` ;
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @is_default = NEW.`is_default` ;
-		SET @order = NEW.`order` ;
-		SET @area_name = NEW.`area_name` ;
-		SET @area_definition = NEW.`area_definition` ;
-
-	# We insert the record in the table `property_groups_areas`
-
-			INSERT INTO `property_groups_areas`
-				(`external_id`
-				, `external_system_id` 
-				, `external_table`
-				, `syst_created_datetime`
-				, `creation_system_id`
-				, `created_by_id`
-				, `creation_method`
-				, `is_creation_needed_in_unee_t`
-				, `organization_id`
-				, `country_code`
-				, `is_obsolete`
-				, `is_default`
-				, `order`
-				, `area_name`
-				, `area_definition`
-				)
-				VALUES
-					(@external_id
-					, @external_system_id
-					, @external_table
-					, @syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @downstream_creation_method
-					, @is_creation_needed_in_unee_t
-					, @organization_id_create
-					, @country_code
-					, @is_obsolete
-					, @is_default
-					, @order
-					, @area_name
-					, @area_definition
-					)
-				ON DUPLICATE KEY UPDATE
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @downstream_update_method
-					, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-					, `organization_id` = @organization_id_update
-					, `country_code` = @country_code
-					, `is_obsolete` = @is_obsolete
-					, `is_default` = @is_default
-					, `order` = @order
-					, `area_definition` = @area_definition
-					, `area_name` = @area_name
-
-				;
-
-	END IF;
-
-END;
-$$
 DELIMITER ;
 
 #################
@@ -8909,6 +10549,426 @@ DELIMITER ;
 #################
 #
 # This lists all the triggers we use to create 
+# an area
+# via the Unee-T Enterprise Interface
+#
+#################
+
+# We create a trigger when a record is added to the `external_property_groups_areas` table
+
+	DROP TRIGGER IF EXISTS `ut_insert_external_area`;
+
+DELIMITER $$
+CREATE TRIGGER `ut_insert_external_area`
+AFTER INSERT ON `external_property_groups_areas`
+FOR EACH ROW
+BEGIN
+
+# We only do this if 
+#	- We need to create the area in Unee-T
+#	  by default we should create ALL areas but we want maximum flexibility here...
+#	- This is a valid insert method:
+#		- 'imported_from_hmlet_ipi'
+#		- `Manage_Areas_Add_Page`
+#		- `Manage_Areas_Edit_Page`
+#		- 'Manage_Areas_Import_Page'
+#		- 'Export_and_Import_Areas_Import_Page'
+#		- ''
+
+	SET @is_creation_needed_in_unee_t_insert_ext_area_1 = NEW.`is_creation_needed_in_unee_t` ;
+
+	SET @source_system_creator_insert_ext_area_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_insert_ext_area_1 = NEW.`updated_by_id`;
+
+	SET @creator_mefe_user_id_insert_ext_area_1 = (SELECT `mefe_user_id` 
+		FROM `ut_organization_mefe_user_id`
+		WHERE `organization_id` = @source_system_creator_insert_ext_area_1
+		)
+		;
+
+	SET @upstream_create_method_insert_ext_area_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_insert_ext_area_1 = NEW.`update_method` ;
+
+	SET @external_id_insert_ext_area_1 = NEW.`external_id` ;
+	SET @external_system_id_insert_ext_area_1 = NEW.`external_system_id` ; 
+	SET @external_table_insert_ext_area_1 = NEW.`external_table` ;
+
+	IF @is_creation_needed_in_unee_t_insert_ext_area_1 = 1
+		AND @external_id_insert_ext_area_1 IS NOT NULL
+		AND @external_system_id_insert_ext_area_1 IS NOT NULL
+		AND @external_table_insert_ext_area_1 IS NOT NULL
+		AND (@upstream_create_method_insert_ext_area_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_insert_ext_area_1 = 'Manage_Areas_Add_Page'
+			OR @upstream_create_method_insert_ext_area_1 = 'Manage_Areas_Edit_Page'
+			OR @upstream_create_method_insert_ext_area_1 = 'Manage_Areas_Import_Page'
+			OR @upstream_create_method_insert_ext_area_1 = 'Export_and_Import_Areas_Import_Page'
+			OR @upstream_update_method_insert_ext_area_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_insert_ext_area_1 = 'Manage_Areas_Add_Page'
+			OR @upstream_update_method_insert_ext_area_1 = 'Manage_Areas_Edit_Page'
+			OR @upstream_update_method_insert_ext_area_1 = 'Manage_Areas_Import_Page'
+			OR @upstream_update_method_insert_ext_area_1 = 'Export_and_Import_Areas_Import_Page'
+			)
+	THEN 
+
+	# We capture the values we need for the insert/udpate to the `property_groups_areas` table:
+
+		SET @this_trigger_insert_ext_area_1 = 'ut_insert_external_area' ;
+
+		SET @syst_created_datetime_insert_ext_area_1 = NOW();
+		SET @creation_system_id_insert_ext_area_1 = (SELECT `id_external_sot_for_unee_t` 
+			FROM `ut_external_sot_for_unee_t_objects`
+			WHERE `organization_id` = @source_system_creator_insert_ext_area_1
+			)
+			;
+		SET @created_by_id_insert_ext_area_1 = @creator_mefe_user_id_insert_ext_area_1 ;
+		SET @downstream_creation_method_insert_ext_area_1 = @this_trigger_insert_ext_area_1 ;
+
+		SET @syst_updated_datetime_insert_ext_area_1 = NOW();
+
+		SET @source_system_updater_insert_ext_area_1 = NEW.`updated_by_id` ; 
+
+		SET @update_system_id_insert_ext_area_1 = (SELECT `id_external_sot_for_unee_t` 
+			FROM `ut_external_sot_for_unee_t_objects`
+			WHERE `organization_id` = @source_system_updater_insert_ext_area_1
+			)
+			;
+		SET @updated_by_id_insert_ext_area_1 = @creator_mefe_user_id_insert_ext_area_1 ;
+		SET @downstream_update_method_insert_ext_area_1 = @this_trigger_insert_ext_area_1 ;
+
+		SET @organization_id_create_insert_ext_area_1 = @source_system_creator_insert_ext_area_1 ;
+		SET @organization_id_update_insert_ext_area_1 = @source_system_updater_insert_ext_area_1 ;
+
+		SET @country_code_insert_ext_area_1 = NEW.`country_code` ;
+		SET @is_obsolete_insert_ext_area_1 = NEW.`is_obsolete` ;
+		SET @is_default_insert_ext_area_1 = NEW.`is_default` ;
+		SET @order_insert_ext_area_1 = NEW.`order` ;
+		SET @area_name_insert_ext_area_1 = NEW.`area_name` ;
+		SET @area_definition_insert_ext_area_1 = NEW.`area_definition` ;
+
+	# We insert the record in the table `property_groups_areas`
+
+			INSERT INTO `property_groups_areas`
+				(`external_id`
+				, `external_system_id` 
+				, `external_table`
+				, `syst_created_datetime`
+				, `creation_system_id`
+				, `created_by_id`
+				, `creation_method`
+				, `organization_id`
+				, `country_code`
+				, `is_obsolete`
+				, `is_default`
+				, `order`
+				, `area_name`
+				, `area_definition`
+				)
+				VALUES
+					(@external_id_insert_ext_area_1
+					, @external_system_id_insert_ext_area_1
+					, @external_table_insert_ext_area_1
+					, @syst_created_datetime_insert_ext_area_1
+					, @creation_system_id_insert_ext_area_1
+					, @created_by_id_insert_ext_area_1
+					, @downstream_creation_method_insert_ext_area_1
+					, @organization_id_create_insert_ext_area_1
+					, @country_code_insert_ext_area_1
+					, @is_obsolete_insert_ext_area_1
+					, @is_default_insert_ext_area_1
+					, @order_insert_ext_area_1
+					, @area_name_insert_ext_area_1
+					, @area_definition_insert_ext_area_1
+					)
+				ON DUPLICATE KEY UPDATE
+					`syst_updated_datetime` = @syst_updated_datetime_insert_ext_area_1
+					, `update_system_id` = @update_system_id_insert_ext_area_1
+					, `updated_by_id` = @updated_by_id_insert_ext_area_1
+					, `update_method` = @downstream_update_method_insert_ext_area_1
+					, `country_code` = @country_code_insert_ext_area_1
+					, `is_obsolete` = @is_obsolete_insert_ext_area_1
+					, `is_default` = @is_default_insert_ext_area_1
+					, `order` = @order_insert_ext_area_1
+					, `area_definition` = @area_definition_insert_ext_area_1
+					, `area_name` = @area_name_insert_ext_area_1
+				;
+
+	END IF;
+
+END;
+$$
+DELIMITER ;
+
+# We create a trigger when a record is updated in the `external_property_groups_areas` table
+# The area DOES exist in the table `property_groups_areas`
+
+	DROP TRIGGER IF EXISTS `ut_update_external_area`;
+
+DELIMITER $$
+CREATE TRIGGER `ut_update_external_area`
+AFTER UPDATE ON `external_property_groups_areas`
+FOR EACH ROW
+BEGIN
+
+# We only do this if 
+#	- We need to create the area in Unee-T
+#	  by default we should create ALL areas but we want maximum flexibility here...
+#	- This is a valid update method:
+#		- 'imported_from_hmlet_ipi'
+#		- `Manage_Areas_Add_Page`
+#		- `Manage_Areas_Edit_Page`
+#		- 'Manage_Areas_Import_Page'
+#		- 'Export_and_Import_Areas_Import_Page'
+#		- ''
+
+	SET @is_creation_needed_in_unee_t_update_ext_area_1 = NEW.`is_creation_needed_in_unee_t` ;
+
+	SET @source_system_creator_update_ext_area_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_update_ext_area_1 = NEW.`updated_by_id`;
+
+	SET @creator_mefe_user_id_update_ext_area_1 = (SELECT `mefe_user_id` 
+		FROM `ut_organization_mefe_user_id`
+		WHERE `organization_id` = @source_system_creator_update_ext_area_1
+		)
+		;
+
+	SET @upstream_create_method_update_ext_area_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_ext_area_1 = NEW.`update_method` ;
+	
+	SET @organization_id_update_ext_area_1 = @source_system_creator_update_ext_area_1 ;
+
+	SET @external_id_update_ext_area_1 = NEW.`external_id` ;
+	SET @external_system_id_update_ext_area_1 = NEW.`external_system_id` ; 
+	SET @external_table_update_ext_area_1 = NEW.`external_table` ;
+
+	SET @new_is_creation_needed_in_unee_t_update_ext_area_1 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_ext_area_1 = OLD.`is_creation_needed_in_unee_t` ;
+
+	IF @is_creation_needed_in_unee_t_update_ext_area_1 = 1
+		AND @new_is_creation_needed_in_unee_t_update_ext_area_1 = @old_is_creation_needed_in_unee_t_update_ext_area_1
+		AND @external_id_update_ext_area_1 IS NOT NULL
+		AND @external_system_id_update_ext_area_1 IS NOT NULL
+		AND @external_table_update_ext_area_1 IS NOT NULL
+		AND @organization_id_update_ext_area_1 IS NOT NULL
+		AND (@upstream_update_method_update_ext_area_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_area_1 = 'Manage_Areas_Add_Page'
+			OR @upstream_update_method_update_ext_area_1 = 'Manage_Areas_Edit_Page'
+			OR @upstream_update_method_update_ext_area_1 = 'Manage_Areas_Import_Page'
+			OR @upstream_update_method_update_ext_area_1 = 'Export_and_Import_Areas_Import_Page'
+			)
+	THEN 
+
+	# We capture the values we need for the insert/udpate to the `property_groups_areas` table:
+
+		SET @this_trigger_update_ext_area_1 = 'ut_update_external_area' ;
+
+		SET @record_to_update_update_ext_area_1 = (SELECT `id_area`
+			FROM `property_groups_areas`
+			WHERE `external_id` = @external_id_update_ext_area_1
+				AND `external_system_id` = @external_system_id_update_ext_area_1
+				AND `external_table` = @external_table_update_ext_area_1
+				AND `organization_id` = @organization_id_update_ext_area_1
+			);
+
+		SET @syst_updated_datetime_update_ext_area_1 = NOW();
+
+		SET @source_system_updater_update_ext_area_1 = NEW.`updated_by_id` ; 
+
+		SET @update_system_id_update_ext_area_1 = (SELECT `id_external_sot_for_unee_t` 
+			FROM `ut_external_sot_for_unee_t_objects`
+			WHERE `organization_id` = @source_system_updater_update_ext_area_1
+			)
+			;
+		SET @updated_by_id_update_ext_area_1 = @creator_mefe_user_id_update_ext_area_1 ;
+		SET @downstream_update_method_update_ext_area_1 = @this_trigger_update_ext_area_1 ;
+
+		SET @organization_id_create_update_ext_area_1 = @source_system_creator_update_ext_area_1 ;
+		SET @organization_id_update_update_ext_area_1 = @source_system_updater_update_ext_area_1 ;
+
+		SET @country_code_update_ext_area_1 = NEW.`country_code` ;
+		SET @is_obsolete_update_ext_area_1 = NEW.`is_obsolete` ;
+		SET @is_default_update_ext_area_1 = NEW.`is_default` ;
+		SET @order_update_ext_area_1 = NEW.`order` ;
+		SET @area_name_update_ext_area_1 = NEW.`area_name` ;
+		SET @area_definition_update_ext_area_1 = NEW.`area_definition` ;
+
+	# We update the record in the table `property_groups_areas`
+	
+		UPDATE `property_groups_areas`
+		SET
+			`syst_updated_datetime` = @syst_updated_datetime_update_ext_area_1
+			, `update_system_id` = @update_system_id_update_ext_area_1
+			, `updated_by_id` = @updated_by_id_update_ext_area_1
+			, `update_method` = @downstream_update_method_update_ext_area_1
+			, `country_code` = @country_code_update_ext_area_1
+			, `is_obsolete` = @is_obsolete_update_ext_area_1
+			, `is_default` = @is_default_update_ext_area_1
+			, `order` = @order_update_ext_area_1
+			, `area_definition` = @area_definition_update_ext_area_1
+			, `area_name` = @area_name_update_ext_area_1
+			WHERE `id_area` = @record_to_update_update_ext_area_1
+			;
+
+	END IF;
+
+END;
+$$
+DELIMITER ;
+
+# We create a trigger when a record is updated in the `external_property_groups_areas` table
+# AND the area is marked as needed to be created in Unee-T
+# The area does NOT exists in the table `property_groups_areas`
+
+	DROP TRIGGER IF EXISTS `ut_created_external_area_after_insert`;
+
+DELIMITER $$
+CREATE TRIGGER `ut_created_external_area_after_insert`
+AFTER UPDATE ON `external_property_groups_areas`
+FOR EACH ROW
+BEGIN
+
+# We only do this if:
+#	- We need to create the area in Unee-T
+#	  by default we should create ALL areas but we want maximum flexibility here...
+#	- This is a valid update method:
+#		- 'imported_from_hmlet_ipi'
+#		- `Manage_Areas_Add_Page`
+#		- `Manage_Areas_Edit_Page`
+#		- 'Manage_Areas_Import_Page'
+#		- 'Export_and_Import_Areas_Import_Page'
+#		- ''
+
+	SET @is_creation_needed_in_unee_t_update_ext_area_2 = NEW.`is_creation_needed_in_unee_t` ;
+
+	SET @source_system_creator_update_ext_area_2 = NEW.`created_by_id` ;
+	SET @source_system_updater_update_ext_area_2 = NEW.`updated_by_id`;
+
+	SET @creator_mefe_user_id_update_ext_area_2 = (SELECT `mefe_user_id` 
+		FROM `ut_organization_mefe_user_id`
+		WHERE `organization_id` = @source_system_creator_update_ext_area_2
+		)
+		;
+
+	SET @upstream_create_method_update_ext_area_2 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_ext_area_2 = NEW.`update_method` ;
+	
+	SET @organization_id_update_ext_area_2 = @source_system_creator_update_ext_area_2 ;
+
+	SET @external_id_update_ext_area_2 = NEW.`external_id` ;
+	SET @external_system_id_update_ext_area_2 = NEW.`external_system_id` ; 
+	SET @external_table_update_ext_area_2 = NEW.`external_table` ;
+
+	SET @new_is_creation_needed_in_unee_t_update_ext_area_2 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_ext_area_2 = OLD.`is_creation_needed_in_unee_t` ;
+
+	IF @is_creation_needed_in_unee_t_update_ext_area_2 = 1
+		AND @new_is_creation_needed_in_unee_t_update_ext_area_2 != @old_is_creation_needed_in_unee_t_update_ext_area_2
+		AND @external_id_update_ext_area_2 IS NOT NULL
+		AND @external_system_id_update_ext_area_2 IS NOT NULL
+		AND @external_table_update_ext_area_2 IS NOT NULL
+		AND @organization_id_update_ext_area_2 IS NOT NULL
+		AND (@upstream_update_method_update_ext_area_2 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_area_2 = 'Manage_Areas_Add_Page'
+			OR @upstream_update_method_update_ext_area_2 = 'Manage_Areas_Edit_Page'
+			OR @upstream_update_method_update_ext_area_2 = 'Manage_Areas_Import_Page'
+			OR @upstream_update_method_update_ext_area_2 = 'Export_and_Import_Areas_Import_Page'
+			)
+	THEN 
+
+	# We capture the values we need for the insert/udpate to the `property_groups_areas` table:
+
+		SET @this_trigger_update_ext_area_2 = 'ut_created_external_area_after_insert' ;
+
+		SET @syst_created_datetime_update_ext_area_2 = NOW();
+		SET @creation_system_id_update_ext_area_2 = (SELECT `id_external_sot_for_unee_t` 
+			FROM `ut_external_sot_for_unee_t_objects`
+			WHERE `organization_id` = @source_system_creator_update_ext_area_2
+			)
+			;
+		SET @created_by_id_update_ext_area_2 = @creator_mefe_user_id_update_ext_area_2 ;
+		SET @downstream_creation_method_update_ext_area_2 = @this_trigger_update_ext_area_2 ;
+
+		SET @syst_updated_datetime_update_ext_area_2 = NOW();
+
+		SET @source_system_updater_update_ext_area_2 = NEW.`updated_by_id` ; 
+
+		SET @update_system_id_update_ext_area_2 = (SELECT `id_external_sot_for_unee_t` 
+			FROM `ut_external_sot_for_unee_t_objects`
+			WHERE `organization_id` = @source_system_updater_update_ext_area_2
+			)
+			;
+		SET @updated_by_id_update_ext_area_2 = @creator_mefe_user_id_update_ext_area_2 ;
+		SET @downstream_update_method_update_ext_area_2 = @this_trigger_update_ext_area_2 ;
+
+		SET @organization_id_create_update_ext_area_2 = @source_system_creator_update_ext_area_2 ;
+		SET @organization_id_update_update_ext_area_2 = @source_system_updater_update_ext_area_2 ;
+
+		SET @country_code_update_ext_area_2 = NEW.`country_code` ;
+		SET @is_obsolete_update_ext_area_2 = NEW.`is_obsolete` ;
+		SET @is_default_update_ext_area_2 = NEW.`is_default` ;
+		SET @order_update_ext_area_2 = NEW.`order` ;
+		SET @area_name_update_ext_area_2 = NEW.`area_name` ;
+		SET @area_definition_update_ext_area_2 = NEW.`area_definition` ;
+
+	# We insert the record in the table `property_groups_areas`
+
+			INSERT INTO `property_groups_areas`
+				(`external_id`
+				, `external_system_id` 
+				, `external_table`
+				, `syst_created_datetime`
+				, `creation_system_id`
+				, `created_by_id`
+				, `creation_method`
+				, `is_creation_needed_in_unee_t`
+				, `organization_id`
+				, `country_code`
+				, `is_obsolete`
+				, `is_default`
+				, `order`
+				, `area_name`
+				, `area_definition`
+				)
+				VALUES
+					(@external_id_update_ext_area_2
+					, @external_system_id_update_ext_area_2
+					, @external_table_update_ext_area_2
+					, @syst_created_datetime_update_ext_area_2
+					, @creation_system_id_update_ext_area_2
+					, @created_by_id_update_ext_area_2
+					, @downstream_creation_method_update_ext_area_2
+					, @is_creation_needed_in_unee_t_update_ext_area_2
+					, @organization_id_create_update_ext_area_2
+					, @country_code_update_ext_area_2
+					, @is_obsolete_update_ext_area_2
+					, @is_default_update_ext_area_2
+					, @order_update_ext_area_2
+					, @area_name_update_ext_area_2
+					, @area_definition_update_ext_area_2
+					)
+				ON DUPLICATE KEY UPDATE
+					`syst_updated_datetime` = @syst_updated_datetime_update_ext_area_2
+					, `update_system_id` = @update_system_id_update_ext_area_2
+					, `updated_by_id` = @updated_by_id_update_ext_area_2
+					, `update_method` = @downstream_update_method_update_ext_area_2
+					, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_area_2
+					, `organization_id` = @organization_id_update_update_ext_area_2
+					, `country_code` = @country_code_update_ext_area_2
+					, `is_obsolete` = @is_obsolete_update_ext_area_2
+					, `is_default` = @is_default_update_ext_area_2
+					, `order` = @order_update_ext_area_2
+					, `area_definition` = @area_definition_update_ext_area_2
+					, `area_name` = @area_name_update_ext_area_2
+				;
+
+	END IF;
+
+END;
+$$
+DELIMITER ;
+
+#################
+#
+# This lists all the triggers we use to create 
 # a property_level_1
 # via the Unee-T Enterprise Interface
 #
@@ -8917,6 +10977,7 @@ DELIMITER ;
 # This script creates the following objects:
 #	- Triggers
 #		- `ut_insert_external_property_level_1`
+#			Updated to work with UNTE API to create new unit.
 #		- `ut_update_external_property_level_1`
 #		- `ut_update_external_property_level_1_creation_needed`
 #		- `ut_update_map_external_source_unit_add_building`
@@ -8925,8 +10986,6 @@ DELIMITER ;
 #		- ``
 #		- ``
 #	- Procedures
-#		- ``
-#		- ``
 #		- ``
 #		- ``
 
@@ -8958,151 +11017,165 @@ BEGIN
 #		- 'Manage_Buildings_Edit_Page'
 #		- 'Manage_Buildings_Import_Page'
 #		- 'Export_and_Import_Buildings_Import_Page'
+#		- 'unte_api_create_property'
+#		- ''
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_insert_ext_l1_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator
+	SET @source_system_creator_insert_ext_l1_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_insert_ext_l1_1 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_insert_ext_l1_1
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_insert_ext_l1_1 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_insert_ext_l1_1
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
-	
-	SET @organization_id = @source_system_creator ;
+	SET @upstream_create_method_insert_ext_l1_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_insert_ext_l1_1 = NEW.`update_method` ;
 
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
-	SET @tower = NEW.`tower` ;
+	SET @external_system_id_insert_ext_l1_1 = NEW.`external_system_id` ; 
+	SET @external_table_insert_ext_l1_1 = NEW.`external_table` ;
+	SET @external_id_insert_ext_l1_1 = NEW.`external_id` ;
+	SET @tower_insert_ext_l1_1 = NEW.`tower` ;
 
-	SET @id_in_property_level_1_buildings = (SELECT `id_building`
+	SET @organization_id_insert_ext_l1_1 = @source_system_creator_insert_ext_l1_1 ;
+
+	SET @id_in_property_level_1_buildings_insert_ext_l1_1 = (SELECT `id_building`
 		FROM `property_level_1_buildings`
-		WHERE `external_system_id` = @external_system_id
-			AND `external_table` = @external_table
-			AND `external_id` = @external_id
-			AND `organization_id` = @organization_id
-			AND `tower` = @tower
+		WHERE `external_system_id` = @external_system_id_insert_ext_l1_1
+			AND `external_table` = @external_table_insert_ext_l1_1
+			AND `external_id` = @external_id_insert_ext_l1_1
+			AND `tower` = @tower_insert_ext_l1_1
+			AND `organization_id` = @organization_id_insert_ext_l1_1
 		);
 
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_insert_ext_l1_1 = NEW.`do_not_insert` ;
 
 	# This is an INSERT - the record should NOT exist already
 
-		SET @do_not_insert = (IF (@id_in_property_level_1_buildings IS NULL
+		SET @do_not_insert_insert_ext_l1_1 = (IF (@id_in_property_level_1_buildings_insert_ext_l1_1 IS NULL
 				, 0
-				, @upstream_do_not_insert
+				, @upstream_do_not_insert_insert_ext_l1_1
 				)
 			);
 
 	# Get the information about the area for that building...
 	# We need the information from the table `property_groups_areas` (and NOT the table `external_property_groups_areas`)
-	
-		SET @area_id_in_table_external_property_level_1_buildings = NEW.`area_id` ;
 
-		SET @area_external_id = (SELECT `external_id`
+		SET @area_id_1_insert_ext_l1_1 = NEW.`area_id` ;
+
+		SET @area_external_id_insert_ext_l1_1 = (SELECT `external_id`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_insert_ext_l1_1
 			);
-		SET @area_external_system_id = (SELECT `external_system_id`
+		SET @area_external_system_id_insert_ext_l1_1 = (SELECT `external_system_id`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_insert_ext_l1_1
 			);
-		SET @area_external_table = (SELECT `external_table`
+		SET @area_external_table_insert_ext_l1_1 = (SELECT `external_table`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_insert_ext_l1_1
 			);
 
-		SET @area_id = (SELECT `id_area`
+		SET @area_id_2_insert_ext_l1_1 = (SELECT `id_area`
 			FROM `property_groups_areas`
-			WHERE `external_id` = @area_external_id
-				AND `external_system_id` = @area_external_system_id
-			   	AND `external_table` = @area_external_table
-			   	AND `organization_id` = @organization_id
+			WHERE `external_id` = @area_external_id_insert_ext_l1_1
+				AND `external_system_id` = @area_external_system_id_insert_ext_l1_1
+			   	AND `external_table` = @area_external_table_insert_ext_l1_1
+			   	AND `organization_id` = @organization_id_insert_ext_l1_1
 			);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @tower IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND @area_id IS NOT NULL
+	IF @is_creation_needed_in_unee_t_insert_ext_l1_1 = 1
+		AND @do_not_insert_insert_ext_l1_1 = 0
+		AND @external_id_insert_ext_l1_1 IS NOT NULL
+		AND @external_system_id_insert_ext_l1_1 IS NOT NULL
+		AND @external_table_insert_ext_l1_1 IS NOT NULL
+		AND @tower_insert_ext_l1_1 IS NOT NULL
+		AND @organization_id_insert_ext_l1_1 IS NOT NULL
+		AND @area_id_2_insert_ext_l1_1 IS NOT NULL
 		AND 
-		(@upstream_create_method = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method = 'Manage_Buildings_Add_Page'
-			OR @upstream_create_method = 'Manage_Buildings_Edit_Page'
-			OR @upstream_create_method = 'Manage_Buildings_Import_Page'
-			OR @upstream_create_method = 'Export_and_Import_Buildings_Import_Page'
-			OR @upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'Manage_Buildings_Add_Page'
-			OR @upstream_update_method = 'Manage_Buildings_Edit_Page'
-			OR @upstream_update_method = 'Manage_Buildings_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Buildings_Import_Page'
+		(@upstream_create_method_insert_ext_l1_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_insert_ext_l1_1 = 'Manage_Buildings_Add_Page'
+			OR @upstream_create_method_insert_ext_l1_1 = 'Manage_Buildings_Edit_Page'
+			OR @upstream_create_method_insert_ext_l1_1 = 'Manage_Buildings_Import_Page'
+			OR @upstream_create_method_insert_ext_l1_1 = 'Export_and_Import_Buildings_Import_Page'
+			OR @upstream_create_method_insert_ext_l1_1 = 'unte_api_create_property'
+			OR @upstream_update_method_insert_ext_l1_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_insert_ext_l1_1 = 'Manage_Buildings_Add_Page'
+			OR @upstream_update_method_insert_ext_l1_1 = 'Manage_Buildings_Edit_Page'
+			OR @upstream_update_method_insert_ext_l1_1 = 'Manage_Buildings_Import_Page'
+			OR @upstream_update_method_insert_ext_l1_1 = 'Export_and_Import_Buildings_Import_Page'
+			OR @upstream_update_method_insert_ext_l1_1 = 'unte_api_create_property'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `property_level_1_buildings` table:
 
-		SET @this_trigger = 'ut_insert_external_property_level_1' ;
+		SET @this_trigger_insert_ext_l1_1 := 'ut_insert_external_property_level_1' ;
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @create_api_request_id_ext_l1_1 := NEW.`create_api_request_id` ;
+		SET @edit_api_request_ext_id_l1_1 := NEW.`edit_api_request_id` ;
+		SET @is_update_on_duplicate_key_ext_l1_1 := NEW.`is_update_on_duplicate_key` ;
+		SET @mgt_cny_default_assignee_ext_l1_1 := NEW.`mgt_cny_default_assignee` ;
+		SET @landlord_default_assignee_ext_l1_1 := NEW.`landlord_default_assignee` ;
+		SET @tenant_default_assignee_ext_l1_1 := NEW.`tenant_default_assignee` ;
+		SET @agent_default_assignee_ext_l1_1 := NEW.`agent_default_assignee` ;
+
+		SET @syst_created_datetime_insert_ext_l1_1 = NOW();
+		SET @creation_system_id_insert_ext_l1_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_insert_ext_l1_1
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_insert_ext_l1_1 = @creator_mefe_user_id_insert_ext_l1_1 ;
+		SET @downstream_creation_method_insert_ext_l1_1 = @this_trigger_insert_ext_l1_1 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_insert_ext_l1_1 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_insert_ext_l1_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_insert_ext_l1_1
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_insert_ext_l1_1 = @creator_mefe_user_id_insert_ext_l1_1 ;
+		SET @downstream_update_method_insert_ext_l1_1 = @this_trigger_insert_ext_l1_1 ;
 
-		SET @organization_id_create = @source_system_creator ;
-		SET @organization_id_update = @source_system_updater;
+		SET @organization_id_create_insert_ext_l1_1 = @source_system_creator_insert_ext_l1_1 ;
+		SET @organization_id_update_insert_ext_l1_1 = @source_system_updater_insert_ext_l1_1;
 
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @order = NEW.`order` ;
+		SET @is_obsolete_insert_ext_l1_1 = NEW.`is_obsolete` ;
+		SET @order_insert_ext_l1_1 = NEW.`order` ;
 
-		SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
-		SET @designation = NEW.`designation` ;
+		SET @unee_t_unit_type_insert_ext_l1_1 = NEW.`unee_t_unit_type` ;
+		SET @designation_insert_ext_l1_1 = NEW.`designation` ;
 
-		SET @address_1 = NEW.`address_1` ;
-		SET @address_2 = NEW.`address_2` ;
-		SET @zip_postal_code = NEW.`zip_postal_code` ;
-		SET @state = NEW.`state` ;
-		SET @city = NEW.`city` ;
-		SET @country_code = NEW.`country_code` ;
+		SET @address_1_insert_ext_l1_1 = NEW.`address_1` ;
+		SET @address_2_insert_ext_l1_1 = NEW.`address_2` ;
+		SET @zip_postal_code_insert_ext_l1_1 = NEW.`zip_postal_code` ;
+		SET @state_insert_ext_l1_1 = NEW.`state` ;
+		SET @city_insert_ext_l1_1 = NEW.`city` ;
+		SET @country_code_insert_ext_l1_1 = NEW.`country_code` ;
 
-		SET @description = NEW.`description` ;
+		SET @description_insert_ext_l1_1 = NEW.`description` ;
 
 	# We insert the record in the table `property_level_1_buildings`
 
 		INSERT INTO `property_level_1_buildings`
 			(`external_id`
+			, `create_api_request_id`
 			, `external_system_id` 
 			, `external_table`
 			, `syst_created_datetime`
 			, `creation_system_id`
 			, `created_by_id`
 			, `creation_method`
+			, `is_update_on_duplicate_key`
 			, `organization_id`
 			, `is_obsolete`
 			, `order`
@@ -9119,66 +11192,83 @@ BEGIN
 			, `city`
 			, `country_code`
 			, `description`
+			, `mgt_cny_default_assignee`
+			, `landlord_default_assignee`
+			, `tenant_default_assignee`
+			, `agent_default_assignee`
 			)
 			VALUES
-				(@external_id
-				, @external_system_id
-				, @external_table
-				, @syst_created_datetime
-				, @creation_system_id
-				, @created_by_id
-				, @downstream_creation_method
-				, @organization_id_create
-				, @is_obsolete
-				, @order
-				, @area_id
-				, @is_creation_needed_in_unee_t
-				, @do_not_insert
-				, @unee_t_unit_type
-				, @designation
-				, @tower
-				, @address_1
-				, @address_2
-				, @zip_postal_code
-				, @state
-				, @city
-				, @country_code
-				, @description
+				(@external_id_insert_ext_l1_1
+				, @create_api_request_id_ext_l1_1
+				, @external_system_id_insert_ext_l1_1
+				, @external_table_insert_ext_l1_1
+				, @syst_created_datetime_insert_ext_l1_1
+				, @creation_system_id_insert_ext_l1_1
+				, @created_by_id_insert_ext_l1_1
+				, @downstream_creation_method_insert_ext_l1_1
+				, 0
+				, @organization_id_create_insert_ext_l1_1
+				, @is_obsolete_insert_ext_l1_1
+				, @order_insert_ext_l1_1
+				, @area_id_2_insert_ext_l1_1
+				, @is_creation_needed_in_unee_t_insert_ext_l1_1
+				, @do_not_insert_insert_ext_l1_1_insert_ext_l1_1
+				, @unee_t_unit_type_insert_ext_l1_1
+				, @designation_insert_ext_l1_1
+				, @tower_insert_ext_l1_1
+				, @address_1_insert_ext_l1_1
+				, @address_2_insert_ext_l1_1
+				, @zip_postal_code_insert_ext_l1_1
+				, @state_insert_ext_l1_1
+				, @city_insert_ext_l1_1
+				, @country_code_insert_ext_l1_1
+				, @description_insert_ext_l1_1
+				, @mgt_cny_default_assignee_ext_l1_1
+				, @landlord_default_assignee_ext_l1_1
+				, @tenant_default_assignee_ext_l1_1
+				, @agent_default_assignee_ext_l1_1
 				)
 			ON DUPLICATE KEY UPDATE
-				`syst_updated_datetime` = @syst_updated_datetime
-				, `update_system_id` = @update_system_id
-				, `updated_by_id` = @updated_by_id
-				, `update_method` = @downstream_update_method
-				, `organization_id` = @organization_id_update
-				, `is_obsolete` = @is_obsolete
-				, `order` = @order
-				, `area_id` = @area_id
-				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-				, `do_not_insert` = @do_not_insert
-				, `unee_t_unit_type` = @unee_t_unit_type
-				, `designation` = @designation
-				, `tower` = @tower
-				, `address_1` = @address_1
-				, `address_2` = @address_2
-				, `zip_postal_code` = @zip_postal_code
-				, `state` = @state
-				, `city` = @city
-				, `country_code` = @country_code
-				, `description` = @description
+				`edit_api_request_id` := @create_api_request_id_ext_l1_1
+				, `syst_updated_datetime` = @syst_updated_datetime_insert_ext_l1_1
+				, `update_system_id` = @update_system_id_insert_ext_l1_1
+				, `updated_by_id` = @updated_by_id_insert_ext_l1_1
+				, `update_method` = @downstream_update_method_insert_ext_l1_1
+				, `is_update_on_duplicate_key` := @is_update_on_duplicate_key_ext_l1_1
+				, `organization_id` = @organization_id_update_insert_ext_l1_1
+				, `is_obsolete` = @is_obsolete_insert_ext_l1_1
+				, `order` = @order_insert_ext_l1_1
+				, `area_id` = @area_id_2_insert_ext_l1_1
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_insert_ext_l1_1
+				, `do_not_insert` = @do_not_insert_insert_ext_l1_1
+				, `unee_t_unit_type` = @unee_t_unit_type_insert_ext_l1_1
+				, `designation` = @designation_insert_ext_l1_1
+				, `tower` = @tower_insert_ext_l1_1
+				, `address_1` = @address_1_insert_ext_l1_1
+				, `address_2` = @address_2_insert_ext_l1_1
+				, `zip_postal_code` = @zip_postal_code_insert_ext_l1_1
+				, `state` = @state_insert_ext_l1_1
+				, `city` = @city_insert_ext_l1_1
+				, `country_code` = @country_code_insert_ext_l1_1
+				, `description` = @description_insert_ext_l1_1
+				, `mgt_cny_default_assignee` := @mgt_cny_default_assignee
+				, `landlord_default_assignee` := @landlord_default_assignee_ext_l1_1
+				, `tenant_default_assignee` := @tenant_default_assignee_ext_l1_1
+				, `agent_default_assignee` := @agent_default_assignee_ext_l1_1
 			;
 
 	END IF;
 
 # Housekeeping - we make sure that if a building is obsolete - all units in that building are obsolete too
 
-	SET @building_system_id = NEW.`id_building` ;
+	SET @building_system_id_insert_ext_l1_1 = NEW.`id_building` ;
 
 		UPDATE `external_property_level_2_units` AS `a`
 			INNER JOIN `external_property_level_1_buildings` AS `b`
 				ON (`a`.`building_system_id` = `b`.`id_building`)
 			SET `a`.`is_obsolete` = `b`.`is_obsolete`
-			WHERE `a`.`building_system_id` = @building_system_id
+			WHERE `a`.`building_system_id` = @building_system_id_insert_ext_l1_1
+				AND `a`.`tower` = @tower_insert_ext_l1_1
 			;
 
 END;
@@ -9216,140 +11306,140 @@ BEGIN
 #		- 'Export_and_Import_Buildings_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_update_ext_l1_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator
+	SET @source_system_creator_update_ext_l1_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_update_ext_l1_1 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_update_ext_l1_1
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_update_ext_l1_1 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_update_ext_l1_1
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_ext_l1_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_ext_l1_1 = NEW.`update_method` ;
 
-	SET @organization_id = @source_system_creator ;
+	SET @organization_id_update_ext_l1_1 = @source_system_creator_update_ext_l1_1 ;
 
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
-	SET @tower = NEW.`tower` ;
+	SET @external_id_update_ext_l1_1 = NEW.`external_id` ;
+	SET @external_system_id_update_ext_l1_1 = NEW.`external_system_id` ; 
+	SET @external_table_update_ext_l1_1 = NEW.`external_table` ;
+	SET @tower_update_ext_l1_1 = NEW.`tower` ;
 
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ;
+	SET @new_is_creation_needed_in_unee_t_update_ext_l1_1 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_ext_l1_1 = OLD.`is_creation_needed_in_unee_t` ;
 
-	SET @id_in_property_level_1_buildings = (SELECT `id_building`
+	SET @id_in_property_level_1_buildings_update_ext_l1_1 = (SELECT `id_building`
 		FROM `property_level_1_buildings`
-		WHERE `external_system_id` = @external_system_id
-			AND `external_table` = @external_table
-			AND `external_id` = @external_id
-			AND `organization_id` = @organization_id
-			AND `tower` = @tower
+		WHERE `external_system_id` = @external_system_id_update_ext_l1_1
+			AND `external_table` = @external_table_update_ext_l1_1
+			AND `external_id` = @external_id_update_ext_l1_1
+			AND `organization_id` = @organization_id_update_ext_l1_1
+			AND `tower` = @tower_update_ext_l1_1
 		);
 
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_update_ext_l1_1 = NEW.`do_not_insert` ;
 
 	# This is an UPDATE - the record SHOULD exist already
-		SET @do_not_insert = (IF (@id_in_property_level_1_buildings IS NULL
+		SET @do_not_insert_update_ext_l1_1 = (IF (@id_in_property_level_1_buildings_update_ext_l1_1 IS NULL
 				, 1
-				, @upstream_do_not_insert
+				, @upstream_do_not_insert_update_ext_l1_1
 				)
 			);
 
 	# Get the information about the area for that building...
 	# We need the information from the table `property_groups_areas` (and NOT the table `external_property_groups_areas`)
-	
-		SET @area_id_in_table_external_property_level_1_buildings = NEW.`area_id` ;
 
-		SET @area_external_id = (SELECT `external_id`
+		SET @area_id_1_update_ext_l1_1 = NEW.`area_id` ;
+
+		SET @area_external_id_update_ext_l1_1 = (SELECT `external_id`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_update_ext_l1_1
 			);
-		SET @area_external_system_id = (SELECT `external_system_id`
+		SET @area_external_system_id_update_ext_l1_1 = (SELECT `external_system_id`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_update_ext_l1_1
 			);
-		SET @area_external_table = (SELECT `external_table`
+		SET @area_external_table_update_ext_l1_1 = (SELECT `external_table`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_update_ext_l1_1
 			);
 
-		SET @area_id = (SELECT `id_area`
+		SET @area_id_2_update_ext_l1_1 = (SELECT `id_area`
 			FROM `property_groups_areas`
-			WHERE `external_id` = @area_external_id
-				AND `external_system_id` = @area_external_system_id
-			   	AND `external_table` = @area_external_table
-			   	AND `organization_id` = @organization_id
+			WHERE `external_id` = @area_external_id_update_ext_l1_1
+				AND `external_system_id` = @area_external_system_id_update_ext_l1_1
+			   	AND `external_table` = @area_external_table_update_ext_l1_1
+			   	AND `organization_id` = @organization_id_update_ext_l1_1
 			);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @new_is_creation_needed_in_unee_t = @old_is_creation_needed_in_unee_t
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @tower IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND @area_id IS NOT NULL
-		AND (@upstream_create_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method = 'Manage_Buildings_Add_Page'
-			OR @upstream_update_method = 'Manage_Buildings_Add_Page'
-			OR @upstream_create_method = 'Manage_Buildings_Edit_Page'
-			OR @upstream_update_method = 'Manage_Buildings_Edit_Page'
-			OR @upstream_create_method = 'Manage_Buildings_Import_Page'
-			OR @upstream_update_method = 'Manage_Buildings_Import_Page'
-			OR @upstream_create_method = 'Export_and_Import_Buildings_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Buildings_Import_Page'
+	IF @is_creation_needed_in_unee_t_update_ext_l1_1 = 1
+		AND @new_is_creation_needed_in_unee_t_update_ext_l1_1 = @old_is_creation_needed_in_unee_t_update_ext_l1_1
+		AND @do_not_insert_update_ext_l1_1 = 0
+		AND @external_id_update_ext_l1_1 IS NOT NULL
+		AND @external_system_id_update_ext_l1_1 IS NOT NULL
+		AND @external_table_update_ext_l1_1 IS NOT NULL
+		AND @tower_update_ext_l1_1 IS NOT NULL
+		AND @organization_id_update_ext_l1_1 IS NOT NULL
+		AND @area_id_2_update_ext_l1_1 IS NOT NULL
+		AND (@upstream_create_method_update_ext_l1_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_l1_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_update_ext_l1_1 = 'Manage_Buildings_Add_Page'
+			OR @upstream_update_method_update_ext_l1_1 = 'Manage_Buildings_Add_Page'
+			OR @upstream_create_method_update_ext_l1_1 = 'Manage_Buildings_Edit_Page'
+			OR @upstream_update_method_update_ext_l1_1 = 'Manage_Buildings_Edit_Page'
+			OR @upstream_create_method_update_ext_l1_1 = 'Manage_Buildings_Import_Page'
+			OR @upstream_update_method_update_ext_l1_1 = 'Manage_Buildings_Import_Page'
+			OR @upstream_create_method_update_ext_l1_1 = 'Export_and_Import_Buildings_Import_Page'
+			OR @upstream_update_method_update_ext_l1_1 = 'Export_and_Import_Buildings_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `property_level_1_buildings` table:
 
-		SET @this_trigger = 'ut_update_external_property_level_1';
+		SET @this_trigger_update_ext_l1_1 = 'ut_update_external_property_level_1';
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_update_ext_l1_1 = NOW();
+		SET @creation_system_id_update_ext_l1_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_update_ext_l1_1
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_update_ext_l1_1 = @creator_mefe_user_id_update_ext_l1_1 ;
+		SET @downstream_creation_method_update_ext_l1_1 = @this_trigger_update_ext_l1_1 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_update_ext_l1_1 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_update_ext_l1_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_update_ext_l1_1
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_update_ext_l1_1 = @creator_mefe_user_id_update_ext_l1_1 ;
+		SET @downstream_update_method_update_ext_l1_1 = @this_trigger_update_ext_l1_1 ;
 
-		SET @organization_id_create = @source_system_creator;
-		SET @organization_id_update = @source_system_updater;
+		SET @organization_id_create_update_ext_l1_1 = @source_system_creator_update_ext_l1_1;
+		SET @organization_id_update_update_ext_l1_1 = @source_system_updater_update_ext_l1_1;
 
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @order = NEW.`order` ;
+		SET @is_obsolete_update_ext_l1_1 = NEW.`is_obsolete` ;
+		SET @order_update_ext_l1_1 = NEW.`order` ;
 
-		SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
-		SET @designation = NEW.`designation` ;
+		SET @unee_t_unit_type_update_ext_l1_1 = NEW.`unee_t_unit_type` ;
+		SET @designation_update_ext_l1_1 = NEW.`designation` ;
 
-		SET @address_1 = NEW.`address_1` ;
-		SET @address_2 = NEW.`address_2` ;
-		SET @zip_postal_code = NEW.`zip_postal_code` ;
-		SET @state = NEW.`state` ;
-		SET @city = NEW.`city` ;
-		SET @country_code = NEW.`country_code` ;
+		SET @address_1_update_ext_l1_1 = NEW.`address_1` ;
+		SET @address_2_update_ext_l1_1 = NEW.`address_2` ;
+		SET @zip_postal_code_update_ext_l1_1 = NEW.`zip_postal_code` ;
+		SET @state_update_ext_l1_1 = NEW.`state` ;
+		SET @city_update_ext_l1_1 = NEW.`city` ;
+		SET @country_code_update_ext_l1_1 = NEW.`country_code` ;
 
-		SET @description = NEW.`description` ;
+		SET @description_update_ext_l1_1 = NEW.`description` ;
 
 	# We update the record in the table `property_level_1_buildings`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -9380,70 +11470,70 @@ BEGIN
 			, `description`
 			)
 			VALUES
-				(@external_id
-				, @external_system_id
-				, @external_table
-				, @syst_created_datetime
-				, @creation_system_id
-				, @created_by_id
-				, @downstream_creation_method
-				, @organization_id_create
-				, @is_obsolete
-				, @order
-				, @area_id
-				, @is_creation_needed_in_unee_t
-				, @do_not_insert
-				, @unee_t_unit_type
-				, @designation
-				, @tower
-				, @address_1
-				, @address_2
-				, @zip_postal_code
-				, @state
-				, @city
-				, @country_code
-				, @description
+				(@external_id_update_ext_l1_1
+				, @external_system_id_update_ext_l1_1
+				, @external_table_update_ext_l1_1
+				, @syst_created_datetime_update_ext_l1_1
+				, @creation_system_id_update_ext_l1_1
+				, @created_by_id_update_ext_l1_1
+				, @downstream_creation_method_update_ext_l1_1
+				, @organization_id_create_update_ext_l1_1
+				, @is_obsolete_update_ext_l1_1
+				, @order_update_ext_l1_1
+				, @area_id_2_update_ext_l1_1
+				, @is_creation_needed_in_unee_t_update_ext_l1_1
+				, @do_not_insert_update_ext_l1_1
+				, @unee_t_unit_type_update_ext_l1_1
+				, @designation_update_ext_l1_1
+				, @tower_update_ext_l1_1
+				, @address_1_update_ext_l1_1
+				, @address_2_update_ext_l1_1
+				, @zip_postal_code_update_ext_l1_1
+				, @state_update_ext_l1_1
+				, @city_update_ext_l1_1
+				, @country_code_update_ext_l1_1
+				, @description_update_ext_l1_1
 				)
 			ON DUPLICATE KEY UPDATE
-				`syst_updated_datetime` = @syst_updated_datetime
-				, `update_system_id` = @update_system_id
-				, `updated_by_id` = @updated_by_id
-				, `update_method` = @downstream_update_method
-				, `organization_id` = @organization_id_update
-				, `is_obsolete` = @is_obsolete
-				, `order` = @order
-				, `area_id` = @area_id
-				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-				, `do_not_insert` = @do_not_insert
-				, `unee_t_unit_type` = @unee_t_unit_type
-				, `designation` = @designation
-				, `tower` = @tower
-				, `address_1` = @address_1
-				, `address_2` = @address_2
-				, `zip_postal_code` = @zip_postal_code
-				, `state` = @state
-				, `city` = @city
-				, `country_code` = @country_code
-				, `description` = @description
+				`syst_updated_datetime` = @syst_updated_datetime_update_ext_l1_1
+				, `update_system_id` = @update_system_id_update_ext_l1_1
+				, `updated_by_id` = @updated_by_id_update_ext_l1_1
+				, `update_method` = @downstream_update_method_update_ext_l1_1
+				, `organization_id` = @organization_id_update_update_ext_l1_1
+				, `is_obsolete` = @is_obsolete_update_ext_l1_1
+				, `order` = @order_update_ext_l1_1
+				, `area_id` = @area_id_2_update_ext_l1_1
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_l1_1
+				, `do_not_insert` = @do_not_insert_update_ext_l1_1
+				, `unee_t_unit_type` = @unee_t_unit_type_update_ext_l1_1
+				, `designation` = @designation_update_ext_l1_1
+				, `tower` = @tower_update_ext_l1_1
+				, `address_1` = @address_1_update_ext_l1_1
+				, `address_2` = @address_2_update_ext_l1_1
+				, `zip_postal_code` = @zip_postal_code_update_ext_l1_1
+				, `state` = @state_update_ext_l1_1
+				, `city` = @city_update_ext_l1_1
+				, `country_code` = @country_code_update_ext_l1_1
+				, `description` = @description_update_ext_l1_1
 			;
 
 	END IF;
 
 # Housekeeping - we make sure that if a building is obsolete - all units in that building are obsolete too
 
-	SET @building_system_id = NEW.`id_building` ;
+	SET @building_system_id_update_ext_l1_1 = NEW.`id_building` ;
 
 		UPDATE `external_property_level_2_units` AS `a`
 			INNER JOIN `external_property_level_1_buildings` AS `b`
 				ON (`a`.`building_system_id` = `b`.`id_building`)
 			SET `a`.`is_obsolete` = `b`.`is_obsolete`
-			WHERE `a`.`building_system_id` = @building_system_id
+			WHERE `a`.`building_system_id` = @building_system_id_update_ext_l1_1
+				AND `a`.`tower` = @tower_update_ext_l1_1
 			;
 
 END;
 $$
 DELIMITER ;
-
 
 # We create a trigger when a record is updated in the `external_property_level_1_buildings` table
 #	- The unit DOES exist in the table `property_level_1_buildings`
@@ -9476,137 +11566,138 @@ BEGIN
 #		- 'Export_and_Import_Buildings_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_update_ext_l1_2 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator
+	SET @source_system_creator_update_ext_l1_2 = NEW.`created_by_id` ;
+	SET @source_system_updater_update_ext_l1_2 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_update_ext_l1_2
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_update_ext_l1_2 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_update_ext_l1_2
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_ext_l1_2 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_ext_l1_2 = NEW.`update_method` ;
 
-	SET @organization_id = @source_system_creator ;
+	SET @organization_id_update_ext_l1_2 = @source_system_creator_update_ext_l1_2 ;
 
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
-	SET @tower = NEW.`tower` ;
+	SET @external_id_update_ext_l1_2 = NEW.`external_id` ;
+	SET @external_system_id_update_ext_l1_2 = NEW.`external_system_id` ; 
+	SET @external_table_update_ext_l1_2 = NEW.`external_table` ;
+	SET @tower_update_ext_l1_2 = NEW.`tower` ;
 
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ;
+	SET @new_is_creation_needed_in_unee_t_update_ext_l1_2 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_ext_l1_2 = OLD.`is_creation_needed_in_unee_t` ;
 
-	SET @id_in_property_level_1_buildings = (SELECT `id_building`
+	SET @id_in_property_level_1_buildings_update_ext_l1_2 = (SELECT `id_building`
 		FROM `property_level_1_buildings`
-		WHERE `external_system_id` = @external_system_id
-			AND `external_table` = @external_table
-			AND `external_id` = @external_id
-			AND `organization_id` = @organization_id
-			AND `tower` = @tower
+		WHERE `external_system_id` = @external_system_id_update_ext_l1_2
+			AND `external_table` = @external_table_update_ext_l1_2
+			AND `external_id` = @external_id_update_ext_l1_2
+			AND `organization_id` = @organization_id_update_ext_l1_2
+			AND `tower` = @tower_update_ext_l1_2
 		);
 
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_update_ext_l1_2 = NEW.`do_not_insert` ;
 
 	# This is an UPDATE - the record SHOULD exist already
 	# BUT there are some edge cases when we need to re-create this...
-		SET @do_not_insert = @upstream_do_not_insert ;
+
+		SET @do_not_insert_update_ext_l1_2 = @upstream_do_not_insert_update_ext_l1_2 ;
 
 	# Get the information about the area for that building...
 	# We need the information from the table `property_groups_areas` (and NOT the table `external_property_groups_areas`)
-	
-		SET @area_id_in_table_external_property_level_1_buildings = NEW.`area_id` ;
 
-		SET @area_external_id = (SELECT `external_id`
+		SET @area_id_1_update_ext_l1_2 = NEW.`area_id` ;
+
+		SET @area_external_id_update_ext_l1_2 = (SELECT `external_id`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_update_ext_l1_2
 			);
-		SET @area_external_system_id = (SELECT `external_system_id`
+		SET @area_external_system_id_update_ext_l1_2 = (SELECT `external_system_id`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_update_ext_l1_2
 			);
-		SET @area_external_table = (SELECT `external_table`
+		SET @area_external_table_update_ext_l1_2 = (SELECT `external_table`
 			FROM `external_property_groups_areas`
-			WHERE `id_area` = @area_id_in_table_external_property_level_1_buildings
+			WHERE `id_area` = @area_id_1_update_ext_l1_2
 			);
 
-		SET @area_id = (SELECT `id_area`
+		SET @area_id_2_update_ext_l1_2 = (SELECT `id_area`
 			FROM `property_groups_areas`
-			WHERE `external_id` = @area_external_id
-				AND `external_system_id` = @area_external_system_id
-			   	AND `external_table` = @area_external_table
-			   	AND `organization_id` = @organization_id
+			WHERE `external_id` = @area_external_id_update_ext_l1_2
+				AND `external_system_id` = @area_external_system_id_update_ext_l1_2
+			   	AND `external_table` = @area_external_table_update_ext_l1_2
+			   	AND `organization_id` = @organization_id_update_ext_l1_2
 			);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @new_is_creation_needed_in_unee_t != @old_is_creation_needed_in_unee_t
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @tower IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND @area_id IS NOT NULL
-		AND (@upstream_create_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method = 'Manage_Buildings_Add_Page'
-			OR @upstream_update_method = 'Manage_Buildings_Add_Page'
-			OR @upstream_create_method = 'Manage_Buildings_Edit_Page'
-			OR @upstream_update_method = 'Manage_Buildings_Edit_Page'
-			OR @upstream_create_method = 'Manage_Buildings_Import_Page'
-			OR @upstream_update_method = 'Manage_Buildings_Import_Page'
-			OR @upstream_create_method = 'Export_and_Import_Buildings_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Buildings_Import_Page'
+	IF @is_creation_needed_in_unee_t_update_ext_l1_2 = 1
+		AND @id_in_property_level_1_buildings_update_ext_l1_2 IS NULL
+		AND @do_not_insert_update_ext_l1_2 = 0
+		AND @external_id_update_ext_l1_2 IS NOT NULL
+		AND @external_system_id_update_ext_l1_2 IS NOT NULL
+		AND @external_table_update_ext_l1_2 IS NOT NULL
+		AND @tower_update_ext_l1_2 IS NOT NULL
+		AND @organization_id_update_ext_l1_2 IS NOT NULL
+		AND @area_id_2_update_ext_l1_2 IS NOT NULL
+		AND (@upstream_create_method_update_ext_l1_2 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_l1_2 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_update_ext_l1_2 = 'Manage_Buildings_Add_Page'
+			OR @upstream_update_method_update_ext_l1_2 = 'Manage_Buildings_Add_Page'
+			OR @upstream_create_method_update_ext_l1_2 = 'Manage_Buildings_Edit_Page'
+			OR @upstream_update_method_update_ext_l1_2 = 'Manage_Buildings_Edit_Page'
+			OR @upstream_create_method_update_ext_l1_2 = 'Manage_Buildings_Import_Page'
+			OR @upstream_update_method_update_ext_l1_2 = 'Manage_Buildings_Import_Page'
+			OR @upstream_create_method_update_ext_l1_2 = 'Export_and_Import_Buildings_Import_Page'
+			OR @upstream_update_method_update_ext_l1_2 = 'Export_and_Import_Buildings_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `property_level_1_buildings` table:
 
-		SET @this_trigger = 'ut_update_external_property_level_1_creation_needed';
+		SET @this_trigger_update_ext_l1_2 = 'ut_update_external_property_level_1_creation_needed';
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_update_ext_l1_2 = NOW();
+		SET @creation_system_id_update_ext_l1_2 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_update_ext_l1_2
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_update_ext_l1_2 = @creator_mefe_user_id_update_ext_l1_2 ;
+		SET @downstream_creation_method_update_ext_l1_2 = @this_trigger_update_ext_l1_2 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_update_ext_l1_2 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_update_ext_l1_2 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_update_ext_l1_2
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_update_ext_l1_2 = @creator_mefe_user_id_update_ext_l1_2 ;
+		SET @downstream_update_method_update_ext_l1_2 = @this_trigger_update_ext_l1_2 ;
 
-		SET @organization_id_create = @source_system_creator;
-		SET @organization_id_update = @source_system_updater;
+		SET @organization_id_create_update_ext_l1_2 = @source_system_creator_update_ext_l1_2;
+		SET @organization_id_update_update_ext_l1_2 = @source_system_updater_update_ext_l1_2;
 
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @order = NEW.`order` ;
+		SET @is_obsolete_update_ext_l1_2 = NEW.`is_obsolete` ;
+		SET @order_update_ext_l1_2 = NEW.`order` ;
 
-		SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
-		SET @designation = NEW.`designation` ;
+		SET @unee_t_unit_type_update_ext_l1_2 = NEW.`unee_t_unit_type` ;
+		SET @designation_update_ext_l1_2 = NEW.`designation` ;
 
-		SET @address_1 = NEW.`address_1` ;
-		SET @address_2 = NEW.`address_2` ;
-		SET @zip_postal_code = NEW.`zip_postal_code` ;
-		SET @state = NEW.`state` ;
-		SET @city = NEW.`city` ;
-		SET @country_code = NEW.`country_code` ;
+		SET @address_1_update_ext_l1_2 = NEW.`address_1` ;
+		SET @address_2_update_ext_l1_2 = NEW.`address_2` ;
+		SET @zip_postal_code_update_ext_l1_2 = NEW.`zip_postal_code` ;
+		SET @state_update_ext_l1_2 = NEW.`state` ;
+		SET @city_update_ext_l1_2 = NEW.`city` ;
+		SET @country_code_update_ext_l1_2 = NEW.`country_code` ;
 
-		SET @description = NEW.`description` ;
+		SET @description_update_ext_l1_2 = NEW.`description` ;
 
 	# We update the record in the table `property_level_1_buildings`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -9637,64 +11728,65 @@ BEGIN
 			, `description`
 			)
 			VALUES
-				(@external_id
-				, @external_system_id
-				, @external_table
-				, @syst_created_datetime
-				, @creation_system_id
-				, @created_by_id
-				, @downstream_creation_method
-				, @organization_id_create
-				, @is_obsolete
-				, @order
-				, @area_id
-				, @is_creation_needed_in_unee_t
-				, @do_not_insert
-				, @unee_t_unit_type
-				, @designation
-				, @tower
-				, @address_1
-				, @address_2
-				, @zip_postal_code
-				, @state
-				, @city
-				, @country_code
-				, @description
+				(@external_id_update_ext_l1_2
+				, @external_system_id_update_ext_l1_2
+				, @external_table_update_ext_l1_2
+				, @syst_created_datetime_update_ext_l1_2
+				, @creation_system_id_update_ext_l1_2
+				, @created_by_id_update_ext_l1_2
+				, @downstream_creation_method_update_ext_l1_2
+				, @organization_id_create_update_ext_l1_2
+				, @is_obsolete_update_ext_l1_2
+				, @order_update_ext_l1_2
+				, @area_id_2_update_ext_l1_2
+				, @is_creation_needed_in_unee_t_update_ext_l1
+				, @do_not_insert_update_ext_l1_2
+				, @unee_t_unit_type_update_ext_l1_2
+				, @designation_update_ext_l1_2
+				, @tower_update_ext_l1_2
+				, @address_1_update_ext_l1_2
+				, @address_2_update_ext_l1_2
+				, @zip_postal_code_update_ext_l1_2
+				, @state_update_ext_l1_2
+				, @city_update_ext_l1_2
+				, @country_code_update_ext_l1_2
+				, @description_update_ext_l1_2
 				)
 			ON DUPLICATE KEY UPDATE
-				`syst_updated_datetime` = @syst_updated_datetime
-				, `update_system_id` = @update_system_id
-				, `updated_by_id` = @updated_by_id
-				, `update_method` = @downstream_update_method
-				, `organization_id` = @organization_id_update
-				, `is_obsolete` = @is_obsolete
-				, `order` = @order
-				, `area_id` = @area_id
-				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-				, `do_not_insert` = @do_not_insert
-				, `unee_t_unit_type` = @unee_t_unit_type
-				, `designation` = @designation
-				, `tower` = @tower
-				, `address_1` = @address_1
-				, `address_2` = @address_2
-				, `zip_postal_code` = @zip_postal_code
-				, `state` = @state
-				, `city` = @city
-				, `country_code` = @country_code
-				, `description` = @description
+				`syst_updated_datetime` = @syst_updated_datetime_update_ext_l1_2
+				, `update_system_id` = @update_system_id_update_ext_l1_2
+				, `updated_by_id` = @updated_by_id_update_ext_l1_2
+				, `update_method` = @downstream_update_method_update_ext_l1_2
+				, `organization_id` = @organization_id_update_update_ext_l1_2
+				, `is_obsolete` = @is_obsolete_update_ext_l1_2
+				, `order` = @order_update_ext_l1_2
+				, `area_id` = @area_id_2_update_ext_l1_2
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_l1
+				, `do_not_insert` = @do_not_insert_update_ext_l1_2
+				, `unee_t_unit_type` = @unee_t_unit_type_update_ext_l1_2
+				, `designation` = @designation_update_ext_l1_2
+				, `tower` = @tower_update_ext_l1_2
+				, `address_1` = @address_1_update_ext_l1_2
+				, `address_2` = @address_2_update_ext_l1_2
+				, `zip_postal_code` = @zip_postal_code_update_ext_l1_2
+				, `state` = @state_update_ext_l1_2
+				, `city` = @city_update_ext_l1_2
+				, `country_code` = @country_code_update_ext_l1_2
+				, `description` = @description_update_ext_l1_2
 			;
 
 	END IF;
 
 # Housekeeping - we make sure that if a building is obsolete - all units in that building are obsolete too
 
-	SET @building_system_id = NEW.`id_building` ;
+	SET @building_system_id_update_ext_l1_2 = NEW.`id_building` ;
 
 		UPDATE `external_property_level_2_units` AS `a`
 			INNER JOIN `external_property_level_1_buildings` AS `b`
 				ON (`a`.`building_system_id` = `b`.`id_building`)
 			SET `a`.`is_obsolete` = `b`.`is_obsolete`
-			WHERE `a`.`building_system_id` = @building_system_id
+			WHERE `a`.`building_system_id` = @building_system_id_update_ext_l1_2
+				AND `a`.`tower` = @tower_update_ext_l1_2
 			;
 
 END;
@@ -9722,98 +11814,127 @@ BEGIN
 #		- ''
 #
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_insert_l1_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @external_property_id = NEW.`external_id` ;
-	SET @external_system = NEW.`external_system_id` ;
-	SET @table_in_external_system = NEW.`external_table` ;
-	SET @organization_id = NEW.`organization_id`;
-	SET @tower = NEW.`tower` ; 
+	SET @external_property_id_insert_l1_1 = NEW.`external_id` ;
+	SET @external_system_insert_l1_1 = NEW.`external_system_id` ;
+	SET @table_in_external_system_insert_l1_1 = NEW.`external_table` ;
+	SET @organization_id_insert_l1_1 = NEW.`organization_id`;
+	SET @tower_insert_l1_1 = NEW.`tower` ; 
 
-	SET @id_building = NEW.`id_building` ;
+	SET @id_building_insert_l1_1 = NEW.`id_building` ;
 
-	SET @id_in_ut_map_external_source_units = (SELECT `id_map`
+	SET @id_in_ut_map_external_source_units_insert_l1_1 = (SELECT `id_map`
 		FROM `ut_map_external_source_units`
 		WHERE `external_property_type_id` = 1
-			AND `external_property_id` = @external_property_id
-			AND `external_system` = @external_system
-			AND `table_in_external_system` = @table_in_external_system
-			AND `organization_id` = @organization_id
-			AND `tower` = @tower
+			AND `external_property_id` = @external_property_id_insert_l1_1
+			AND `external_system` = @external_system_insert_l1_1
+			AND `table_in_external_system` = @table_in_external_system_insert_l1_1
+			AND `organization_id` = @organization_id_insert_l1_1
+			AND `tower` = @tower_insert_l1_1
 		);
 
-	SET @existing_mefe_unit_id = (SELECT `unee_t_mefe_unit_id`
+	SET @existing_mefe_unit_id_insert_l1_1 = (SELECT `unee_t_mefe_unit_id`
 		FROM `ut_map_external_source_units`
 		WHERE `external_property_type_id` = 1
-			AND `external_property_id` = @external_property_id
-			AND `external_system` = @external_system
-			AND `table_in_external_system` = @table_in_external_system
-			AND `organization_id` = @organization_id
-			AND `tower` = @tower
+			AND `external_property_id` = @external_property_id_insert_l1_1
+			AND `external_system` = @external_system_insert_l1_1
+			AND `table_in_external_system` = @table_in_external_system_insert_l1_1
+			AND `organization_id` = @organization_id_insert_l1_1
+			AND `tower` = @tower_insert_l1_1
 		);
 
 	# This is an insert - if the record does NOT exist, we create the record
 	# unless it is specifically specified that we do NOT need to create the record.
-		SET @do_not_insert = (IF (@id_in_ut_map_external_source_units IS NULL
+		SET @do_not_insert_insert_l1_1 = (IF (@id_in_ut_map_external_source_units_insert_l1_1 IS NULL
 				, 0
 				, NEW.`do_not_insert`
 				)
 			
 			);
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_insert_l1_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_insert_l1_1 = NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0
-		AND @existing_mefe_unit_id IS NULL
-		AND (@upstream_create_method = 'ut_insert_external_property_level_1'
-			OR @upstream_update_method = 'ut_insert_external_property_level_1'
-			OR @upstream_create_method = 'ut_update_external_property_level_1'
-			OR @upstream_update_method = 'ut_update_external_property_level_1'
-			OR @upstream_create_method = 'ut_update_external_property_level_1_creation_needed'
-			OR @upstream_update_method = 'ut_update_external_property_level_1_creation_needed'
+	IF @is_creation_needed_in_unee_t_insert_l1_1 = 1
+		AND @do_not_insert_insert_l1_1 = 0
+		AND @existing_mefe_unit_id_insert_l1_1 IS NULL
+		AND (@upstream_create_method_insert_l1_1 = 'ut_insert_external_property_level_1'
+			OR @upstream_update_method_insert_l1_1 = 'ut_insert_external_property_level_1'
+			OR @upstream_create_method_insert_l1_1 = 'ut_update_external_property_level_1'
+			OR @upstream_update_method_insert_l1_1 = 'ut_update_external_property_level_1'
+			OR @upstream_create_method_insert_l1_1 = 'ut_update_external_property_level_1_creation_needed'
+			OR @upstream_update_method_insert_l1_1 = 'ut_update_external_property_level_1_creation_needed'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate:
 
-		SET @this_trigger = 'ut_update_map_external_source_unit_add_building' ;
+		SET @this_trigger_insert_l1_1 = 'ut_update_map_external_source_unit_add_building' ;
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = NEW.`creation_system_id`;
-		SET @created_by_id = NEW.`created_by_id`;
-		SET @creation_method = @this_trigger ;
+		SET @create_api_request_id_l1_1 := NEW.`create_api_request_id` ;
 
-		SET @syst_updated_datetime = NOW();
-		SET @update_system_id = NEW.`creation_system_id`;
-		SET @updated_by_id = NEW.`created_by_id`;
-		SET @update_method = @this_trigger ;
+			# We use this to get the MEFE ID of the area
 
-		SET @is_obsolete = NEW.`is_obsolete`;
-		SET @is_update_needed = NULL;
+				SET @mefe_area_id_l1_1 := (SELECT `area_mefe_id`
+					FROM `unte_api_add_unit`
+					WHERE `request_id` = @create_api_request_id_l1_1
+					)
+					;
+
+			# We use this to get the MEFE ID of the parent
+
+				SET @mefe_unit_id_parent_l1_1 := (SELECT `parent_mefe_id`
+					FROM `unte_api_add_unit`
+					WHERE `request_id` = @create_api_request_id_l1_1
+					)
+					;
+
+		SET @edit_api_request_id_l1_1 := NEW.`edit_api_request_id` ;
+		SET @is_update_on_duplicate_key_l1_1 := NEW.`is_update_on_duplicate_key` ;
+		SET @mgt_cny_default_assignee_l1_1 := NEW.`mgt_cny_default_assignee` ;
+		SET @landlord_default_assignee_l1_1 := NEW.`landlord_default_assignee` ;
+		SET @tenant_default_assignee_l1_1 := NEW.`tenant_default_assignee` ;
+		SET @agent_default_assignee_l1_1 := NEW.`agent_default_assignee` ;
+
+		SET @syst_created_datetime_insert_l1_1 = NOW();
+		SET @creation_system_id_insert_l1_1 = NEW.`creation_system_id`;
+		SET @created_by_id_insert_l1_1 = NEW.`created_by_id`;
+		SET @creation_method_insert_l1_1 = @this_trigger ;
+
+		SET @syst_updated_datetime_insert_l1_1 = NOW();
+		SET @update_system_id_insert_l1_1 = NEW.`creation_system_id`;
+		SET @updated_by_id_insert_l1_1 = NEW.`created_by_id`;
+		SET @update_method_insert_l1_1 = @this_trigger_insert_l1_1 ;
+
+		SET @is_obsolete_insert_l1_1 = NEW.`is_obsolete`;
+		SET @is_update_needed_insert_l1_1 = NULL;
 			
-		SET @uneet_name = NEW.`designation`;
+		SET @uneet_name_insert_l1_1 = NEW.`designation`;
 
-		SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+		SET @unee_t_unit_type_insert_l1_1 = (IFNULL(NEW.`unee_t_unit_type`
 				, 'Unknown'
 				)
 			)
 			;
 			
-		SET @new_record_id = NEW.`id_building`;
-		SET @external_property_type_id = 1;
+		SET @new_record_id_insert_l1_1 = NEW.`id_building`;
+		SET @external_property_type_id_insert_l1_1 = 1;
 		
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
 			INSERT INTO `ut_map_external_source_units`
-				( `syst_created_datetime`
+				( `create_api_request_id`
+				, `syst_created_datetime`
 				, `creation_system_id`
 				, `created_by_id`
 				, `creation_method`
+				, `is_update_on_duplicate_key`
 				, `organization_id`
 				, `is_obsolete`
 				, `is_update_needed`
+				, `mefe_area_id`
+				, `mefe_unit_id_parent`
 				, `uneet_name`
 				, `unee_t_unit_type`
 				, `new_record_id`
@@ -9824,31 +11945,39 @@ BEGIN
 				, `tower`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
-					, @tower
+					(@create_api_request_id_l1_1
+					, @syst_created_datetime_insert_l1_1
+					, @creation_system_id_insert_l1_1
+					, @created_by_id_insert_l1_1
+					, @this_trigger_insert_l1_1
+					, 0
+					, @organization_id_insert_l1_1
+					, @is_obsolete_insert_l1_1
+					, @is_update_needed_insert_l1_1
+					, @mefe_area_id_l1_1
+					, @mefe_unit_id_parent_l1_1
+					, @uneet_name_insert_l1_1
+					, @unee_t_unit_type_insert_l1_1
+					, @new_record_id_insert_l1_1
+					, @external_property_type_id_insert_l1_1
+					, @external_property_id_insert_l1_1
+					, @external_system_insert_l1_1
+					, @table_in_external_system_insert_l1_1
+					, @tower_insert_l1_1
 					)
 				ON DUPLICATE KEY UPDATE 
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
-					, `is_update_needed` = @is_update_needed
+					`edit_api_request_id` = @create_api_request_id_l1_1
+					, `syst_updated_datetime` = @syst_updated_datetime_insert_l1_1
+					, `update_system_id` = @update_system_id_insert_l1_1
+					, `updated_by_id` = @updated_by_id_insert_l1_1
+					, `update_method` = @this_trigger_insert_l1_1
+					, `is_update_on_duplicate_key` = 1
+					, `organization_id` = @organization_id_insert_l1_1
+					, `mefe_area_id` := @mefe_area_id_l1_1
+					, `mefe_unit_id_parent` := @mefe_unit_id_parent_l1_1
+					, `uneet_name` = @uneet_name_insert_l1_1
+					, `unee_t_unit_type` = @unee_t_unit_type_insert_l1_1
+					, `is_update_needed` = @is_update_needed_insert_l1_1
 				;
 
 	END IF;
@@ -9875,79 +12004,79 @@ BEGIN
 #		- 'ut_update_external_property_level_1_creation_needed'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_update_l1_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @external_property_id = NEW.`external_id` ;
-	SET @external_system = NEW.`external_system_id` ;
-	SET @table_in_external_system = NEW.`external_table` ;
-	SET @organization_id = NEW.`organization_id`;
-	SET @tower = NEW.`tower` ; 
+	SET @external_property_id_update_l1_1 = NEW.`external_id` ;
+	SET @external_system_update_l1_1 = NEW.`external_system_id` ;
+	SET @table_in_external_system_update_l1_1 = NEW.`external_table` ;
+	SET @organization_id_update_l1_1 = NEW.`organization_id`;
+	SET @tower_update_l1_1 = NEW.`tower` ; 
 
-	SET @new_is_creation_needed_in_unee_t =  NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ; 
+	SET @new_is_creation_needed_in_unee_t_update_l1_1 =  NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_l1_1 = OLD.`is_creation_needed_in_unee_t` ; 
 
-	SET @do_not_insert = NEW.`do_not_insert` ;
+	SET @do_not_insert_update_l1_1 = NEW.`do_not_insert` ;
 
-	SET @id_building = NEW.`id_building` ;
+	SET @id_building_update_l1_1 = NEW.`id_building` ;
 
-	SET @mefe_unit_id = (SELECT `unee_t_mefe_unit_id`
+	SET @mefe_unit_id_update_l1_1 = (SELECT `unee_t_mefe_unit_id`
 		FROM `ut_map_external_source_units`
 		WHERE `external_property_type_id` = 1
-			AND `external_property_id` = @external_property_id
-			AND `external_system` = @external_system
-			AND `table_in_external_system` = @table_in_external_system
-			AND `organization_id` = @organization_id
-			AND `tower` = @tower
+			AND `external_property_id` = @external_property_id_update_l1_1
+			AND `external_system` = @external_system_update_l1_1
+			AND `table_in_external_system` = @table_in_external_system_update_l1_1
+			AND `organization_id` = @organization_id_update_l1_1
+			AND `tower` = @tower_update_l1_1
 		);
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_l1_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_l1_1 = NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0
-		AND @mefe_unit_id IS NULL
-		AND (@upstream_create_method = 'ut_insert_external_property_level_1'
-			OR @upstream_update_method = 'ut_insert_external_property_level_1'
-			OR @upstream_create_method = 'ut_update_external_property_level_1_creation_needed'
-			OR @upstream_update_method = 'ut_update_external_property_level_1_creation_needed'
+	IF @is_creation_needed_in_unee_t_update_l1_1 = 1
+		AND @do_not_insert_update_l1_1 = 0
+		AND @mefe_unit_id_update_l1_1 IS NULL
+		AND (@upstream_create_method_update_l1_1 = 'ut_insert_external_property_level_1'
+			OR @upstream_update_method_update_l1_1 = 'ut_insert_external_property_level_1'
+			OR @upstream_create_method_update_l1_1 = 'ut_update_external_property_level_1_creation_needed'
+			OR @upstream_update_method_update_l1_1 = 'ut_update_external_property_level_1_creation_needed'
 			)
 	THEN 
 
 		# We capture the values we need for the insert/udpate:
 
-			SET @this_trigger = 'ut_update_map_external_source_unit_add_building_creation_needed' ;
+			SET @this_trigger_update_l1_1 = 'ut_update_map_external_source_unit_add_building_creation_needed' ;
 
-			SET @syst_created_datetime = NOW();
-			SET @creation_system_id = NEW.`update_system_id`;
-			SET @created_by_id = NEW.`updated_by_id`;
-			SET @creation_method = @this_trigger ;
+			SET @syst_created_datetime_update_l1_1 = NOW();
+			SET @creation_system_id_update_l1_1 = NEW.`update_system_id`;
+			SET @created_by_id_update_l1_1 = NEW.`updated_by_id`;
+			SET @creation_method_update_l1_1 = @this_trigger_update_l1_1 ;
 
-			SET @syst_updated_datetime = NOW();
-			SET @update_system_id = NEW.`update_system_id`;
-			SET @updated_by_id = NEW.`updated_by_id`;
-			SET @update_method = @this_trigger ;
+			SET @syst_updated_datetime_update_l1_1 = NOW();
+			SET @update_system_id_update_l1_1 = NEW.`update_system_id`;
+			SET @updated_by_id_update_l1_1 = NEW.`updated_by_id`;
+			SET @update_method_update_l1_1 = @this_trigger_update_l1_1 ;
 
-			SET @organization_id = NEW.`organization_id`;
+			SET @organization_id_update_l1_1 = NEW.`organization_id`;
 
-			SET @tower = NEW.`tower` ; 
+			SET @tower_update_l1_1 = NEW.`tower` ; 
 			
-			SET @is_obsolete = NEW.`is_obsolete`;
-			SET @is_update_needed = 1 ;
+			SET @is_obsolete_update_l1_1 = NEW.`is_obsolete`;
+			SET @is_update_needed_update_l1_1 = 1 ;
 			
-			SET @uneet_name = NEW.`designation`;
+			SET @uneet_name_update_l1_1 = NEW.`designation`;
 
-			SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+			SET @unee_t_unit_type_update_l1_1 = (IFNULL(NEW.`unee_t_unit_type`
 					, 'Unknown'
 					)
 				)
 				;
 			
-			SET @new_record_id = NEW.`id_building`;
-			SET @external_property_type_id = 1;
+			SET @new_record_id_update_l1_1 = NEW.`id_building`;
+			SET @external_property_type_id_update_l1_1 = 1;
 
-			SET @external_property_id = NEW.`external_id`;
-			SET @external_system = NEW.`external_system_id`;
-			SET @table_in_external_system = NEW.`external_table`;
+			SET @external_property_id_update_l1_1 = NEW.`external_id`;
+			SET @external_system_update_l1_1 = NEW.`external_system_id`;
+			SET @table_in_external_system_update_l1_1 = NEW.`external_table`;
 		
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -9969,31 +12098,31 @@ BEGIN
 				, `tower`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
-					, @tower
+					(@syst_created_datetime_update_l1_1
+					, @creation_system_id_update_l1_1
+					, @created_by_id_update_l1_1
+					, @this_trigger_update_l1_1
+					, @organization_id_update_l1_1
+					, @is_obsolete_update_l1_1
+					, @is_update_needed_update_l1_1
+					, @uneet_name_update_l1_1
+					, @unee_t_unit_type_update_l1_1
+					, @new_record_id_update_l1_1
+					, @external_property_type_id_update_l1_1
+					, @external_property_id_update_l1_1
+					, @external_system_update_l1_1
+					, @table_in_external_system_update_l1_1
+					, @tower_update_l1_1
 					)
 				ON DUPLICATE KEY UPDATE
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
-					, `is_update_needed` = @is_update_needed
+					`syst_updated_datetime` = @syst_updated_datetime_update_l1_1
+					, `update_system_id` = @update_system_id_update_l1_1
+					, `updated_by_id` = @updated_by_id_update_l1_1
+					, `update_method` = @this_trigger_update_l1_1
+					, `organization_id` = @organization_id_update_l1_1
+					, `uneet_name` = @uneet_name_update_l1_1
+					, `unee_t_unit_type` = @unee_t_unit_type_update_l1_1
+					, `is_update_needed` = @is_update_needed_update_l1_1
 				;
 
 	END IF;
@@ -10020,82 +12149,78 @@ BEGIN
 #		- `ut_update_external_property_level_1`
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_update_l1_2 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @external_property_id = NEW.`external_id` ;
-	SET @external_system = NEW.`external_system_id` ;
-	SET @table_in_external_system = NEW.`external_table` ;
-	SET @organization_id = NEW.`organization_id`;
-	SET @tower = NEW.`tower` ; 
+	SET @external_property_id_update_l1_2 = NEW.`external_id` ;
+	SET @external_system_update_l1_2 = NEW.`external_system_id` ;
+	SET @table_in_external_system_update_l1_2 = NEW.`external_table` ;
+	SET @organization_id_update_l1_2 = NEW.`organization_id`;
+	SET @tower_update_l1_2 = NEW.`tower` ; 
 
-	SET @new_is_creation_needed_in_unee_t =  NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ; 
+	SET @new_is_creation_needed_in_unee_t_update_l1_2 =  NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_l1_2 = OLD.`is_creation_needed_in_unee_t` ; 
 
-	SET @do_not_insert = NEW.`do_not_insert` ;
+	SET @do_not_insert_update_l1_2 = NEW.`do_not_insert` ;
 
-	SET @id_building = NEW.`id_building` ;
+	SET @id_building_update_l1_2 = NEW.`id_building` ;
 
-	SET @mefe_unit_id = (SELECT `unee_t_mefe_unit_id`
+	SET @mefe_unit_id_update_l1_2 = (SELECT `unee_t_mefe_unit_id`
 		FROM `ut_map_external_source_units`
 		WHERE `external_property_type_id` = 1
-			AND `external_property_id` = @external_property_id
-			AND `external_system` = @external_system
-			AND `table_in_external_system` = @table_in_external_system
-			AND `organization_id` = @organization_id
-			AND `tower` = @tower
+			AND `external_property_id` = @external_property_id_update_l1_2
+			AND `external_system` = @external_system_update_l1_2
+			AND `table_in_external_system` = @table_in_external_system_update_l1_2
+			AND `organization_id` = @organization_id_update_l1_2
+			AND `tower` = @tower_update_l1_2
 		);
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_l1_2 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_l1_2 = NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0
-		AND @mefe_unit_id IS NOT NULL
-		AND (@upstream_create_method = 'ut_update_external_property_level_1'
-			OR @upstream_update_method = 'ut_update_external_property_level_1'
+	IF @is_creation_needed_in_unee_t_update_l1_2 = 1
+		AND @do_not_insert_update_l1_2 = 0
+		AND @mefe_unit_id_update_l1_2 IS NOT NULL
+		AND (@upstream_create_method_update_l1_2 = 'ut_update_external_property_level_1'
+			OR @upstream_update_method_update_l1_2 = 'ut_update_external_property_level_1'
 			)
 	THEN 
 
 		# We capture the values we need for the insert/udpate:
 
-			SET @this_trigger = 'ut_update_map_external_source_unit_edit_level_1' ;
+			SET @this_trigger_update_l1_2 = 'ut_update_map_external_source_unit_edit_level_1' ;
 
-			SET @syst_created_datetime = NOW();
-			SET @creation_system_id = NEW.`update_system_id`;
-			SET @created_by_id = NEW.`updated_by_id`;
-			SET @creation_method = @this_trigger ;
+			SET @syst_created_datetime_update_l1_2 = NOW();
+			SET @creation_system_id_update_l1_2 = NEW.`update_system_id`;
+			SET @created_by_id_update_l1_2 = NEW.`updated_by_id`;
+			SET @creation_method_update_l1_2 = @this_trigger_update_l1_2 ;
 
-			SET @syst_updated_datetime = NOW();
-			SET @update_system_id = NEW.`update_system_id`;
-			SET @updated_by_id = NEW.`updated_by_id`;
-			SET @update_method = @this_trigger ;
+			SET @syst_updated_datetime_update_l1_2 = NOW();
+			SET @update_system_id_update_l1_2 = NEW.`update_system_id`;
+			SET @updated_by_id_update_l1_2 = NEW.`updated_by_id`;
+			SET @update_method_update_l1_2 = @this_trigger_update_l1_2 ;
 
-			SET @organization_id = NEW.`organization_id`;
-
-			SET @tower = NEW.`tower` ; 
+			SET @is_obsolete_update_l1_2 = NEW.`is_obsolete`;
+			SET @is_update_needed_update_l1_2 = 1 ;
 			
-			SET @is_obsolete = NEW.`is_obsolete`;
-			SET @is_update_needed = 1 ;
-			
-			SET @uneet_name = NEW.`designation`;
+			SET @uneet_name_update_l1_2 = NEW.`designation`;
 
-			SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+			SET @unee_t_unit_type_update_l1_2 = (IFNULL(NEW.`unee_t_unit_type`
 					, 'Unknown'
 					)
 				)
 				;
 			
-			SET @new_record_id = NEW.`id_building`;
-			SET @external_property_type_id = 1;
+			SET @new_record_id_update_l1_2 = NEW.`id_building`;
+			SET @external_property_type_id_update_l1_2 = 1;
 
-			SET @external_property_id = NEW.`external_id`;
-			SET @external_system = NEW.`external_system_id`;
-			SET @table_in_external_system = NEW.`external_table`;
+			SET @external_property_id_update_l1_2 = NEW.`external_id`;
+			SET @external_system_update_l1_2 = NEW.`external_system_id`;
+			SET @table_in_external_system_update_l1_2 = NEW.`external_table`;
 
-			SET @is_mefe_api_success := 0 ;
-			SET @mefe_api_error_message := (CONCAT('N/A - written by '
+			SET @is_mefe_api_success_update_l1_2 := 0 ;
+			SET @mefe_api_error_message_update_l1_2 := (CONCAT('N/A - written by '
 					, '`'
-					, @this_trigger
+					, @this_trigger_update_l1_2
 					, '`'
 					)
 				);
@@ -10122,35 +12247,35 @@ BEGIN
 				, `tower`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @is_mefe_api_success
-					, @mefe_api_error_message
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
-					, @tower
+					(@syst_created_datetime_update_l1_2
+					, @creation_system_id_update_l1_2
+					, @created_by_id_update_l1_2
+					, @creation_method_update_l1_2
+					, @organization_id_update_l1_2
+					, @is_obsolete_update_l1_2
+					, @is_update_needed_update_l1_2
+					, @is_mefe_api_success_update_l1_2
+					, @mefe_api_error_message_update_l1_2
+					, @uneet_name_update_l1_2
+					, @unee_t_unit_type_update_l1_2
+					, @new_record_id_update_l1_2
+					, @external_property_type_id_update_l1_2
+					, @external_property_id_update_l1_2
+					, @external_system_update_l1_2
+					, @table_in_external_system_update_l1_2
+					, @tower_update_l1_2
 					)
 				ON DUPLICATE KEY UPDATE
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `is_mefe_api_success` = @is_mefe_api_success
-					, `mefe_api_error_message` = @mefe_api_error_message
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
-					, `is_update_needed` = @is_update_needed
+					`syst_updated_datetime` = @syst_updated_datetime_update_l1_2
+					, `update_system_id` = @update_system_id_update_l1_2
+					, `updated_by_id` = @updated_by_id_update_l1_2
+					, `update_method` = @update_method_update_l1_2
+					, `organization_id` = @organization_id_update_l1_2
+					, `is_mefe_api_success` = @is_mefe_api_success_update_l1_2
+					, `mefe_api_error_message` = @mefe_api_error_message_update_l1_2
+					, `uneet_name` = @uneet_name_update_l1_2
+					, `unee_t_unit_type` = @unee_t_unit_type_update_l1_2
+					, `is_update_needed` = @is_update_needed_update_l1_2
 				;
 
 	END IF;
@@ -10193,45 +12318,45 @@ BEGIN
 #		- 'Export_and_Import_Units_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_insert_ext_l2_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator
+	SET @source_system_creator_insert_ext_l2_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_insert_ext_l2_1 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_insert_ext_l2_1
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_insert_ext_l2_1 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_insert_ext_l2_1
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_insert_ext_l2_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_insert_ext_l2_1 = NEW.`update_method` ;
 
-	SET @external_system_id = NEW.`external_system_id` ;
-	SET @external_table = NEW.`external_table` ;
-	SET @external_id = NEW.`external_id` ;
+	SET @external_system_id_insert_ext_l2_1 = NEW.`external_system_id` ;
+	SET @external_table_insert_ext_l2_1 = NEW.`external_table` ;
+	SET @external_id_insert_ext_l2_1 = NEW.`external_id` ;
 
-	SET @organization_id = @source_system_creator ;
+	SET @organization_id_insert_ext_l2_1 = @source_system_creator_insert_ext_l2_1 ;
 
-	SET @id_in_property_level_2_units = (SELECT `system_id_unit`
+	SET @id_in_property_level_2_units_insert_ext_l2_1 = (SELECT `system_id_unit`
 		FROM `property_level_2_units`
-		WHERE `external_system_id` = @external_system_id
-			AND `external_table` = @external_table
-			AND `external_id` = @external_id
-			AND `organization_id` = @organization_id
+		WHERE `external_system_id` = @external_system_id_insert_ext_l2_1
+			AND `external_table` = @external_table_insert_ext_l2_1
+			AND `external_id` = @external_id_insert_ext_l2_1
+			AND `organization_id` = @organization_id_insert_ext_l2_1
 		);
 		
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_insert_ext_l2_1 = NEW.`do_not_insert` ;
 
 	# This is an INSERT - the record should NOT exist already
 
-		SET @do_not_insert = (IF (@id_in_property_level_2_units IS NULL
+		SET @do_not_insert_insert_ext_l2_1 = (IF (@id_in_property_level_2_units_insert_ext_l2_1 IS NULL
 				, 0
-				, @upstream_do_not_insert
+				, @upstream_do_not_insert_insert_ext_l2_1
 				)
 			
 			);
@@ -10239,94 +12364,94 @@ BEGIN
 	# Get the information about the building for that unit...
 	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_external_property_level_1_buildings`)
 	
-		SET @building_id_in_table_external_property_level_2_units = NEW.`building_system_id` ;
+		SET @building_id_1_insert_ext_l2_1 = NEW.`building_system_id` ;
 
-		SET @tower = NEW.`tower` ;
+		SET @tower_insert_ext_l2_1 = NEW.`tower` ;
 
-		SET @building_external_id = (SELECT `external_id`
+		SET @building_external_id_insert_ext_l2_1 = (SELECT `external_id`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_insert_ext_l2_1
 				);
-		SET @building_external_system_id = (SELECT `external_system_id`
+		SET @building_external_system_id_insert_ext_l2_1 = (SELECT `external_system_id`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_insert_ext_l2_1
 			);
-		SET @building_external_table = (SELECT `external_table`
+		SET @building_external_table_insert_ext_l2_1 = (SELECT `external_table`
 		   FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_insert_ext_l2_1
 			);
-		SET @building_external_tower = (SELECT `tower`
+		SET @building_external_tower_insert_ext_l2_1 = (SELECT `tower`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_insert_ext_l2_1
 			);
 
-		SET @building_system_id = (SELECT `id_building`
+		SET @building_system_id_insert_ext_l2_1 = (SELECT `id_building`
 			FROM `property_level_1_buildings`
-			WHERE `external_id` = @building_external_id
-				AND `external_system_id` = @building_external_system_id
-				AND `external_table` = @building_external_table
-				AND `organization_id` = @organization_id
-				AND `tower` = @building_external_tower
+			WHERE `external_id` = @building_external_id_insert_ext_l2_1
+				AND `external_system_id` = @building_external_system_id_insert_ext_l2_1
+				AND `external_table` = @building_external_table_insert_ext_l2_1
+				AND `organization_id` = @organization_id_insert_ext_l2_1
+				AND `tower` = @building_external_tower_insert_ext_l2_1
 				);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND @building_system_id IS NOT NULL
-		AND (@upstream_create_method = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method = 'Manage_Units_Add_Page'
-			OR @upstream_create_method = 'Manage_Units_Edit_Page'
-			OR @upstream_create_method = 'Manage_Units_Import_Page'
-			OR @upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'Manage_Units_Add_Page'
-			OR @upstream_update_method = 'Manage_Units_Edit_Page'
-			OR @upstream_create_method = 'Manage_Units_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Units_Import_Page'
-			OR @upstream_create_method = 'Export_and_Import_Units_Import_Page'
+	IF @is_creation_needed_in_unee_t_insert_ext_l2_1 = 1
+		AND @do_not_insert_insert_ext_l2_1 = 0
+		AND @external_id_insert_ext_l2_1 IS NOT NULL
+		AND @external_system_id_insert_ext_l2_1 IS NOT NULL
+		AND @external_table_insert_ext_l2_1 IS NOT NULL
+		AND @organization_id_insert_ext_l2_1 IS NOT NULL
+		AND @building_system_id_insert_ext_l2_1 IS NOT NULL
+		AND (@upstream_create_method_insert_ext_l2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_insert_ext_l2_1 = 'Manage_Units_Add_Page'
+			OR @upstream_create_method_insert_ext_l2_1 = 'Manage_Units_Edit_Page'
+			OR @upstream_create_method_insert_ext_l2_1 = 'Manage_Units_Import_Page'
+			OR @upstream_update_method_insert_ext_l2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_insert_ext_l2_1 = 'Manage_Units_Add_Page'
+			OR @upstream_update_method_insert_ext_l2_1 = 'Manage_Units_Edit_Page'
+			OR @upstream_create_method_insert_ext_l2_1 = 'Manage_Units_Import_Page'
+			OR @upstream_update_method_insert_ext_l2_1 = 'Export_and_Import_Units_Import_Page'
+			OR @upstream_create_method_insert_ext_l2_1 = 'Export_and_Import_Units_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `external_property_level_2_units` table:
 
-		SET @this_trigger = 'ut_insert_external_property_level_2' ;
+		SET @this_trigger_insert_ext_l2_1 = 'ut_insert_external_property_level_2' ;
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_insert_ext_l2_1 = NOW();
+		SET @creation_system_id_insert_ext_l2_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_insert_ext_l2_1
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_insert_ext_l2_1 = @creator_mefe_user_id_insert_ext_l2_1 ;
+		SET @downstream_creation_method_insert_ext_l2_1 = @this_trigger_insert_ext_l2_1 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_insert_ext_l2_1 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_insert_ext_l2_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_insert_ext_l2_1
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_insert_ext_l2_1 = @creator_mefe_user_id_insert_ext_l2_1 ;
+		SET @downstream_update_method_insert_ext_l2_1 = @this_trigger_insert_ext_l2_1 ;
 
-		SET @organization_id_create = @source_system_creator ;
-		SET @organization_id_update = @source_system_updater;
+		SET @organization_id_create_insert_ext_l2_1 = @source_system_creator_insert_ext_l2_1 ;
+		SET @organization_id_update_insert_ext_l2_1 = @source_system_updater_insert_ext_l2_1;
 
-		SET @activated_by_id = NEW.`activated_by_id` ;
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-		SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
+		SET @activated_by_id_insert_ext_l2_1 = NEW.`activated_by_id` ;
+		SET @is_obsolete_insert_ext_l2_1 = NEW.`is_obsolete` ;
+		SET @is_creation_needed_in_unee_t_insert_ext_l2_1 = NEW.`is_creation_needed_in_unee_t` ;
+		SET @unee_t_unit_type_insert_ext_l2_1 = NEW.`unee_t_unit_type` ;
 			
-		SET @unit_category_id = NEW.`unit_category_id` ;
-		SET @designation = NEW.`designation` ;
-		SET @count_rooms = NEW.`count_rooms` ;
-		SET @unit_id = NEW.`unit_id` ;
-		SET @surface = NEW.`surface` ;
-		SET @surface_measurment_unit = NEW.`surface_measurment_unit` ;
-		SET @description = NEW.`description` ;
+		SET @unit_category_id_insert_ext_l2_1 = NEW.`unit_category_id` ;
+		SET @designation_insert_ext_l2_1 = NEW.`designation` ;
+		SET @count_rooms_insert_ext_l2_1 = NEW.`count_rooms` ;
+		SET @unit_id_insert_ext_l2_1 = NEW.`unit_id` ;
+		SET @surface_insert_ext_l2_1 = NEW.`surface` ;
+		SET @surface_measurment_unit_insert_ext_l2_1 = NEW.`surface_measurment_unit` ;
+		SET @description_insert_ext_l2_1 = NEW.`description` ;
 
 	# We insert the record in the table `property_level_2_units`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -10356,62 +12481,62 @@ BEGIN
 			, `description`
 			)
 			VALUES
- 				(@external_id
-				, @external_system_id 
-				, @external_table
-				, @syst_created_datetime
-				, @creation_system_id
-				, @created_by_id
-				, @downstream_creation_method
-				, @organization_id_create
-				, @activated_by_id
-				, @is_obsolete
-				, @is_creation_needed_in_unee_t
-				, @do_not_insert
-				, @unee_t_unit_type
-				, @building_system_id
-				, @tower
-				, @unit_category_id
-				, @designation
-				, @count_rooms
-				, @unit_id
-				, @surface
-				, @surface_measurment_unit
-				, @description
+ 				(@external_id_insert_ext_l2_1
+				, @external_system_id_insert_ext_l2_1
+				, @external_table_insert_ext_l2_1
+				, @syst_created_datetime_insert_ext_l2_1
+				, @creation_system_id_insert_ext_l2_1
+				, @created_by_id_insert_ext_l2_1
+				, @downstream_creation_method_insert_ext_l2_1
+				, @organization_id_create_insert_ext_l2_1
+				, @activated_by_id_insert_ext_l2_1
+				, @is_obsolete_insert_ext_l2_1
+				, @is_creation_needed_in_unee_t_insert_ext_l2_1
+				, @do_not_insert_insert_ext_l2_1
+				, @unee_t_unit_type_insert_ext_l2_1
+				, @building_system_id_insert_ext_l2_1
+				, @tower_insert_ext_l2_1
+				, @unit_category_id_insert_ext_l2_1
+				, @designation_insert_ext_l2_1
+				, @count_rooms_insert_ext_l2_1
+				, @unit_id_insert_ext_l2_1
+				, @surface_insert_ext_l2_1
+				, @surface_measurment_unit_insert_ext_l2_1
+				, @description_insert_ext_l2_1
  			)
 			ON DUPLICATE KEY UPDATE
- 				`syst_updated_datetime` = @syst_updated_datetime
- 				, `update_system_id` = @update_system_id
- 				, `updated_by_id` = @updated_by_id
-				, `update_method` = @downstream_update_method
-				, `activated_by_id` = @activated_by_id
-				, `organization_id` = @organization_id_update
-				, `is_obsolete` = @is_obsolete
-				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-				, `do_not_insert` = @do_not_insert
-				, `unee_t_unit_type` = @unee_t_unit_type
-				, `building_system_id` = @building_system_id
-				, `tower` = @tower
-				, `unit_category_id` = @unit_category_id
-				, `designation` = @designation
-				, `count_rooms` = @count_rooms
-				, `unit_id` = @unit_id
-				, `surface` = @surface
-				, `surface_measurment_unit` = @surface_measurment_unit
-				, `description` = @description
+ 				`syst_updated_datetime` = @syst_updated_datetime_insert_ext_l2_1
+ 				, `update_system_id` = @update_system_id_insert_ext_l2_1
+ 				, `updated_by_id` = @updated_by_id_insert_ext_l2_1
+				, `update_method` = @downstream_update_method_insert_ext_l2_1
+				, `activated_by_id` = @activated_by_id_insert_ext_l2_1
+				, `organization_id` = @organization_id_update_insert_ext_l2_1
+				, `is_obsolete` = @is_obsolete_insert_ext_l2_1
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_insert_ext_l2_1
+				, `do_not_insert` = @do_not_insert_insert_ext_l2_1
+				, `unee_t_unit_type` = @unee_t_unit_type_insert_ext_l2_1
+				, `building_system_id` = @building_system_id_insert_ext_l2_1
+				, `tower` = @tower_insert_ext_l2_1
+				, `unit_category_id` = @unit_category_id_insert_ext_l2_1
+				, `designation` = @designation_insert_ext_l2_1
+				, `count_rooms` = @count_rooms_insert_ext_l2_1_insert_ext_l2_1
+				, `unit_id` = @unit_id_insert_ext_l2_1
+				, `surface` = @surface_insert_ext_l2_1
+				, `surface_measurment_unit` = @surface_measurment_unit_insert_ext_l2_1
+				, `description` = @description_insert_ext_l2_1
 			;
 
 	END IF;
 
 # Housekeeping - we make sure that if a unit is obsolete - all rooms in that unit are obsolete too
 
-	SET @system_id_unit = NEW.`system_id_unit` ;
+	SET @system_id_unit_insert_ext_l2_1 = NEW.`system_id_unit` ;
 
 	UPDATE `external_property_level_3_rooms` AS `a`
 		INNER JOIN `external_property_level_2_units` AS `b`
 			ON (`a`.`system_id_unit` = `b`.`system_id_unit`)
 		SET `a`.`is_obsolete` = `b`.`is_obsolete`
-		WHERE `a`.`system_id_unit` = @system_id_unit
+		WHERE `a`.`system_id_unit` = @system_id_unit_insert_ext_l2_1
 		;
 
 END;
@@ -10450,140 +12575,140 @@ BEGIN
 #		- 'Export_and_Import_Units_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_update_ext_l2_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator
+	SET @source_system_creator_update_ext_l2_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_update_ext_l2_1 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_update_ext_l2_1
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_update_ext_l2_1 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_update_ext_l2_1
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_ext_l2_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_ext_l2_1 = NEW.`update_method` ;
 
-	SET @organization_id = @source_system_creator ;
+	SET @organization_id_update_ext_l2_1 = @source_system_creator_update_ext_l2_1 ;
 
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
-	SET @tower = NEW.`tower` ;
+	SET @external_id_update_ext_l2_1 = NEW.`external_id` ;
+	SET @external_system_id_update_ext_l2_1 = NEW.`external_system_id` ; 
+	SET @external_table_update_ext_l2_1 = NEW.`external_table` ;
+	SET @tower_update_ext_l2_1 = NEW.`tower` ;
 
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ;
+	SET @new_is_creation_needed_in_unee_t_update_ext_l2_1 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_ext_l2_1 = OLD.`is_creation_needed_in_unee_t` ;
 
-	SET @id_in_property_level_2_units = (SELECT `system_id_unit`
+	SET @id_in_property_level_2_units_update_ext_l2_1 = (SELECT `system_id_unit`
 		FROM `property_level_2_units`
-		WHERE `external_system_id` = @external_system_id
-			AND `external_table` = @external_table
-			AND `external_id` = @external_id
-			AND `organization_id` = @organization_id
+		WHERE `external_system_id` = @external_system_id_update_ext_l2_1
+			AND `external_table` = @external_table_update_ext_l2_1
+			AND `external_id` = @external_id_update_ext_l2_1
+			AND `organization_id` = @organization_id_update_ext_l2_1
 		);
 
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_update_ext_l2_1 = NEW.`do_not_insert` ;
 
 	# This is an UPDATE - the record SHOULD exist already
 
-		SET @do_not_insert = (IF (@id_in_property_level_2_units IS NULL
+		SET @do_not_insert_update_ext_l2_1 = (IF (@id_in_property_level_2_units_update_ext_l2_1 IS NULL
 				, 1
-				, @upstream_do_not_insert
+				, @upstream_do_not_insert_update_ext_l2_1
 				)
 			);
 
 	# Get the information about the building for that unit...
 	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_external_property_level_1_buildings`)
 	
-		SET @building_id_in_table_external_property_level_2_units = NEW.`building_system_id` ;
+		SET @building_id_1_update_ext_l2_1 = NEW.`building_system_id` ;
 
-		SET @tower = NEW.`tower` ;
+		SET @tower_update_ext_l2_1 = NEW.`tower` ;
 
-		SET @building_external_id = (SELECT `external_id`
+		SET @building_external_id_update_ext_l2_1 = (SELECT `external_id`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_update_ext_l2_1
 				);
-		SET @building_external_system_id = (SELECT `external_system_id`
+		SET @building_external_system_id_update_ext_l2_1 = (SELECT `external_system_id`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_update_ext_l2_1
 			);
-		SET @building_external_table = (SELECT `external_table`
+		SET @building_external_table_update_ext_l2_1 = (SELECT `external_table`
 		   FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_update_ext_l2_1
 			);
-		SET @building_external_tower = (SELECT `tower`
+		SET @building_external_tower_update_ext_l2_1 = (SELECT `tower`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_update_ext_l2_1
 			);
 
-		SET @building_system_id = (SELECT `id_building`
+		SET @building_system_id_update_ext_l2_1 = (SELECT `id_building`
 			FROM `property_level_1_buildings`
-			WHERE `external_id` = @building_external_id
-				AND `external_system_id` = @building_external_system_id
-				AND `external_table` = @building_external_table
-				AND `organization_id` = @organization_id
-				AND `tower` = @building_external_tower
+			WHERE `external_id` = @building_external_id_update_ext_l2_1
+				AND `external_system_id` = @building_external_system_id_update_ext_l2_1
+				AND `external_table` = @building_external_table_update_ext_l2_1
+				AND `organization_id` = @organization_id_update_ext_l2_1
+				AND `tower` = @building_external_tower_update_ext_l2_1
 				);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @new_is_creation_needed_in_unee_t = @old_is_creation_needed_in_unee_t
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @tower IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND @building_system_id IS NOT NULL
-		AND (@upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'Manage_Units_Add_Page'
-			OR @upstream_update_method = 'Manage_Units_Edit_Page'
-			OR @upstream_update_method = 'Manage_Units_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Units_Import_Page'
+	IF @is_creation_needed_in_unee_t_update_ext_l2_1 = 1
+		AND @new_is_creation_needed_in_unee_t_update_ext_l2_1 = @old_is_creation_needed_in_unee_t_update_ext_l2_1
+		AND @do_not_insert_update_ext_l2_1 = 0
+		AND @external_id_update_ext_l2_1 IS NOT NULL
+		AND @external_system_id_update_ext_l2_1 IS NOT NULL
+		AND @external_table_update_ext_l2_1 IS NOT NULL
+		AND @tower_update_ext_l2_1 IS NOT NULL
+		AND @organization_id_update_ext_l2_1 IS NOT NULL
+		AND @building_system_id_update_ext_l2_1 IS NOT NULL
+		AND (@upstream_update_method_update_ext_l2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_l2_1 = 'Manage_Units_Add_Page'
+			OR @upstream_update_method_update_ext_l2_1 = 'Manage_Units_Edit_Page'
+			OR @upstream_update_method_update_ext_l2_1 = 'Manage_Units_Import_Page'
+			OR @upstream_update_method_update_ext_l2_1 = 'Export_and_Import_Units_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `external_property_level_2_units` table:
 
-		SET @this_trigger = 'ut_update_external_property_level_2';
+		SET @this_trigger_update_ext_l2_1 = 'ut_update_external_property_level_2';
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_update_ext_l2_1 = NOW();
+		SET @creation_system_id_update_ext_l2_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_update_ext_l2_1
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_update_ext_l2_1 = @creator_mefe_user_id_update_ext_l2_1 ;
+		SET @downstream_creation_method_update_ext_l2_1 = @this_trigger_update_ext_l2_1 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_update_ext_l2_1 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_update_ext_l2_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_update_ext_l2_1
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_update_ext_l2_1 = @creator_mefe_user_id_update_ext_l2_1 ;
+		SET @downstream_update_method_update_ext_l2_1 = @this_trigger_update_ext_l2_1 ;
 
-		SET @organization_id_create = @source_system_creator;
-		SET @organization_id_update = @source_system_updater;
+		SET @organization_id_create_update_ext_l2_1 = @source_system_creator_update_ext_l2_1 ;
+		SET @organization_id_update_update_ext_l2_1 = @source_system_updater_update_ext_l2_1 ;
 
-		SET @activated_by_id = NEW.`activated_by_id` ;
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-		SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
+		SET @activated_by_id_update_ext_l2_1 = NEW.`activated_by_id` ;
+		SET @is_obsolete_update_ext_l2_1 = NEW.`is_obsolete` ;
+		SET @is_creation_needed_in_unee_t_update_ext_l2_1 = NEW.`is_creation_needed_in_unee_t` ;
+		SET @unee_t_unit_type_update_ext_l2_1 = NEW.`unee_t_unit_type` ;
 			
-		SET @unit_category_id = NEW.`unit_category_id` ;
-		SET @designation = NEW.`designation` ;
-		SET @count_rooms = NEW.`count_rooms` ;
-		SET @unit_id = NEW.`unit_id` ;
-		SET @surface = NEW.`surface` ;
-		SET @surface_measurment_unit = NEW.`surface_measurment_unit` ;
-		SET @description = NEW.`description` ;
+		SET @unit_category_id_update_ext_l2_1 = NEW.`unit_category_id` ;
+		SET @designation_update_ext_l2_1 = NEW.`designation` ;
+		SET @count_rooms_update_ext_l2_1 = NEW.`count_rooms` ;
+		SET @unit_id_update_ext_l2_1 = NEW.`unit_id` ;
+		SET @surface_update_ext_l2_1 = NEW.`surface` ;
+		SET @surface_measurment_unit_update_ext_l2_1 = NEW.`surface_measurment_unit` ;
+		SET @description_update_ext_l2_1 = NEW.`description` ;
 
 	# We update the record in the table `external_property_level_2_units`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -10613,49 +12738,49 @@ BEGIN
 			, `description`
 			)
 			VALUES
- 				(@external_id
-				, @external_system_id 
-				, @external_table
-				, @syst_created_datetime
-				, @creation_system_id
-				, @created_by_id
-				, @downstream_creation_method
-				, @organization_id_create
-				, @activated_by_id
-				, @is_obsolete
-				, @is_creation_needed_in_unee_t
-				, @do_not_insert
-				, @unee_t_unit_type
-				, @building_system_id
-				, @tower
-				, @unit_category_id
-				, @designation
-				, @count_rooms
-				, @unit_id
-				, @surface
-				, @surface_measurment_unit
-				, @description
+ 				(@external_id_update_ext_l2_1
+				, @external_system_id_update_ext_l2_1
+				, @external_table_update_ext_l2_1
+				, @syst_created_datetime_update_ext_l2_1
+				, @creation_system_id_update_ext_l2_1
+				, @created_by_id_update_ext_l2_1
+				, @downstream_creation_method_update_ext_l2_1
+				, @organization_id_create_update_ext_l2_1
+				, @activated_by_id_update_ext_l2_1
+				, @is_obsolete_update_ext_l2_1
+				, @is_creation_needed_in_unee_t_update_ext_l2_1
+				, @do_not_insert_update_ext_l2_1
+				, @unee_t_unit_type_update_ext_l2_1
+				, @building_system_id_update_ext_l2_1
+				, @tower_update_ext_l2_1
+				, @unit_category_id_update_ext_l2_1
+				, @designation_update_ext_l2_1
+				, @count_rooms_update_ext_l2_1
+				, @unit_id_update_ext_l2_1
+				, @surface_update_ext_l2_1
+				, @surface_measurment_unit_update_ext_l2_1
+				, @description_update_ext_l2_1
  			)
 			ON DUPLICATE KEY UPDATE
- 				`syst_updated_datetime` = @syst_updated_datetime
- 				, `update_system_id` = @update_system_id
- 				, `updated_by_id` = @updated_by_id
-				, `update_method` = @downstream_update_method
-				, `organization_id` = @organization_id_update
-				, `activated_by_id` = @activated_by_id
-				, `is_obsolete` = @is_obsolete
-				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-				, `do_not_insert` = @do_not_insert
-				, `unee_t_unit_type` = @unee_t_unit_type
-				, `building_system_id` = @building_system_id
-				, `tower` = @tower
-				, `unit_category_id` = @unit_category_id
-				, `designation` = @designation
-				, `count_rooms` = @count_rooms
-				, `unit_id` = @unit_id
-				, `surface` = @surface
-				, `surface_measurment_unit` = @surface_measurment_unit
-				, `description` = @description
+ 				`syst_updated_datetime` = @syst_updated_datetime_update_ext_l2_1
+ 				, `update_system_id` = @update_system_id_update_ext_l2_1
+ 				, `updated_by_id` = @updated_by_id_update_ext_l2_1
+				, `update_method` = @downstream_update_method_update_ext_l2_1
+				, `organization_id` = @organization_id_update_update_ext_l2_1
+				, `activated_by_id` = @activated_by_id_update_ext_l2_1
+				, `is_obsolete` = @is_obsolete_update_ext_l2_1
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_l2_1
+				, `do_not_insert` = @do_not_insert_update_ext_l2_1
+				, `unee_t_unit_type` = @unee_t_unit_type_update_ext_l2_1
+				, `building_system_id` = @building_system_id_update_ext_l2_1
+				, `tower` = @tower_update_ext_l2_1
+				, `unit_category_id` = @unit_category_id_update_ext_l2_1
+				, `designation` = @designation_update_ext_l2_1
+				, `count_rooms` = @count_rooms_update_ext_l2_1
+				, `unit_id` = @unit_id_update_ext_l2_1
+				, `surface` = @surface_update_ext_l2_1
+				, `surface_measurment_unit` = @surface_measurment_unit_update_ext_l2_1
+				, `description` = @description_update_ext_l2_1
 			;
 
 	END IF;
@@ -10663,13 +12788,13 @@ BEGIN
 # Housekeeping - we make sure that if a unit is obsolete - all rooms in that unit are obsolete too
 # We only do that if the field `is_obsolete` is changed from 0 to 1
 
-	SET @system_id_unit = NEW.`system_id_unit` ;
+	SET @system_id_unit_update_ext_l2_1 = NEW.`system_id_unit` ;
 
 	UPDATE `external_property_level_3_rooms` AS `a`
 		INNER JOIN `external_property_level_2_units` AS `b`
 			ON (`a`.`system_id_unit` = `b`.`system_id_unit`)
 		SET `a`.`is_obsolete` = `b`.`is_obsolete`
-		WHERE `a`.`system_id_unit` = @system_id_unit
+		WHERE `a`.`system_id_unit` = @system_id_unit_update_ext_l2_1
 		;
 
 END;
@@ -10708,136 +12833,136 @@ BEGIN
 #		- 'Export_and_Import_Units_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_update_ext_l2_2 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator
+	SET @source_system_creator_update_ext_l2_2 = NEW.`created_by_id` ;
+	SET @source_system_updater_update_ext_l2_2 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_update_ext_l2_2
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_update_ext_l2_2 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_update_ext_l2_2
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_ext_l2_2 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_ext_l2_2 = NEW.`update_method` ;
 
-	SET @organization_id = @source_system_creator ;
+	SET @organization_id_update_ext_l2_2 = @source_system_creator_update_ext_l2_2 ;
 
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
-	SET @tower = NEW.`tower` ;
+	SET @external_id_update_ext_l2_2 = NEW.`external_id` ;
+	SET @external_system_id_update_ext_l2_2 = NEW.`external_system_id` ; 
+	SET @external_table_update_ext_l2_2 = NEW.`external_table` ;
+	SET @tower_update_ext_l2_2 = NEW.`tower` ;
 
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ;
+	SET @new_is_creation_needed_in_unee_t_update_ext_l2_2 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_ext_l2_2 = OLD.`is_creation_needed_in_unee_t` ;
 
-	SET @id_in_property_level_2_units = (SELECT `system_id_unit`
+	SET @id_in_property_level_2_units_update_ext_l2_2 = (SELECT `system_id_unit`
 		FROM `property_level_2_units`
-		WHERE `external_system_id` = @external_system_id
-			AND `external_table` = @external_table
-			AND `external_id` = @external_id
-			AND `organization_id` = @organization_id
+		WHERE `external_system_id` = @external_system_id_update_ext_l2_2
+			AND `external_table` = @external_table_update_ext_l2_2
+			AND `external_id` = @external_id_update_ext_l2_2
+			AND `organization_id` = @organization_id_update_ext_l2_2
 		);
 
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_update_ext_l2_2 = NEW.`do_not_insert` ;
 
 	# This is an UPDATE - the record SHOULD exist already
 	# BUT there are some edge cases when we need to re-create this...
-		SET @do_not_insert = @upstream_do_not_insert ;
+		SET @do_not_insert_update_ext_l2_2 = @upstream_do_not_insert_update_ext_l2_2 ;
 
 	# Get the information about the building for that unit...
 	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_external_property_level_1_buildings`)
 	
-		SET @building_id_in_table_external_property_level_2_units = NEW.`building_system_id` ;
+		SET @building_id_1_update_ext_l2_2 = NEW.`building_system_id` ;
 
-		SET @tower = NEW.`tower` ;
+		SET @tower_update_ext_l2_2 = NEW.`tower` ;
 
-		SET @building_external_id = (SELECT `external_id`
+		SET @building_external_id_update_ext_l2_2 = (SELECT `external_id`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_update_ext_l2_2
 				);
-		SET @building_external_system_id = (SELECT `external_system_id`
+		SET @building_external_system_id_update_ext_l2_2 = (SELECT `external_system_id`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_update_ext_l2_2
 			);
-		SET @building_external_table = (SELECT `external_table`
+		SET @building_external_table_update_ext_l2_2 = (SELECT `external_table`
 		   FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_update_ext_l2_2
 			);
-		SET @building_external_tower = (SELECT `tower`
+		SET @building_external_tower_update_ext_l2_2 = (SELECT `tower`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_in_table_external_property_level_2_units
+			WHERE `id_building` = @building_id_1_update_ext_l2_2
 			);
 
-		SET @building_system_id = (SELECT `id_building`
+		SET @building_system_id_update_ext_l2_2 = (SELECT `id_building`
 			FROM `property_level_1_buildings`
-			WHERE `external_id` = @building_external_id
-				AND `external_system_id` = @building_external_system_id
-				AND `external_table` = @building_external_table
-				AND `organization_id` = @organization_id
-				AND `tower` = @building_external_tower
+			WHERE `external_id` = @building_external_id_update_ext_l2_2
+				AND `external_system_id` = @building_external_system_id_update_ext_l2_2
+				AND `external_table` = @building_external_table_update_ext_l2_2
+				AND `organization_id` = @organization_id_update_ext_l2_2
+				AND `tower` = @building_external_tower_update_ext_l2_2
 				);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @new_is_creation_needed_in_unee_t != @old_is_creation_needed_in_unee_t
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @tower IS NOT NULL
-		AND @organization_id IS NOT NULL
-		AND @building_system_id IS NOT NULL
-		AND (@upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'Manage_Units_Add_Page'
-			OR @upstream_update_method = 'Manage_Units_Edit_Page'
-			OR @upstream_update_method = 'Manage_Units_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Units_Import_Page'
+	IF @is_creation_needed_in_unee_t_update_ext_l2_2 = 1
+		AND @new_is_creation_needed_in_unee_t_update_ext_l2_2 != @old_is_creation_needed_in_unee_t_update_ext_l2_2
+		AND @do_not_insert_update_ext_l2_2 = 0
+		AND @external_id_update_ext_l2_2 IS NOT NULL
+		AND @external_system_id_update_ext_l2_2 IS NOT NULL
+		AND @external_table_update_ext_l2_2 IS NOT NULL
+		AND @tower_update_ext_l2_2 IS NOT NULL
+		AND @organization_id_update_ext_l2_2 IS NOT NULL
+		AND @building_system_id_update_ext_l2_2 IS NOT NULL
+		AND (@upstream_update_method_update_ext_l2_2 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_l2_2 = 'Manage_Units_Add_Page'
+			OR @upstream_update_method_update_ext_l2_2 = 'Manage_Units_Edit_Page'
+			OR @upstream_update_method_update_ext_l2_2 = 'Manage_Units_Import_Page'
+			OR @upstream_update_method_update_ext_l2_2 = 'Export_and_Import_Units_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `external_property_level_2_units` table:
 
-		SET @this_trigger = 'ut_update_external_property_level_2_creation_needed';
+		SET @this_trigger_update_ext_l2_2 = 'ut_update_external_property_level_2_creation_needed';
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_update_ext_l2_2 = NOW();
+		SET @creation_system_id_update_ext_l2_2 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_update_ext_l2_2
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_update_ext_l2_2 = @creator_mefe_user_id_update_ext_l2_2 ;
+		SET @downstream_creation_method_update_ext_l2_2 = @this_trigger_update_ext_l2_2 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_update_ext_l2_2 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_update_ext_l2_2 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_update_ext_l2_2
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_update_ext_l2_2 = @creator_mefe_user_id_update_ext_l2_2 ;
+		SET @downstream_update_method_update_ext_l2_2 = @this_trigger_update_ext_l2_2 ;
 
-		SET @organization_id_create = @source_system_creator;
-		SET @organization_id_update = @source_system_updater;
+		SET @organization_id_create_update_ext_l2_2 = @source_system_creator_update_ext_l2_2 ;
+		SET @organization_id_update_update_ext_l2_2 = @source_system_updater_update_ext_l2_2 ;
 
-		SET @activated_by_id = NEW.`activated_by_id` ;
-		SET @is_obsolete = NEW.`is_obsolete` ;
-		SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-		SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
+		SET @activated_by_id_update_ext_l2_2 = NEW.`activated_by_id` ;
+		SET @is_obsolete_update_ext_l2_2 = NEW.`is_obsolete` ;
+		SET @is_creation_needed_in_unee_t_update_ext_l2_2 = NEW.`is_creation_needed_in_unee_t` ;
+		SET @unee_t_unit_type_update_ext_l2_2 = NEW.`unee_t_unit_type` ;
 			
-		SET @unit_category_id = NEW.`unit_category_id` ;
-		SET @designation = NEW.`designation` ;
-		SET @count_rooms = NEW.`count_rooms` ;
-		SET @unit_id = NEW.`unit_id` ;
-		SET @surface = NEW.`surface` ;
-		SET @surface_measurment_unit = NEW.`surface_measurment_unit` ;
-		SET @description = NEW.`description` ;
+		SET @unit_category_id_update_ext_l2_2 = NEW.`unit_category_id` ;
+		SET @designation_update_ext_l2_2 = NEW.`designation` ;
+		SET @count_rooms_update_ext_l2_2 = NEW.`count_rooms` ;
+		SET @unit_id_update_ext_l2_2 = NEW.`unit_id` ;
+		SET @surface_update_ext_l2_2 = NEW.`surface` ;
+		SET @surface_measurment_unit_update_ext_l2_2 = NEW.`surface_measurment_unit` ;
+		SET @description_update_ext_l2_2 = NEW.`description` ;
 
 	# We update the record in the table `external_property_level_2_units`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -10867,49 +12992,49 @@ BEGIN
 			, `description`
 			)
 			VALUES
- 				(@external_id
-				, @external_system_id 
-				, @external_table
-				, @syst_created_datetime
-				, @creation_system_id
-				, @created_by_id
-				, @downstream_creation_method
-				, @organization_id_create
-				, @activated_by_id
-				, @is_obsolete
-				, @is_creation_needed_in_unee_t
-				, @do_not_insert
-				, @unee_t_unit_type
-				, @building_system_id
-				, @tower
-				, @unit_category_id
-				, @designation
-				, @count_rooms
-				, @unit_id
-				, @surface
-				, @surface_measurment_unit
-				, @description
+ 				(@external_id_update_ext_l2_2
+				, @external_system_id_update_ext_l2_2
+				, @external_table_update_ext_l2_2
+				, @syst_created_datetime_update_ext_l2_2
+				, @creation_system_id_update_ext_l2_2
+				, @created_by_id_update_ext_l2_2
+				, @downstream_creation_method_update_ext_l2_2
+				, @organization_id_create_update_ext_l2_2
+				, @activated_by_id_update_ext_l2_2
+				, @is_obsolete_update_ext_l2_2
+				, @is_creation_needed_in_unee_t_update_ext_l2_2
+				, @do_not_insert_update_ext_l2_2
+				, @unee_t_unit_type_update_ext_l2_2
+				, @building_system_id_update_ext_l2_2
+				, @tower_update_ext_l2_2
+				, @unit_category_id_update_ext_l2_2
+				, @designation_update_ext_l2_2
+				, @count_rooms_update_ext_l2_2
+				, @unit_id_update_ext_l2_2
+				, @surface_update_ext_l2_2
+				, @surface_measurment_unit_update_ext_l2_2
+				, @description_update_ext_l2_2
  			)
 			ON DUPLICATE KEY UPDATE
- 				`syst_updated_datetime` = @syst_updated_datetime
- 				, `update_system_id` = @update_system_id
- 				, `updated_by_id` = @updated_by_id
-				, `update_method` = @downstream_update_method
-				, `organization_id` = @organization_id_update
-				, `activated_by_id` = @activated_by_id
-				, `is_obsolete` = @is_obsolete
-				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-				, `do_not_insert` = @do_not_insert
-				, `unee_t_unit_type` = @unee_t_unit_type
-				, `building_system_id` = @building_system_id
-				, `tower` = @tower
-				, `unit_category_id` = @unit_category_id
-				, `designation` = @designation
-				, `count_rooms` = @count_rooms
-				, `unit_id` = @unit_id
-				, `surface` = @surface
-				, `surface_measurment_unit` = @surface_measurment_unit
-				, `description` = @description
+ 				`syst_updated_datetime` = @syst_updated_datetime_update_ext_l2_2
+ 				, `update_system_id` = @update_system_id_update_ext_l2_2
+ 				, `updated_by_id` = @updated_by_id_update_ext_l2_2
+				, `update_method` = @downstream_update_method_update_ext_l2_2
+				, `organization_id` = @organization_id_update_update_ext_l2_2
+				, `activated_by_id` = @activated_by_id_update_ext_l2_2
+				, `is_obsolete` = @is_obsolete_update_ext_l2_2
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_l2_2
+				, `do_not_insert` = @do_not_insert_update_ext_l2_2
+				, `unee_t_unit_type` = @unee_t_unit_type_update_ext_l2_2
+				, `building_system_id` = @building_system_id_update_ext_l2_2
+				, `tower` = @tower_update_ext_l2_2
+				, `unit_category_id` = @unit_category_id_update_ext_l2_2
+				, `designation` = @designation_update_ext_l2_2
+				, `count_rooms` = @count_rooms_update_ext_l2_2
+				, `unit_id` = @unit_id_update_ext_l2_2
+				, `surface` = @surface_update_ext_l2_2
+				, `surface_measurment_unit` = @surface_measurment_unit_update_ext_l2_2
+				, `description` = @description_update_ext_l2_2
 			;
 
 	END IF;
@@ -10917,13 +13042,13 @@ BEGIN
 # Housekeeping - we make sure that if a unit is obsolete - all rooms in that unit are obsolete too
 # We only do that if the field `is_obsolete` is changed from 0 to 1
 
-	SET @system_id_unit = NEW.`system_id_unit` ;
+	SET @system_id_unit_update_ext_l2_2 = NEW.`system_id_unit` ;
 
 	UPDATE `external_property_level_3_rooms` AS `a`
 		INNER JOIN `external_property_level_2_units` AS `b`
 			ON (`a`.`system_id_unit` = `b`.`system_id_unit`)
 		SET `a`.`is_obsolete` = `b`.`is_obsolete`
-		WHERE `a`.`system_id_unit` = @system_id_unit
+		WHERE `a`.`system_id_unit` = @system_id_unit_update_ext_l2_2
 		;
 
 END;
@@ -10932,7 +13057,7 @@ DELIMITER ;
 
 # Create a trigger to update the table that will fire the lambda each time a new Flat/Unit needs to be created
 
-		DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_unit`;
+	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_unit`;
 
 DELIMITER $$
 CREATE TRIGGER `ut_update_map_external_source_unit_add_unit`
@@ -10949,70 +13074,70 @@ BEGIN
 #		- 'ut_update_external_property_level_2_creation_needed'
 #		- ''
 #
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_insert_l2_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @external_property_id = NEW.`external_id` ;
-	SET @external_system = NEW.`external_system_id` ;
-	SET @table_in_external_system = NEW.`external_table` ;
-	SET @organization_id = NEW.`organization_id`;
+	SET @external_property_id_insert_l2_1 = NEW.`external_id` ;
+	SET @external_system_insert_l2_1 = NEW.`external_system_id` ;
+	SET @table_in_external_system_insert_l2_1 = NEW.`external_table` ;
+	SET @organization_id_insert_l2_1 = NEW.`organization_id`;
 
-	SET @id_in_ut_map_external_source_units = (SELECT `id_map`
+	SET @id_in_ut_map_external_source_units_insert_l2_1 = (SELECT `id_map`
 		FROM `ut_map_external_source_units`
-		WHERE `external_system` = @external_system
-			AND `table_in_external_system` = @table_in_external_system
-			AND `external_property_id` = @external_property_id
-			AND `organization_id` = @organization_id
+		WHERE `external_system` = @external_system_insert_l2_1
+			AND `table_in_external_system` = @table_in_external_system_insert_l2_1
+			AND `external_property_id` = @external_property_id_insert_l2_1
+			AND `organization_id` = @organization_id_insert_l2_1
 		);
 
-	SET @do_not_insert = (IF (@id_in_ut_map_external_source_units IS NULL
+	SET @do_not_insert_insert_l2_1 = (IF (@id_in_ut_map_external_source_units_insert_l2_1 IS NULL
 			, 0
 			, NEW.`do_not_insert`
 			)
 		
 		);
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_insert_l2_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_insert_l2_1 = NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0
-		AND (@upstream_create_method = 'ut_insert_external_property_level_2'
-			OR @upstream_update_method = 'ut_insert_external_property_level_2'
-			OR @upstream_create_method = 'ut_update_external_property_level_2'
-			OR @upstream_update_method = 'ut_update_external_property_level_2'
-			OR @upstream_create_method = 'ut_update_external_property_level_2_creation_needed'
-			OR @upstream_update_method = 'ut_update_external_property_level_2_creation_needed'
+	IF @is_creation_needed_in_unee_t_insert_l2_1 = 1
+		AND @do_not_insert_insert_l2_1 = 0
+		AND (@upstream_create_method_insert_l2_1 = 'ut_insert_external_property_level_2'
+			OR @upstream_update_method_insert_l2_1 = 'ut_insert_external_property_level_2'
+			OR @upstream_create_method_insert_l2_1 = 'ut_update_external_property_level_2'
+			OR @upstream_update_method_insert_l2_1 = 'ut_update_external_property_level_2'
+			OR @upstream_create_method_insert_l2_1 = 'ut_update_external_property_level_2_creation_needed'
+			OR @upstream_update_method_insert_l2_1 = 'ut_update_external_property_level_2_creation_needed'
 			)
 
 	THEN 
 
 		# We capture the values we need for the insert/udpate:
 
-			SET @this_trigger = 'ut_update_map_external_source_unit_add_unit' ;
+			SET @this_trigger_insert_l2_1 = 'ut_update_map_external_source_unit_add_unit' ;
 
-			SET @syst_created_datetime = NOW();
-			SET @creation_system_id = NEW.`creation_system_id`;
-			SET @created_by_id = NEW.`created_by_id`;
-			SET @creation_method = @this_trigger ;
+			SET @syst_created_datetime_insert_l2_1 = NOW();
+			SET @creation_system_id_insert_l2_1 = NEW.`creation_system_id`;
+			SET @created_by_id_insert_l2_1 = NEW.`created_by_id`;
+			SET @creation_method_insert_l2_1 = @this_trigger ;
 
-			SET @syst_updated_datetime = NOW();
-			SET @update_system_id = NEW.`creation_system_id`;
-			SET @updated_by_id = NEW.`created_by_id`;
-			SET @update_method = @this_trigger ;
+			SET @syst_updated_datetime_insert_l2_1 = NOW();
+			SET @update_system_id_insert_l2_1 = NEW.`creation_system_id`;
+			SET @updated_by_id_insert_l2_1 = NEW.`created_by_id`;
+			SET @update_method_insert_l2_1 = @this_trigger_insert_l2_1 ;
 			
-			SET @is_obsolete = NEW.`is_obsolete`;
-			SET @is_update_needed = NULL;
+			SET @is_obsolete_insert_l2_1 = NEW.`is_obsolete`;
+			SET @is_update_needed_insert_l2_1 = NULL;
 			
-			SET @uneet_name = NEW.`designation`;
+			SET @uneet_name_insert_l2_1 = NEW.`designation`;
 
-			SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+			SET @unee_t_unit_type_insert_l2_1 = (IFNULL(NEW.`unee_t_unit_type`
 					, 'Unknown'
 					)
 				)
 				;
 			
-			SET @new_record_id = NEW.`system_id_unit`;
-			SET @external_property_type_id = 2;	
+			SET @new_record_id_insert_l2_1 = NEW.`system_id_unit`;
+			SET @external_property_type_id_insert_l2_1 = 2;	
 
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -11033,29 +13158,29 @@ BEGIN
 				, `table_in_external_system`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
+					(@syst_created_datetime_insert_l2_1
+					, @creation_system_id_insert_l2_1
+					, @created_by_id_insert_l2_1
+					, @this_trigger_insert_l2_1
+					, @organization_id_insert_l2_1
+					, @is_obsolete_insert_l2_1
+					, @is_update_needed_insert_l2_1
+					, @uneet_name_insert_l2_1
+					, @unee_t_unit_type_insert_l2_1
+					, @new_record_id_insert_l2_1
+					, @external_property_type_id_insert_l2_1
+					, @external_property_id_insert_l2_1
+					, @external_system_insert_l2_1
+					, @table_in_external_system_insert_l2_1
 					)
 				ON DUPLICATE KEY UPDATE 
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
+					`syst_updated_datetime` = @syst_updated_datetime_insert_l2_1
+					, `update_system_id` = @update_system_id_insert_l2_1
+					, `updated_by_id` = @updated_by_id_insert_l2_1
+					, `update_method` = @this_trigger_insert_l2_1
+					, `organization_id` = @organization_id_insert_l2_1
+					, `uneet_name` = @uneet_name_insert_l2_1
+					, `unee_t_unit_type` = @unee_t_unit_type_insert_l2_1
 					, `is_update_needed` = 1
 				;
 
@@ -11083,67 +13208,67 @@ BEGIN
 #		- 'ut_update_external_property_level_2_creation_needed'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t`;
+	SET @is_creation_needed_in_unee_t_update_l2_1 = NEW.`is_creation_needed_in_unee_t`;
 
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t`;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t`;
+	SET @new_is_creation_needed_in_unee_t_update_l2_1 = NEW.`is_creation_needed_in_unee_t`;
+	SET @old_is_creation_needed_in_unee_t_update_l2_1 = OLD.`is_creation_needed_in_unee_t`;
 
-	SET @do_not_insert = NEW.`do_not_insert` ;
+	SET @do_not_insert_update_l2_1 = NEW.`do_not_insert` ;
 
-	SET @system_id_unit = NEW.`system_id_unit` ;
+	SET @system_id_unit_update_l2_1 = NEW.`system_id_unit` ;
 
-	SET @mefe_unit_id = (SELECT `unee_t_mefe_unit_id`
+	SET @mefe_unit_id_update_l2_1 = (SELECT `unee_t_mefe_unit_id`
 		FROM `ut_map_external_source_units`
-		WHERE `new_record_id` = @system_id_unit
+		WHERE `new_record_id` = @system_id_unit_update_l2_1
 			AND `external_property_type_id` = 2
 		);
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_l2_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_l2_1 = NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0 
-		AND @mefe_unit_id IS NULL
-		AND (@upstream_create_method = 'ut_insert_external_property_level_2'
-			OR @upstream_update_method = 'ut_insert_external_property_level_2'
-			OR @upstream_create_method = 'ut_update_external_property_level_2_creation_needed'
-			OR @upstream_update_method = 'ut_update_external_property_level_2_creation_needed'
+	IF @is_creation_needed_in_unee_t_update_l2_1 = 1
+		AND @do_not_insert_update_l2_1 = 0 
+		AND @mefe_unit_id_update_l2_1 IS NULL
+		AND (@upstream_create_method_update_l2_1 = 'ut_insert_external_property_level_2'
+			OR @upstream_update_method_update_l2_1 = 'ut_insert_external_property_level_2'
+			OR @upstream_create_method_update_l2_1 = 'ut_update_external_property_level_2_creation_needed'
+			OR @upstream_update_method_update_l2_1 = 'ut_update_external_property_level_2_creation_needed'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate:
 
-		SET @this_trigger = 'ut_update_map_external_source_unit_add_unit_creation_needed';
+		SET @this_trigger_update_l2_1 = 'ut_update_map_external_source_unit_add_unit_creation_needed';
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = NEW.`update_system_id`;
-		SET @created_by_id = NEW.`updated_by_id`;
-		SET @creation_method = @this_trigger ;
+		SET @syst_created_datetime_update_l2_1 = NOW();
+		SET @creation_system_id_update_l2_1 = NEW.`update_system_id`;
+		SET @created_by_id_update_l2_1 = NEW.`updated_by_id`;
+		SET @creation_method_update_l2_1 = @this_trigger_update_l2_1 ;
 
-		SET @syst_updated_datetime = NOW();
-		SET @update_system_id = NEW.`update_system_id`;
-		SET @updated_by_id = NEW.`updated_by_id`;
-		SET @update_method = @this_trigger ;
+		SET @syst_updated_datetime_update_l2_1 = NOW();
+		SET @update_system_id_update_l2_1 = NEW.`update_system_id`;
+		SET @updated_by_id_update_l2_1 = NEW.`updated_by_id`;
+		SET @update_method_update_l2_1 = @this_trigger_update_l2_1 ;
 
-		SET @organization_id = NEW.`organization_id`;
+		SET @organization_id_update_l2_1 = NEW.`organization_id`;
 			
-		SET @is_obsolete = NEW.`is_obsolete`;
-		SET @is_update_needed = NULL;
+		SET @is_obsolete_update_l2_1 = NEW.`is_obsolete`;
+		SET @is_update_needed_update_l2_1 = NULL;
 		
-		SET @uneet_name = NEW.`designation`;
+		SET @uneet_name_update_l2_1 = NEW.`designation`;
 
-		SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+		SET @unee_t_unit_type_update_l2_1 = (IFNULL(NEW.`unee_t_unit_type`
 				, 'Unknown'
 				)
 			)
 			;
 			
-		SET @new_record_id = NEW.`system_id_unit`;
-		SET @external_property_type_id = 2;
+		SET @new_record_id_update_l2_1 = NEW.`system_id_unit`;
+		SET @external_property_type_id_update_l2_1 = 2;
 
-		SET @external_property_id = NEW.`external_id`;
-		SET @external_system = NEW.`external_system_id`;
-		SET @table_in_external_system = NEW.`external_table`;			
+		SET @external_property_id_update_l2_1 = NEW.`external_id`;
+		SET @external_system_update_l2_1 = NEW.`external_system_id`;
+		SET @table_in_external_system_update_l2_1 = NEW.`external_table`;			
 
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -11164,29 +13289,29 @@ BEGIN
 				, `table_in_external_system`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
+					(@syst_created_datetime_update_l2_1
+					, @creation_system_id_update_l2_1
+					, @created_by_id_update_l2_1
+					, @this_trigger_update_l2_1
+					, @organization_id_update_l2_1
+					, @is_obsolete_update_l2_1
+					, @is_update_needed_update_l2_1
+					, @uneet_name_update_l2_1
+					, @unee_t_unit_type_update_l2_1
+					, @new_record_id_update_l2_1
+					, @external_property_type_id_update_l2_1
+					, @external_property_id_update_l2_1
+					, @external_system_update_l2_1
+					, @table_in_external_system_update_l2_1
 					)
 				ON DUPLICATE KEY UPDATE
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
+					`syst_updated_datetime` = @syst_updated_datetime_update_l2_1
+					, `update_system_id` = @update_system_id_update_l2_1
+					, `updated_by_id` = @updated_by_id_update_l2_1
+					, `update_method` = @this_trigger_update_l2_1
+					, `organization_id` = @organization_id_update_l2_1
+					, `uneet_name` = @uneet_name_update_l2_1
+					, `unee_t_unit_type` = @unee_t_unit_type_update_l2_1
 					, `is_update_needed` = 1
 				;
 
@@ -11214,70 +13339,70 @@ BEGIN
 #		- 'ut_update_external_property_level_2'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t`;
+	SET @is_creation_needed_in_unee_t_update_l2_2 = NEW.`is_creation_needed_in_unee_t`;
 
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t`;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t`;
+	SET @new_is_creation_needed_in_unee_t_update_l2_2 = NEW.`is_creation_needed_in_unee_t`;
+	SET @old_is_creation_needed_in_unee_t_update_l2_2 = OLD.`is_creation_needed_in_unee_t`;
 
-	SET @do_not_insert = NEW.`do_not_insert` ;
+	SET @do_not_insert_update_l2_2 = NEW.`do_not_insert` ;
 
-	SET @system_id_unit = NEW.`system_id_unit` ;
+	SET @system_id_unit_update_l2_2 = NEW.`system_id_unit` ;
 
-	SET @mefe_unit_id = (SELECT `unee_t_mefe_unit_id`
+	SET @mefe_unit_id_update_l2_2 = (SELECT `unee_t_mefe_unit_id`
 		FROM `ut_map_external_source_units`
-		WHERE `new_record_id` = @system_id_unit
+		WHERE `new_record_id` = @system_id_unit_update_l2_2
 			AND `external_property_type_id` = 2
 		);
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_l2_2 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_l2_2 = NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0 
-		AND @mefe_unit_id IS NOT NULL
-		AND (@upstream_create_method = 'ut_update_external_property_level_2'
-			OR @upstream_update_method = 'ut_update_external_property_level_2'
+	IF @is_creation_needed_in_unee_t_update_l2_2 = 1
+		AND @do_not_insert_update_l2_2 = 0 
+		AND @mefe_unit_id_update_l2_2 IS NOT NULL
+		AND (@upstream_create_method_update_l2_2 = 'ut_update_external_property_level_2'
+			OR @upstream_update_method_update_l2_2 = 'ut_update_external_property_level_2'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate:
 
-		SET @this_trigger = 'ut_update_map_external_source_unit_edit_level_2';
+		SET @this_trigger_update_l2_2 = 'ut_update_map_external_source_unit_edit_level_2';
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = NEW.`update_system_id`;
-		SET @created_by_id = NEW.`updated_by_id`;
-		SET @creation_method = @this_trigger ;
+		SET @syst_created_datetime_update_l2_2 = NOW();
+		SET @creation_system_id_update_l2_2 = NEW.`update_system_id`;
+		SET @created_by_id_update_l2_2 = NEW.`updated_by_id`;
+		SET @creation_method_update_l2_2 = @this_trigger_update_l2_2 ;
 
-		SET @syst_updated_datetime = NOW();
-		SET @update_system_id = NEW.`update_system_id`;
-		SET @updated_by_id = NEW.`updated_by_id`;
-		SET @update_method = @this_trigger ;
+		SET @syst_updated_datetime_update_l2_2 = NOW();
+		SET @update_system_id_update_l2_2 = NEW.`update_system_id`;
+		SET @updated_by_id_update_l2_2 = NEW.`updated_by_id`;
+		SET @update_method_update_l2_2 = @this_trigger_update_l2_2 ;
 
-		SET @organization_id = NEW.`organization_id`;
+		SET @organization_id_update_l2_2 = NEW.`organization_id`;
 			
-		SET @is_obsolete = NEW.`is_obsolete`;
-		SET @is_update_needed = NULL;
+		SET @is_obsolete_update_l2_2 = NEW.`is_obsolete`;
+		SET @is_update_needed_update_l2_2 = NULL;
 		
-		SET @uneet_name = NEW.`designation`;
+		SET @uneet_name_update_l2_2 = NEW.`designation`;
 
-		SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+		SET @unee_t_unit_type_update_l2_2 = (IFNULL(NEW.`unee_t_unit_type`
 				, 'Unknown'
 				)
 			)
 			;
 			
-		SET @new_record_id = NEW.`system_id_unit`;
-		SET @external_property_type_id = 2;
+		SET @new_record_id_update_l2_2 = NEW.`system_id_unit`;
+		SET @external_property_type_id_update_l2_2 = 2;
 
-		SET @external_property_id = NEW.`external_id`;
-		SET @external_system = NEW.`external_system_id`;
-		SET @table_in_external_system = NEW.`external_table`;
+		SET @external_property_id_update_l2_2 = NEW.`external_id`;
+		SET @external_system_update_l2_2 = NEW.`external_system_id`;
+		SET @table_in_external_system_update_l2_2 = NEW.`external_table`;
 
-		SET @is_mefe_api_success := 0 ;
-		SET @mefe_api_error_message := (CONCAT('N/A - written by '
+		SET @is_mefe_api_success_update_l2_2 := 0 ;
+		SET @mefe_api_error_message_update_l2_2 := (CONCAT('N/A - written by '
 				, '`'
-				, @this_trigger
+				, @this_trigger_update_l2_2
 				, '`'
 				)
 			);
@@ -11303,33 +13428,33 @@ BEGIN
 				, `table_in_external_system`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @is_mefe_api_success
-					, @mefe_api_error_message
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
+					(@syst_created_datetime_update_l2_2
+					, @creation_system_id_update_l2_2
+					, @created_by_id_update_l2_2
+					, @creation_method_update_l2_2
+					, @organization_id_update_l2_2
+					, @is_obsolete_update_l2_2
+					, @is_update_needed_update_l2_2
+					, @is_mefe_api_success_update_l2_2
+					, @mefe_api_error_message_update_l2_2
+					, @uneet_name_update_l2_2
+					, @unee_t_unit_type_update_l2_2
+					, @new_record_id_update_l2_2
+					, @external_property_type_id_update_l2_2
+					, @external_property_id_update_l2_2
+					, @external_system_update_l2_2
+					, @table_in_external_system_update_l2_2
 					)
 				ON DUPLICATE KEY UPDATE
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `is_mefe_api_success` = @is_mefe_api_success
-					, `mefe_api_error_message` = @mefe_api_error_message
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
+					`syst_updated_datetime` = @syst_updated_datetime_update_l2_2
+					, `update_system_id` = @update_system_id_update_l2_2
+					, `updated_by_id` = @updated_by_id_update_l2_2
+					, `update_method` = @update_method_update_l2_2
+					, `organization_id` = @organization_id_update_l2_2
+					, `is_mefe_api_success` = @is_mefe_api_success_update_l2_2
+					, `mefe_api_error_message` = @mefe_api_error_message_update_l2_2
+					, `uneet_name` = @uneet_name_update_l2_2
+					, `unee_t_unit_type` = @unee_t_unit_type_update_l2_2
 					, `is_update_needed` = 1
 				;
 
@@ -11381,45 +13506,45 @@ BEGIN
 #		- 'Export_and_Import_Rooms_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_insert_ext_l3_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator
+	SET @source_system_creator_insert_ext_l3_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_insert_ext_l3_1 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_insert_ext_l3_1
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_insert_ext_l3_1 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_insert_ext_l3_1
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_insert_ext_l3_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_insert_ext_l3_1 = NEW.`update_method` ;
 
-	SET @organization_id = @source_system_creator ;
+	SET @organization_id_insert_ext_l3_1 = @source_system_creator_insert_ext_l3_1 ;
 
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ;
-	SET @external_table = NEW.`external_table` ;
+	SET @external_id_insert_ext_l3_1 = NEW.`external_id` ;
+	SET @external_system_id_insert_ext_l3_1 = NEW.`external_system_id` ;
+	SET @external_table_insert_ext_l3_1 = NEW.`external_table` ;
 
-	SET @id_in_property_level_3_rooms = (SELECT `system_id_room`
+	SET @id_in_property_level_3_rooms_insert_ext_l3_1 = (SELECT `system_id_room`
 		FROM `property_level_3_rooms`
-		WHERE `external_system_id` = @external_system_id
-			AND `external_table` = @external_table
-			AND `external_id` = @external_id
-			AND `organization_id` = @organization_id
+		WHERE `external_system_id` = @external_system_id_insert_ext_l3_1
+			AND `external_table` = @external_table_insert_ext_l3_1
+			AND `external_id` = @external_id_insert_ext_l3_1
+			AND `organization_id` = @organization_id_insert_ext_l3_1
 		);
 		
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_insert_ext_l3_1 = NEW.`do_not_insert` ;
 
 	# This is an INSERT - the record should NOT exist already
 
-		SET @do_not_insert = (IF (@id_in_property_level_3_rooms IS NULL
+		SET @do_not_insert_insert_ext_l3_1 = (IF (@id_in_property_level_3_rooms_insert_ext_l3_1 IS NULL
 				, 0
-				, @upstream_do_not_insert
+				, @upstream_do_not_insert_insert_ext_l3_1
 				)
 			
 			);
@@ -11427,86 +13552,86 @@ BEGIN
 	# Get the information about the unit for that room...
 	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_property_level_2_units`)
 	
-		SET @unit_id_in_table_external_property_level_3_rooms = NEW.`system_id_unit` ;
+		SET @unit_id_1_insert_ext_l3_1 = NEW.`system_id_unit` ;
 
-        SET @unit_external_id = (SELECT `external_id`
+		SET @unit_external_id_insert_ext_l3_1 = (SELECT `external_id`
 			FROM `external_property_level_2_units`
-			WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-			    );
-		SET @unit_external_system_id = (SELECT `external_system_id`
-		    FROM `external_property_level_2_units`
-		    WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-		    );
-		SET @unit_external_table = (SELECT `external_table`
+			WHERE `system_id_unit` = @unit_id_1_insert_ext_l3_1
+				);
+		SET @unit_external_system_id_insert_ext_l3_1 = (SELECT `external_system_id`
+			FROM `external_property_level_2_units`
+			WHERE `system_id_unit` = @unit_id_1_insert_ext_l3_1
+			);
+		SET @unit_external_table_insert_ext_l3_1 = (SELECT `external_table`
 		   FROM `external_property_level_2_units`
-		    WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-		    );
+			WHERE `system_id_unit` = @unit_id_1_insert_ext_l3_1
+			);
 
-		SET @system_id_unit = (SELECT `system_id_unit`
+		SET @system_id_unit_insert_ext_l3_1 = (SELECT `system_id_unit`
 			FROM `property_level_2_units`
-			WHERE `external_id` = @unit_external_id
-		    	AND `external_system_id` = @unit_external_system_id
-		    	AND `external_table` = @unit_external_table
-		    	AND `organization_id` = @organization_id
-			    );
+			WHERE `external_id` = @unit_external_id_insert_ext_l3_1
+				AND `external_system_id` = @unit_external_system_id_insert_ext_l3_1
+				AND `external_table` = @unit_external_table_insert_ext_l3_1
+				AND `organization_id` = @organization_id_insert_ext_l3_1
+				);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @organization_id IS NOT NULL
-        AND @system_id_unit IS NOT NULL
-		AND (@upstream_create_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method = 'Manage_Rooms_Add_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Add_Page'
-			OR @upstream_create_method = 'Manage_Rooms_Edit_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Edit_Page'
-			OR @upstream_create_method = 'Manage_Rooms_Import_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Import_Page'
-			OR @upstream_create_method = 'Export_and_Import_Rooms_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Rooms_Import_Page'
+	IF @is_creation_needed_in_unee_t_insert_ext_l3_1 = 1
+		AND @do_not_insert_insert_ext_l3_1 = 0
+		AND @external_id_insert_ext_l3_1 IS NOT NULL
+		AND @external_system_id_insert_ext_l3_1 IS NOT NULL
+		AND @external_table_insert_ext_l3_1 IS NOT NULL
+		AND @organization_id_insert_ext_l3_1 IS NOT NULL
+		AND @system_id_unit_insert_ext_l3_1 IS NOT NULL
+		AND (@upstream_create_method_insert_ext_l3_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_insert_ext_l3_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_insert_ext_l3_1 = 'Manage_Rooms_Add_Page'
+			OR @upstream_update_method_insert_ext_l3_1 = 'Manage_Rooms_Add_Page'
+			OR @upstream_create_method_insert_ext_l3_1 = 'Manage_Rooms_Edit_Page'
+			OR @upstream_update_method_insert_ext_l3_1 = 'Manage_Rooms_Edit_Page'
+			OR @upstream_create_method_insert_ext_l3_1 = 'Manage_Rooms_Import_Page'
+			OR @upstream_update_method_insert_ext_l3_1 = 'Manage_Rooms_Import_Page'
+			OR @upstream_create_method_insert_ext_l3_1 = 'Export_and_Import_Rooms_Import_Page'
+			OR @upstream_update_method_insert_ext_l3_1 = 'Export_and_Import_Rooms_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `external_property_level_2_units` table:
 
-		SET @this_trigger = 'ut_insert_external_property_level_3' ;
+		SET @this_trigger_insert_ext_l3_1 = 'ut_insert_external_property_level_3' ;
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_insert_ext_l3_1 = NOW();
+		SET @creation_system_id_insert_ext_l3_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_insert_ext_l3_1
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_insert_ext_l3_1 = @creator_mefe_user_id_insert_ext_l3_1 ;
+		SET @downstream_creation_method_insert_ext_l3_1 = @this_trigger_insert_ext_l3_1 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_insert_ext_l3_1 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_insert_ext_l3_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_insert_ext_l3_1
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_insert_ext_l3_1 = @creator_mefe_user_id_insert_ext_l3_1 ;
+		SET @downstream_update_method_insert_ext_l3_1 = @this_trigger_insert_ext_l3_1 ;
 
-	    SET @organization_id_create = @source_system_creator ;
-		SET @organization_id_update = @source_system_updater;
-        
-		SET @is_obsolete = NEW.`is_obsolete` ;
-        SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+		SET @organization_id_create_insert_ext_l3_1 = @source_system_creator_insert_ext_l3_1 ;
+		SET @organization_id_update_insert_ext_l3_1 = @source_system_updater_insert_ext_l3_1 ;
+		
+		SET @is_obsolete_insert_ext_l3_1 = NEW.`is_obsolete` ;
+		SET @is_creation_needed_in_unee_t_insert_ext_l3_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-        SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
-            
-		SET @room_type_id = NEW.`room_type_id` ;
-		SET @number_of_beds = NEW.`number_of_beds` ;
-		SET @surface = NEW.`surface` ;
-		SET @surface_measurment_unit = NEW.`surface_measurment_unit` ;
-		SET @room_designation = NEW.`room_designation`;
-		SET @room_description = NEW.`room_description` ;
+		SET @unee_t_unit_type_insert_ext_l3_1 = NEW.`unee_t_unit_type` ;
+			
+		SET @room_type_id_insert_ext_l3_1 = NEW.`room_type_id` ;
+		SET @number_of_beds_insert_ext_l3_1 = NEW.`number_of_beds` ;
+		SET @surface_insert_ext_l3_1 = NEW.`surface` ;
+		SET @surface_measurment_unit_insert_ext_l3_1 = NEW.`surface_measurment_unit` ;
+		SET @room_designation_insert_ext_l3_1 = NEW.`room_designation`;
+		SET @room_description_insert_ext_l3_1 = NEW.`room_description` ;
 
 	# We insert the record in the table `property_level_3_rooms`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -11514,60 +13639,60 @@ BEGIN
 		INSERT INTO `property_level_3_rooms`
 			(`external_id`
 			, `external_system_id` 
-        	, `external_table`
-        	, `syst_created_datetime`
-        	, `creation_system_id`
-        	, `created_by_id`
-        	, `creation_method`
-        	, `organization_id`
-        	, `is_obsolete`
-        	, `is_creation_needed_in_unee_t`
-        	, `do_not_insert`
+			, `external_table`
+			, `syst_created_datetime`
+			, `creation_system_id`
+			, `created_by_id`
+			, `creation_method`
+			, `organization_id`
+			, `is_obsolete`
+			, `is_creation_needed_in_unee_t`
+			, `do_not_insert`
 			, `unee_t_unit_type`
-        	, `system_id_unit`
-        	, `room_type_id`
-        	, `surface`
-        	, `surface_measurment_unit`
+			, `system_id_unit`
+			, `room_type_id`
+			, `surface`
+			, `surface_measurment_unit`
 			, `room_designation`
-        	, `room_description`
-        	)
-        	VALUES
- 				(@external_id
-        	    , @external_system_id 
-        	    , @external_table
-        	    , @syst_created_datetime
-        	    , @creation_system_id
-        	    , @created_by_id
-        	    , @downstream_creation_method
-        	    , @organization_id_create
-        	    , @is_obsolete
-        	    , @is_creation_needed_in_unee_t
-        	    , @do_not_insert
-        	    , @unee_t_unit_type
-        	    , @system_id_unit
-        	    , @room_type_id
-        	    , @surface
-        	    , @surface_measurment_unit
-				, @room_designation
-        	    , @room_description
+			, `room_description`
+			)
+			VALUES
+ 				(@external_id_insert_ext_l3_1
+				, @external_system_id_insert_ext_l3_1
+				, @external_table_insert_ext_l3_1
+				, @syst_created_datetime_insert_ext_l3_1
+				, @creation_system_id_insert_ext_l3_1
+				, @created_by_id_insert_ext_l3_1
+				, @downstream_creation_method_insert_ext_l3_1
+				, @organization_id_create_insert_ext_l3_1
+				, @is_obsolete_insert_ext_l3_1
+				, @is_creation_needed_in_unee_t_insert_ext_l3_1
+				, @do_not_insert_insert_ext_l3_1
+				, @unee_t_unit_type_insert_ext_l3_1
+				, @system_id_unit_insert_ext_l3_1
+				, @room_type_id_insert_ext_l3_1
+				, @surface_insert_ext_l3_1
+				, @surface_measurment_unit_insert_ext_l3_1
+				, @room_designation_insert_ext_l3_1
+				, @room_description_insert_ext_l3_1
  			)
-        	ON DUPLICATE KEY UPDATE
- 				`syst_updated_datetime` = @syst_updated_datetime
- 				, `update_system_id` = @update_system_id
- 				, `updated_by_id` = @updated_by_id
-        		, `update_method` = @downstream_update_method
-				, `organization_id` = @organization_id_update
-        	    , `is_obsolete` = @is_obsolete
-        	    , `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-        	    , `do_not_insert` = @do_not_insert
-        	    , `unee_t_unit_type` = @unee_t_unit_type
-        	    , `system_id_unit` = @system_id_unit
-        	    , `room_type_id` = @room_type_id
-        	    , `surface` = @surface
-        	    , `surface_measurment_unit` = @surface_measurment_unit
-        	    , `room_designation` = @room_designation
-				, `room_description` = @room_description
-        	;
+			ON DUPLICATE KEY UPDATE
+ 				`syst_updated_datetime` = @syst_updated_datetime_insert_ext_l3_1
+ 				, `update_system_id` = @update_system_id_insert_ext_l3_1
+ 				, `updated_by_id` = @updated_by_id_insert_ext_l3_1
+				, `update_method` = @downstream_update_method_insert_ext_l3_1
+				, `organization_id` = @organization_id_update_insert_ext_l3_1
+				, `is_obsolete` = @is_obsolete_insert_ext_l3_1
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_insert_ext_l3_1
+				, `do_not_insert` = @do_not_insert_insert_ext_l3_1
+				, `unee_t_unit_type` = @unee_t_unit_type_insert_ext_l3_1
+				, `system_id_unit` = @system_id_unit_insert_ext_l3_1
+				, `room_type_id` = @room_type_id_insert_ext_l3_1
+				, `surface` = @surface_insert_ext_l3_1
+				, `surface_measurment_unit` = @surface_measurment_unit_insert_ext_l3_1
+				, `room_designation` = @room_designation_insert_ext_l3_1
+				, `room_description` = @room_description_insert_ext_l3_1
+			;
 
 	END IF;
 
@@ -11606,46 +13731,46 @@ BEGIN
 #		- 'Export_and_Import_Rooms_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_update_ext_l3_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @source_system_updater = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator
+	SET @source_system_creator_update_ext_l3_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_update_ext_l3_1 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_update_ext_l3_1
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_update_ext_l3_1 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_update_ext_l3_1
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_ext_l3_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_ext_l3_1 = NEW.`update_method` ;
 
-	SET @organization_id = @source_system_creator ;
+	SET @organization_id_update_ext_l3_1 = @source_system_creator_update_ext_l3_1 ;
 
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
+	SET @external_id_update_ext_l3_1 = NEW.`external_id` ;
+	SET @external_system_id_update_ext_l3_1 = NEW.`external_system_id` ; 
+	SET @external_table_update_ext_l3_1 = NEW.`external_table` ;
 
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ;
+	SET @new_is_creation_needed_in_unee_t_update_ext_l3_1 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_ext_l3_1 = OLD.`is_creation_needed_in_unee_t` ;
 
-	SET @id_in_property_level_3_rooms = (SELECT `system_id_room`
+	SET @id_in_property_level_3_rooms_update_ext_l3_1 = (SELECT `system_id_room`
 		FROM `property_level_3_rooms`
-		WHERE `external_system_id` = @external_system_id
-			AND `external_table` = @external_table
-			AND `external_id` = @external_id
-			AND `organization_id` = @organization_id
+		WHERE `external_system_id` = @external_system_id_update_ext_l3_1
+			AND `external_table` = @external_table_update_ext_l3_1
+			AND `external_id` = @external_id_update_ext_l3_1
+			AND `organization_id` = @organization_id_update_ext_l3_1
 		);
 
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_update_ext_l3_1 = NEW.`do_not_insert` ;
 
 	# This is an UPDATE - the record SHOULD exist already
 
-		SET @do_not_insert = @upstream_do_not_insert ;
+		SET @do_not_insert_update_ext_l3_1 = @upstream_do_not_insert_update_ext_l3_1 ;
 		/*(IF (@id_in_property_level_3_rooms IS NULL
 				, 1
 				, @upstream_do_not_insert
@@ -11656,87 +13781,87 @@ BEGIN
 	# Get the information about the unit for that room...
 	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_property_level_2_units`)
 	
-		SET @unit_id_in_table_external_property_level_3_rooms = NEW.`system_id_unit` ;
+		SET @unit_id_1_update_ext_l3_1 = NEW.`system_id_unit` ;
 
-        SET @unit_external_id = (SELECT `external_id`
+		SET @unit_external_id_update_ext_l3_1 = (SELECT `external_id`
 			FROM `external_property_level_2_units`
-			WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-			    );
-		SET @unit_external_system_id = (SELECT `external_system_id`
-		    FROM `external_property_level_2_units`
-		    WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-		    );
-		SET @unit_external_table = (SELECT `external_table`
+			WHERE `system_id_unit` = @unit_id_1_update_ext_l3_1
+				);
+		SET @unit_external_system_id_update_ext_l3_1 = (SELECT `external_system_id`
+			FROM `external_property_level_2_units`
+			WHERE `system_id_unit` = @unit_id_1_update_ext_l3_1
+			);
+		SET @unit_external_table_update_ext_l3_1 = (SELECT `external_table`
 		   FROM `external_property_level_2_units`
-		    WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-		    );
+			WHERE `system_id_unit` = @unit_id_1_update_ext_l3_1
+			);
 
-		SET @system_id_unit = (SELECT `system_id_unit`
+		SET @system_id_unit_update_ext_l3_1 = (SELECT `system_id_unit`
 			FROM `property_level_2_units`
-			WHERE `external_id` = @unit_external_id
-		    	AND `external_system_id` = @unit_external_system_id
-		    	AND `external_table` = @unit_external_table
-		    	AND `organization_id` = @organization_id
-			    );
+			WHERE `external_id` = @unit_external_id_update_ext_l3_1
+				AND `external_system_id` = @unit_external_system_id_update_ext_l3_1
+				AND `external_table` = @unit_external_table_update_ext_l3_1
+				AND `organization_id` = @organization_id_update_ext_l3_1
+				);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @new_is_creation_needed_in_unee_t = @old_is_creation_needed_in_unee_t
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @organization_id IS NOT NULL
-        AND @system_id_unit IS NOT NULL
-		AND (@upstream_create_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method = 'Manage_Rooms_Add_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Add_Page'
-			OR @upstream_create_method = 'Manage_Rooms_Edit_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Edit_Page'
-			OR @upstream_create_method = 'Manage_Rooms_Import_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Import_Page'
-			OR @upstream_create_method = 'Export_and_Import_Rooms_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Rooms_Import_Page'
+	IF @is_creation_needed_in_unee_t_update_ext_l3_1 = 1
+		AND @new_is_creation_needed_in_unee_t_update_ext_l3_1 = @old_is_creation_needed_in_unee_t_update_ext_l3_1
+		AND @do_not_insert_update_ext_l3_1 = 0
+		AND @external_id_update_ext_l3_1 IS NOT NULL
+		AND @external_system_id_update_ext_l3_1 IS NOT NULL
+		AND @external_table_update_ext_l3_1 IS NOT NULL
+		AND @organization_id_update_ext_l3_1 IS NOT NULL
+		AND @system_id_unit_update_ext_l3_1 IS NOT NULL
+		AND (@upstream_create_method_update_ext_l3_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_l3_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_update_ext_l3_1 = 'Manage_Rooms_Add_Page'
+			OR @upstream_update_method_update_ext_l3_1 = 'Manage_Rooms_Add_Page'
+			OR @upstream_create_method_update_ext_l3_1 = 'Manage_Rooms_Edit_Page'
+			OR @upstream_update_method_update_ext_l3_1 = 'Manage_Rooms_Edit_Page'
+			OR @upstream_create_method_update_ext_l3_1 = 'Manage_Rooms_Import_Page'
+			OR @upstream_update_method_update_ext_l3_1 = 'Manage_Rooms_Import_Page'
+			OR @upstream_create_method_update_ext_l3_1 = 'Export_and_Import_Rooms_Import_Page'
+			OR @upstream_update_method_update_ext_l3_1 = 'Export_and_Import_Rooms_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `external_property_level_2_units` table:
 
-		SET @this_trigger = 'ut_update_external_property_level_3';
+		SET @this_trigger_update_ext_l3_1 = 'ut_update_external_property_level_3';
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_update_ext_l3_1 = NOW();
+		SET @creation_system_id_update_ext_l3_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_update_ext_l3_1
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_update_ext_l3_1 = @creator_mefe_user_id_update_ext_l3_1 ;
+		SET @downstream_creation_method_update_ext_l3_1 = @this_trigger_update_ext_l3_1 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_update_ext_l3_1 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_update_ext_l3_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_update_ext_l3_1
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_update_ext_l3_1 = @creator_mefe_user_id_update_ext_l3_1 ;
+		SET @downstream_update_method_update_ext_l3_1 = @this_trigger_update_ext_l3_1 ;
 
-		SET @organization_id_create = @source_system_creator;
-		SET @organization_id_update = @source_system_updater;
+		SET @organization_id_create_update_ext_l3_1 = @source_system_creator_update_ext_l3_1 ;
+		SET @organization_id_update_update_ext_l3_1 = @source_system_updater_update_ext_l3_1 ;
 
-		SET @is_obsolete = NEW.`is_obsolete` ;
-        SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+		SET @is_obsolete_update_ext_l3_1 = NEW.`is_obsolete` ;
+		SET @is_creation_needed_in_unee_t_update_ext_l3_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-        SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
-            
-		SET @room_type_id = NEW.`room_type_id` ;
-		SET @number_of_beds = NEW.`number_of_beds` ;
-		SET @surface = NEW.`surface` ;
-		SET @surface_measurment_unit = NEW.`surface_measurment_unit` ;
-		SET @room_designation = NEW.`room_designation`;
-		SET @room_description = NEW.`room_description` ;
+		SET @unee_t_unit_type_update_ext_l3_1 = NEW.`unee_t_unit_type` ;
+			
+		SET @room_type_id_update_ext_l3_1 = NEW.`room_type_id` ;
+		SET @number_of_beds_update_ext_l3_1 = NEW.`number_of_beds` ;
+		SET @surface_update_ext_l3_1 = NEW.`surface` ;
+		SET @surface_measurment_unit_update_ext_l3_1 = NEW.`surface_measurment_unit` ;
+		SET @room_designation_update_ext_l3_1 = NEW.`room_designation`;
+		SET @room_description_update_ext_l3_1 = NEW.`room_description` ;
 
 	# We insert the record in the table `property_level_3_rooms`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -11744,60 +13869,60 @@ BEGIN
 		INSERT INTO `property_level_3_rooms`
 			(`external_id`
 			, `external_system_id` 
-        	, `external_table`
-        	, `syst_created_datetime`
-        	, `creation_system_id`
-        	, `created_by_id`
-        	, `creation_method`
-        	, `organization_id`
-        	, `is_obsolete`
-        	, `is_creation_needed_in_unee_t`
-        	, `do_not_insert`
+			, `external_table`
+			, `syst_created_datetime`
+			, `creation_system_id`
+			, `created_by_id`
+			, `creation_method`
+			, `organization_id`
+			, `is_obsolete`
+			, `is_creation_needed_in_unee_t`
+			, `do_not_insert`
 			, `unee_t_unit_type`
-        	, `system_id_unit`
-        	, `room_type_id`
-        	, `surface`
-        	, `surface_measurment_unit`
+			, `system_id_unit`
+			, `room_type_id`
+			, `surface`
+			, `surface_measurment_unit`
 			, `room_designation`
-        	, `room_description`
-        	)
-        	VALUES
- 				(@external_id
-        	    , @external_system_id 
-        	    , @external_table
-        	    , @syst_created_datetime
-        	    , @creation_system_id
-        	    , @created_by_id
-        	    , @downstream_creation_method
-        	    , @organization_id_create
-        	    , @is_obsolete
-        	    , @is_creation_needed_in_unee_t
-        	    , @do_not_insert
-        	    , @unee_t_unit_type
-        	    , @system_id_unit
-        	    , @room_type_id
-        	    , @surface
-        	    , @surface_measurment_unit
-				, @room_designation
-        	    , @room_description
+			, `room_description`
+			)
+			VALUES
+ 				(@external_id_update_ext_l3_1
+				, @external_system_id_update_ext_l3_1
+				, @external_table_update_ext_l3_1
+				, @syst_created_datetime_update_ext_l3_1
+				, @creation_system_id_update_ext_l3_1
+				, @created_by_id_update_ext_l3_1
+				, @downstream_creation_method_update_ext_l3_1
+				, @organization_id_create_update_ext_l3_1
+				, @is_obsolete_update_ext_l3_1
+				, @is_creation_needed_in_unee_t_update_ext_l3_1
+				, @do_not_insert_update_ext_l3_1
+				, @unee_t_unit_type_update_ext_l3_1
+				, @system_id_unit_update_ext_l3_1
+				, @room_type_id_update_ext_l3_1
+				, @surface_update_ext_l3_1
+				, @surface_measurment_unit_update_ext_l3_1
+				, @room_designation_update_ext_l3_1
+				, @room_description_update_ext_l3_1
  			)
-        	ON DUPLICATE KEY UPDATE
- 				`syst_updated_datetime` = @syst_updated_datetime
- 				, `update_system_id` = @update_system_id
- 				, `updated_by_id` = @updated_by_id
-        		, `update_method` = @downstream_update_method
-				, `organization_id` = @organization_id_update
-        	    , `is_obsolete` = @is_obsolete
-        	    , `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-        	    , `do_not_insert` = @do_not_insert
-        	    , `unee_t_unit_type` = @unee_t_unit_type
-        	    , `system_id_unit` = @system_id_unit
-        	    , `room_type_id` = @room_type_id
-        	    , `surface` = @surface
-        	    , `surface_measurment_unit` = @surface_measurment_unit
-        	    , `room_designation` = @room_designation
-				, `room_description` = @room_description
-        	;
+			ON DUPLICATE KEY UPDATE
+ 				`syst_updated_datetime` = @syst_updated_datetime_update_ext_l3_1
+ 				, `update_system_id` = @update_system_id_update_ext_l3_1
+ 				, `updated_by_id` = @updated_by_id_update_ext_l3_1
+				, `update_method` = @downstream_update_method_update_ext_l3_1
+				, `organization_id` = @organization_id_update_update_ext_l3_1
+				, `is_obsolete` = @is_obsolete_update_ext_l3_1
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_l3_1
+				, `do_not_insert` = @do_not_insert_update_ext_l3_1
+				, `unee_t_unit_type` = @unee_t_unit_type_update_ext_l3_1
+				, `system_id_unit` = @system_id_unit_update_ext_l3_1
+				, `room_type_id` = @room_type_id_update_ext_l3_1
+				, `surface` = @surface_update_ext_l3_1
+				, `surface_measurment_unit` = @surface_measurment_unit_update_ext_l3_1
+				, `room_designation` = @room_designation_update_ext_l3_1
+				, `room_description` = @room_description_update_ext_l3_1
+			;
 
 	END IF;
 
@@ -11835,124 +13960,125 @@ BEGIN
 #		- 'Export_and_Import_Rooms_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_update_ext_l3_2 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator = NEW.`created_by_id` ;
-	SET @updated_by_id_source = NEW.`updated_by_id` ;
-	SET @source_system_updater = (IF(@updated_by_id_source IS NULL
-			, @source_system_creator
-			, @updated_by_id_source
+	SET @source_system_creator_update_ext_l3_2 = NEW.`created_by_id` ;
+	SET @updated_by_id_source_update_ext_l3_2 = NEW.`updated_by_id` ;
+	SET @source_system_updater_update_ext_l3_2 = (IF(@updated_by_id_source_update_ext_l3_2 IS NULL
+			, @source_system_creator_update_ext_l3_2
+			, @updated_by_id_source_update_ext_l3_2
 			)
 		);
 
-	SET @creator_mefe_user_id = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_update_ext_l3_2 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator
+		WHERE `organization_id` = @source_system_creator_update_ext_l3_2
 		)
 		;
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_update_ext_l3_2 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_ext_l3_2 = NEW.`update_method` ;
 
-	SET @organization_id = @source_system_creator ;
+	SET @organization_id_update_ext_l3_2 = @source_system_creator_update_ext_l3_2 ;
 
-	SET @external_id = NEW.`external_id` ;
-	SET @external_system_id = NEW.`external_system_id` ; 
-	SET @external_table = NEW.`external_table` ;
+	SET @external_id_update_ext_l3_2 = NEW.`external_id` ;
+	SET @external_system_id_update_ext_l3_2 = NEW.`external_system_id` ; 
+	SET @external_table_update_ext_l3_2 = NEW.`external_table` ;
 
-	SET @new_is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t = OLD.`is_creation_needed_in_unee_t` ;
+	SET @new_is_creation_needed_in_unee_t_update_ext_l3_2 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_ext_l3_2 = OLD.`is_creation_needed_in_unee_t` ;
 
-	SET @upstream_do_not_insert = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_update_ext_l3_2 = NEW.`do_not_insert` ;
 
 	# This is an UPDATE - the record SHOULD exist already
 	# BUT there are some edge cases when we need to re-create this...
-		SET @do_not_insert = @upstream_do_not_insert ;
+
+		SET @do_not_insert_update_ext_l3_2 = @upstream_do_not_insert_update_ext_l3_2 ;
 
 	# Get the information about the unit for that room...
 	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_property_level_2_units`)
 	
-		SET @unit_id_in_table_external_property_level_3_rooms = NEW.`system_id_unit` ;
+		SET @unit_id_1_update_ext_l3_2 = NEW.`system_id_unit` ;
 
-        SET @unit_external_id = (SELECT `external_id`
+		SET @unit_external_id_update_ext_l3_2 = (SELECT `external_id`
 			FROM `external_property_level_2_units`
-			WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-			    );
-		SET @unit_external_system_id = (SELECT `external_system_id`
-		    FROM `external_property_level_2_units`
-		    WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-		    );
-		SET @unit_external_table = (SELECT `external_table`
+			WHERE `system_id_unit` = @unit_id_1_update_ext_l3_2
+				);
+		SET @unit_external_system_id_update_ext_l3_2 = (SELECT `external_system_id`
+			FROM `external_property_level_2_units`
+			WHERE `system_id_unit` = @unit_id_1_update_ext_l3_2
+			);
+		SET @unit_external_table_update_ext_l3_2 = (SELECT `external_table`
 		   FROM `external_property_level_2_units`
-		    WHERE `system_id_unit` = @unit_id_in_table_external_property_level_3_rooms
-		    );
+			WHERE `system_id_unit` = @unit_id_1_update_ext_l3_2
+			);
 
-		SET @system_id_unit = (SELECT `system_id_unit`
+		SET @system_id_unit_update_ext_l3_2 = (SELECT `system_id_unit`
 			FROM `property_level_2_units`
-			WHERE `external_id` = @unit_external_id
-		    	AND `external_system_id` = @unit_external_system_id
-		    	AND `external_table` = @unit_external_table
-		    	AND `organization_id` = @organization_id
-			    );
+			WHERE `external_id` = @unit_external_id_update_ext_l3_2
+				AND `external_system_id` = @unit_external_system_id_update_ext_l3_2
+				AND `external_table` = @unit_external_table_update_ext_l3_2
+				AND `organization_id` = @organization_id_update_ext_l3_2
+				);
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @new_is_creation_needed_in_unee_t != @old_is_creation_needed_in_unee_t
-		AND @do_not_insert = 0
-		AND @external_id IS NOT NULL
-		AND @external_system_id IS NOT NULL
-		AND @external_table IS NOT NULL
-		AND @organization_id IS NOT NULL
-        AND @system_id_unit IS NOT NULL
-		AND (@upstream_create_method = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method = 'Manage_Rooms_Add_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Add_Page'
-			OR @upstream_create_method = 'Manage_Rooms_Edit_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Edit_Page'
-			OR @upstream_create_method = 'Manage_Rooms_Import_Page'
-			OR @upstream_update_method = 'Manage_Rooms_Import_Page'
-			OR @upstream_create_method = 'Export_and_Import_Rooms_Import_Page'
-			OR @upstream_update_method = 'Export_and_Import_Rooms_Import_Page'
+	IF @is_creation_needed_in_unee_t_update_ext_l3_2 = 1
+		AND @new_is_creation_needed_in_unee_t_update_ext_l3_2 != @old_is_creation_needed_in_unee_t_update_ext_l3_2
+		AND @do_not_insert_update_ext_l3_2 = 0
+		AND @external_id_update_ext_l3_2 IS NOT NULL
+		AND @external_system_id_update_ext_l3_2 IS NOT NULL
+		AND @external_table_update_ext_l3_2 IS NOT NULL
+		AND @organization_id_update_ext_l3_2 IS NOT NULL
+		AND @system_id_unit_update_ext_l3_2 IS NOT NULL
+		AND (@upstream_create_method_update_ext_l3_2 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_l3_2 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_update_ext_l3_2 = 'Manage_Rooms_Add_Page'
+			OR @upstream_update_method_update_ext_l3_2 = 'Manage_Rooms_Add_Page'
+			OR @upstream_create_method_update_ext_l3_2 = 'Manage_Rooms_Edit_Page'
+			OR @upstream_update_method_update_ext_l3_2 = 'Manage_Rooms_Edit_Page'
+			OR @upstream_create_method_update_ext_l3_2 = 'Manage_Rooms_Import_Page'
+			OR @upstream_update_method_update_ext_l3_2 = 'Manage_Rooms_Import_Page'
+			OR @upstream_create_method_update_ext_l3_2 = 'Export_and_Import_Rooms_Import_Page'
+			OR @upstream_update_method_update_ext_l3_2 = 'Export_and_Import_Rooms_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `external_property_level_2_units` table:
 
-		SET @this_trigger = 'ut_update_external_property_level_3_creation_needed';
+		SET @this_trigger_update_ext_l3_2 = 'ut_update_external_property_level_3_creation_needed';
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_update_ext_l3_2 = NOW();
+		SET @creation_system_id_update_ext_l3_2 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator
+			WHERE `organization_id` = @source_system_creator_update_ext_l3_2
 			)
 			;
-		SET @created_by_id = @creator_mefe_user_id ;
-		SET @downstream_creation_method = @this_trigger ;
+		SET @created_by_id_update_ext_l3_2 = @creator_mefe_user_id_update_ext_l3_2 ;
+		SET @downstream_creation_method_update_ext_l3_2 = @this_trigger_update_ext_l3_2 ;
 
-		SET @syst_updated_datetime = NOW();
+		SET @syst_updated_datetime_update_ext_l3_2 = NOW();
 
-		SET @update_system_id = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_update_ext_l3_2 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater
+			WHERE `organization_id` = @source_system_updater_update_ext_l3_2
 			)
 			;
-		SET @updated_by_id = @creator_mefe_user_id ;
-		SET @downstream_update_method = @this_trigger ;
+		SET @updated_by_id_update_ext_l3_2 = @creator_mefe_user_id_update_ext_l3_2 ;
+		SET @downstream_update_method_update_ext_l3_2 = @this_trigger_update_ext_l3_2 ;
 
-		SET @organization_id_create = @source_system_creator;
-		SET @organization_id_update = @source_system_updater;
+		SET @organization_id_create_update_ext_l3_2 = @source_system_creator_update_ext_l3_2 ;
+		SET @organization_id_update_update_ext_l3_2 = @source_system_updater_update_ext_l3_2 ;
 
-		SET @is_obsolete = NEW.`is_obsolete` ;
-        SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+		SET @is_obsolete_update_ext_l3_2 = NEW.`is_obsolete` ;
+		SET @is_creation_needed_in_unee_t_update_ext_l3_2 = NEW.`is_creation_needed_in_unee_t` ;
 
-        SET @unee_t_unit_type = NEW.`unee_t_unit_type` ;
-            
-		SET @room_type_id = NEW.`room_type_id` ;
-		SET @number_of_beds = NEW.`number_of_beds` ;
-		SET @surface = NEW.`surface` ;
-		SET @surface_measurment_unit = NEW.`surface_measurment_unit` ;
-		SET @room_designation = NEW.`room_designation`;
-		SET @room_description = NEW.`room_description` ;
+		SET @unee_t_unit_type_update_ext_l3_2 = NEW.`unee_t_unit_type` ;
+			
+		SET @room_type_id_update_ext_l3_2 = NEW.`room_type_id` ;
+		SET @number_of_beds_update_ext_l3_2 = NEW.`number_of_beds` ;
+		SET @surface_update_ext_l3_2 = NEW.`surface` ;
+		SET @surface_measurment_unit_update_ext_l3_2 = NEW.`surface_measurment_unit` ;
+		SET @room_designation_update_ext_l3_2 = NEW.`room_designation`;
+		SET @room_description_update_ext_l3_2 = NEW.`room_description` ;
 
 	# We insert the record in the table `property_level_3_rooms`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -11960,60 +14086,60 @@ BEGIN
 		INSERT INTO `property_level_3_rooms`
 			(`external_id`
 			, `external_system_id` 
-        	, `external_table`
-        	, `syst_created_datetime`
-        	, `creation_system_id`
-        	, `created_by_id`
-        	, `creation_method`
-        	, `organization_id`
-        	, `is_obsolete`
-        	, `is_creation_needed_in_unee_t`
-        	, `do_not_insert`
+			, `external_table`
+			, `syst_created_datetime`
+			, `creation_system_id`
+			, `created_by_id`
+			, `creation_method`
+			, `organization_id`
+			, `is_obsolete`
+			, `is_creation_needed_in_unee_t`
+			, `do_not_insert`
 			, `unee_t_unit_type`
-        	, `system_id_unit`
-        	, `room_type_id`
-        	, `surface`
-        	, `surface_measurment_unit`
+			, `system_id_unit`
+			, `room_type_id`
+			, `surface`
+			, `surface_measurment_unit`
 			, `room_designation`
-        	, `room_description`
-        	)
-        	VALUES
- 				(@external_id
-        	    , @external_system_id 
-        	    , @external_table
-        	    , @syst_created_datetime
-        	    , @creation_system_id
-        	    , @created_by_id
-        	    , @downstream_creation_method
-        	    , @organization_id_create
-        	    , @is_obsolete
-        	    , @is_creation_needed_in_unee_t
-        	    , @do_not_insert
-        	    , @unee_t_unit_type
-        	    , @system_id_unit
-        	    , @room_type_id
-        	    , @surface
-        	    , @surface_measurment_unit
-				, @room_designation
-        	    , @room_description
+			, `room_description`
+			)
+			VALUES
+ 				(@external_id_update_ext_l3_2
+				, @external_system_id_update_ext_l3_2
+				, @external_table_update_ext_l3_2
+				, @syst_created_datetime_update_ext_l3_2
+				, @creation_system_id_update_ext_l3_2
+				, @created_by_id_update_ext_l3_2
+				, @downstream_creation_method_update_ext_l3_2
+				, @organization_id_create_update_ext_l3_2
+				, @is_obsolete_update_ext_l3_2
+				, @is_creation_needed_in_unee_t_update_ext_l3_2
+				, @do_not_insert_update_ext_l3_2
+				, @unee_t_unit_type_update_ext_l3_2
+				, @system_id_unit_update_ext_l3_2
+				, @room_type_id_update_ext_l3_2
+				, @surface_update_ext_l3_2
+				, @surface_measurment_unit_update_ext_l3_2
+				, @room_designation_update_ext_l3_2
+				, @room_description_update_ext_l3_2
  			)
-        	ON DUPLICATE KEY UPDATE
- 				`syst_updated_datetime` = @syst_updated_datetime
- 				, `update_system_id` = @update_system_id
- 				, `updated_by_id` = @updated_by_id
-        		, `update_method` = @downstream_update_method
-				, `organization_id` = @organization_id_update
-        	    , `is_obsolete` = @is_obsolete
-        	    , `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t
-        	    , `do_not_insert` = @do_not_insert
-        	    , `unee_t_unit_type` = @unee_t_unit_type
-        	    , `system_id_unit` = @system_id_unit
-        	    , `room_type_id` = @room_type_id
-        	    , `surface` = @surface
-        	    , `surface_measurment_unit` = @surface_measurment_unit
-        	    , `room_designation` = @room_designation
-				, `room_description` = @room_description
-        	;
+			ON DUPLICATE KEY UPDATE
+ 				`syst_updated_datetime` = @syst_updated_datetime_update_ext_l3_2
+ 				, `update_system_id` = @update_system_id_update_ext_l3_2
+ 				, `updated_by_id` = @updated_by_id_update_ext_l3_2
+				, `update_method` = @downstream_update_method_update_ext_l3_2
+				, `organization_id` = @organization_id_update_update_ext_l3_2
+				, `is_obsolete` = @is_obsolete_update_ext_l3_2
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_l3_2
+				, `do_not_insert` = @do_not_insert_update_ext_l3_2
+				, `unee_t_unit_type` = @unee_t_unit_type_update_ext_l3_2
+				, `system_id_unit` = @system_id_unit_update_ext_l3_2
+				, `room_type_id` = @room_type_id_update_ext_l3_2
+				, `surface` = @surface_update_ext_l3_2
+				, `surface_measurment_unit` = @surface_measurment_unit_update_ext_l3_2
+				, `room_designation` = @room_designation_update_ext_l3_2
+				, `room_description` = @room_description_update_ext_l3_2
+			;
 
 	END IF;
 
@@ -12040,69 +14166,69 @@ BEGIN
 #		- 'ut_update_external_property_level_3_creation_needed'
 #		- ''
 #
-	SET @is_creation_needed_in_unee_t = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_insert_l3_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @external_property_id = NEW.`external_id` ;
-	SET @external_system = NEW.`external_system_id` ;
-	SET @table_in_external_system = NEW.`external_table` ;
-	SET @organization_id = NEW.`organization_id`;
+	SET @external_property_id_insert_l3_1 = NEW.`external_id` ;
+	SET @external_system_insert_l3_1 = NEW.`external_system_id` ;
+	SET @table_in_external_system_insert_l3_1 = NEW.`external_table` ;
+	SET @organization_id_insert_l3_1 = NEW.`organization_id`;
 
-	SET @id_in_ut_map_external_source_units = (SELECT `id_map`
+	SET @id_in_ut_map_external_source_units_insert_l3_1 = (SELECT `id_map`
 		FROM `ut_map_external_source_units`
-		WHERE `external_system` = @external_system
-			AND `table_in_external_system` = @table_in_external_system
-			AND `external_property_id` = @external_property_id
-			AND `organization_id` = @organization_id
+		WHERE `external_system` = @external_system_insert_l3_1
+			AND `table_in_external_system` = @table_in_external_system_insert_l3_1
+			AND `external_property_id` = @external_property_id_insert_l3_1
+			AND `organization_id` = @organization_id_insert_l3_1
 		);
 
-	SET @do_not_insert = (IF (@id_in_ut_map_external_source_units IS NULL
+	SET @do_not_insert_insert_l3_1 = (IF (@id_in_ut_map_external_source_units_insert_l3_1 IS NULL
 			, 0
 			, 1
 			)
 		
 		);
 
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_create_method_insert_l3_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_insert_l3_1 = NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0
-		AND (@upstream_create_method = 'ut_insert_external_property_level_3'
-			OR @upstream_update_method = 'ut_insert_external_property_level_3'
-			OR @upstream_create_method = 'ut_update_external_property_level_3'
-			OR @upstream_update_method = 'ut_update_external_property_level_3'
-			OR @upstream_create_method = 'ut_update_external_property_level_3_creation_needed'
-			OR @upstream_update_method = 'ut_update_external_property_level_3_creation_needed'
+	IF @is_creation_needed_in_unee_t_insert_l3_1 = 1
+		AND @do_not_insert_insert_l3_1 = 0
+		AND (@upstream_create_method_insert_l3_1 = 'ut_insert_external_property_level_3'
+			OR @upstream_update_method_insert_l3_1 = 'ut_insert_external_property_level_3'
+			OR @upstream_create_method_insert_l3_1 = 'ut_update_external_property_level_3'
+			OR @upstream_update_method_insert_l3_1 = 'ut_update_external_property_level_3'
+			OR @upstream_create_method_insert_l3_1 = 'ut_update_external_property_level_3_creation_needed'
+			OR @upstream_update_method_insert_l3_1 = 'ut_update_external_property_level_3_creation_needed'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate:
 
-		SET @this_trigger = 'ut_update_map_external_source_unit_add_room' ;
+		SET @this_trigger_insert_l3_1 = 'ut_update_map_external_source_unit_add_room' ;
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = NEW.`creation_system_id`;
-		SET @created_by_id = NEW.`created_by_id`;
-		SET @creation_method = @this_trigger ;
+		SET @syst_created_datetime_insert_l3_1 = NOW();
+		SET @creation_system_id_insert_l3_1 = NEW.`creation_system_id`;
+		SET @created_by_id_insert_l3_1 = NEW.`created_by_id`;
+		SET @creation_method_insert_l3_1 = @this_trigger_insert_l3_1 ;
 
-		SET @syst_updated_datetime = NOW();
-		SET @update_system_id = NEW.`creation_system_id`;
-		SET @updated_by_id = NEW.`created_by_id`;
-		SET @update_method = @this_trigger ;
+		SET @syst_updated_datetime_insert_l3_1 = NOW();
+		SET @update_system_id_insert_l3_1 = NEW.`creation_system_id`;
+		SET @updated_by_id_insert_l3_1 = NEW.`created_by_id`;
+		SET @update_method_insert_l3_1 = @this_trigger_insert_l3_1 ;
 			
-		SET @is_obsolete = NEW.`is_obsolete`;
-		SET @is_update_needed = NULL;
+		SET @is_obsolete_insert_l3_1 = NEW.`is_obsolete`;
+		SET @is_update_needed_insert_l3_1 = NULL;
 			
-		SET @uneet_name = NEW.`room_designation`;
+		SET @uneet_name_insert_l3_1 = NEW.`room_designation`;
 
-		SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+		SET @unee_t_unit_type_insert_l3_1 = (IFNULL(NEW.`unee_t_unit_type`
 				, 'Unknown'
 				)
 			)
 			;
 		
-		SET @new_record_id = NEW.`system_id_room`;
-		SET @external_property_type_id = 3;	
+		SET @new_record_id_insert_l3_1 = NEW.`system_id_room`;
+		SET @external_property_type_id_insert_l3_1 = 3;	
 
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -12123,29 +14249,29 @@ BEGIN
 				, `table_in_external_system`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
+					(@syst_created_datetime_insert_l3_1
+					, @creation_system_id_insert_l3_1
+					, @created_by_id_insert_l3_1
+					, @creation_method_insert_l3_1
+					, @organization_id_insert_l3_1
+					, @is_obsolete_insert_l3_1
+					, @is_update_needed_insert_l3_1
+					, @uneet_name_insert_l3_1
+					, @unee_t_unit_type_insert_l3_1
+					, @new_record_id_insert_l3_1
+					, @external_property_type_id_insert_l3_1
+					, @external_property_id_insert_l3_1
+					, @external_system_insert_l3_1
+					, @table_in_external_system_insert_l3_1
 					)
 				ON DUPLICATE KEY UPDATE 
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
+					`syst_updated_datetime` = @syst_updated_datetime_insert_l3_1
+					, `update_system_id` = @update_system_id_insert_l3_1
+					, `updated_by_id` = @updated_by_id_insert_l3_1
+					, `update_method` = @update_method_insert_l3_1
+					, `organization_id` = @organization_id_insert_l3_1
+					, `uneet_name` = @uneet_name_insert_l3_1
+					, `unee_t_unit_type` = @unee_t_unit_type_insert_l3_1
 					, `is_update_needed` = 1
 				;
 
@@ -12173,67 +14299,67 @@ BEGIN
 #		- 'ut_update_external_property_level_3_creation_needed'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t := NEW.`is_creation_needed_in_unee_t`;
+	SET @is_creation_needed_in_unee_t_update_l3_1 := NEW.`is_creation_needed_in_unee_t`;
 
-	SET @new_is_creation_needed_in_unee_t := NEW.`is_creation_needed_in_unee_t`;
-	SET @old_is_creation_needed_in_unee_t := OLD.`is_creation_needed_in_unee_t`;
+	SET @new_is_creation_needed_in_unee_t_update_l3_1 := NEW.`is_creation_needed_in_unee_t`;
+	SET @old_is_creation_needed_in_unee_t_update_l3_1 := OLD.`is_creation_needed_in_unee_t`;
 
-	SET @do_not_insert := NEW.`do_not_insert` ;
+	SET @do_not_insert_update_l3_1 := NEW.`do_not_insert` ;
 
-	SET @system_id_room := NEW.`system_id_room` ;
+	SET @system_id_room_update_l3_1 := NEW.`system_id_room` ;
 
-	SET @mefe_unit_id := (SELECT `unee_t_mefe_unit_id`
+	SET @mefe_unit_id_update_l3_1 := (SELECT `unee_t_mefe_unit_id`
 		FROM `ut_map_external_source_units`
-		WHERE `new_record_id` = @system_id_room
+		WHERE `new_record_id` = @system_id_room_update_l3_1
 			AND `external_property_type_id` = 3
 		);
 
-	SET @upstream_create_method := NEW.`creation_method` ;
-	SET @upstream_update_method := NEW.`update_method` ;
+	SET @upstream_create_method_update_l3_1 := NEW.`creation_method` ;
+	SET @upstream_update_method_update_l3_1 := NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0 
-		AND @mefe_unit_id IS NULL
-		AND (@upstream_create_method = 'ut_insert_external_property_level_3'
-			OR @upstream_update_method = 'ut_insert_external_property_level_3'
-			OR @upstream_create_method = 'ut_update_external_property_level_3_creation_needed'
-			OR @upstream_update_method = 'ut_update_external_property_level_3_creation_needed'
+	IF @is_creation_needed_in_unee_t_update_l3_1 = 1
+		AND @do_not_insert_update_l3_1 = 0 
+		AND @mefe_unit_id_update_l3_1 IS NULL
+		AND (@upstream_create_method_update_l3_1 = 'ut_insert_external_property_level_3'
+			OR @upstream_update_method_update_l3_1 = 'ut_insert_external_property_level_3'
+			OR @upstream_create_method_update_l3_1 = 'ut_update_external_property_level_3_creation_needed'
+			OR @upstream_update_method_update_l3_1 = 'ut_update_external_property_level_3_creation_needed'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate:
 
-		SET @this_trigger = 'ut_update_map_external_source_unit_add_room_creation_needed' ;
+		SET @this_trigger_update_l3_1 = 'ut_update_map_external_source_unit_add_room_creation_needed' ;
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = NEW.`update_system_id`;
-		SET @created_by_id = NEW.`updated_by_id`;
-		SET @creation_method = @this_trigger ;
+		SET @syst_created_datetime_update_l3_1 = NOW();
+		SET @creation_system_id_update_l3_1 = NEW.`update_system_id`;
+		SET @created_by_id_update_l3_1 = NEW.`updated_by_id`;
+		SET @creation_method_update_l3_1 = @this_trigger_update_l3_1 ;
 
-		SET @syst_updated_datetime = NOW();
-		SET @update_system_id = NEW.`update_system_id`;
-		SET @updated_by_id = NEW.`updated_by_id`;
-		SET @update_method = @this_trigger ;
+		SET @syst_updated_datetime_update_l3_1 = NOW();
+		SET @update_system_id_update_l3_1 = NEW.`update_system_id`;
+		SET @updated_by_id_update_l3_1 = NEW.`updated_by_id`;
+		SET @update_method_update_l3_1 = @this_trigger_update_l3_1 ;
 
-		SET @organization_id = NEW.`organization_id`;
+		SET @organization_id_update_l3_1 = NEW.`organization_id`;
 		
-		SET @is_obsolete = NEW.`is_obsolete`;
-		SET @is_update_needed = NULL;
+		SET @is_obsolete_update_l3_1 = NEW.`is_obsolete`;
+		SET @is_update_needed_update_l3_1 = NULL;
 			
-		SET @uneet_name = NEW.`room_designation`;
+		SET @uneet_name_update_l3_1 = NEW.`room_designation`;
 
-		SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+		SET @unee_t_unit_type_update_l3_1 = (IFNULL(NEW.`unee_t_unit_type`
 				, 'Unknown'
 				)
 			)
 			;
 			
-		SET @new_record_id = NEW.`system_id_room`;
-		SET @external_property_type_id = 3;
+		SET @new_record_id_update_l3_1 = NEW.`system_id_room`;
+		SET @external_property_type_id_update_l3_1 = 3;
 
-		SET @external_property_id = NEW.`external_id`;
-		SET @external_system = NEW.`external_system_id`;
-		SET @table_in_external_system = NEW.`external_table`;			
+		SET @external_property_id_update_l3_1 = NEW.`external_id`;
+		SET @external_system_update_l3_1 = NEW.`external_system_id`;
+		SET @table_in_external_system_update_l3_1 = NEW.`external_table`;			
 
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -12254,29 +14380,29 @@ BEGIN
 				, `table_in_external_system`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
+					(@syst_created_datetime_update_l3_1
+					, @creation_system_id_update_l3_1
+					, @created_by_id_update_l3_1
+					, @creation_method_update_l3_1
+					, @organization_id_update_l3_1
+					, @is_obsolete_update_l3_1
+					, @is_update_needed_update_l3_1
+					, @uneet_name_update_l3_1
+					, @unee_t_unit_type_update_l3_1
+					, @new_record_id_update_l3_1
+					, @external_property_type_id_update_l3_1
+					, @external_property_id_update_l3_1
+					, @external_system_update_l3_1
+					, @table_in_external_system_update_l3_1
 					)
 				ON DUPLICATE KEY UPDATE 
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
+					`syst_updated_datetime` = @syst_updated_datetime_update_l3_1
+					, `update_system_id` = @update_system_id_update_l3_1
+					, `updated_by_id` = @updated_by_id_update_l3_1
+					, `update_method` = @update_method_update_l3_1
+					, `organization_id` = @organization_id_update_l3_1
+					, `uneet_name` = @uneet_name_update_l3_1
+					, `unee_t_unit_type` = @unee_t_unit_type_update_l3_1
 					, `is_update_needed` = 1
 				;
 
@@ -12304,70 +14430,70 @@ BEGIN
 #		- 'ut_update_external_property_level_3'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t := NEW.`is_creation_needed_in_unee_t`;
+	SET @is_creation_needed_in_unee_t_update_l3_2 := NEW.`is_creation_needed_in_unee_t`;
 
-	SET @new_is_creation_needed_in_unee_t := NEW.`is_creation_needed_in_unee_t`;
-	SET @old_is_creation_needed_in_unee_t := OLD.`is_creation_needed_in_unee_t`;
+	SET @new_is_creation_needed_in_unee_t_update_l3_2 := NEW.`is_creation_needed_in_unee_t`;
+	SET @old_is_creation_needed_in_unee_t_update_l3_2 := OLD.`is_creation_needed_in_unee_t`;
 
-	SET @do_not_insert := NEW.`do_not_insert` ;
+	SET @do_not_insert_update_l3_2 := NEW.`do_not_insert` ;
 
-	SET @system_id_room := NEW.`system_id_room` ;
+	SET @system_id_room_update_l3_2 := NEW.`system_id_room` ;
 
-	SET @mefe_unit_id := (SELECT `unee_t_mefe_unit_id`
+	SET @mefe_unit_id_update_l3_2 := (SELECT `unee_t_mefe_unit_id`
 		FROM `ut_map_external_source_units`
-		WHERE `new_record_id` = @system_id_room
+		WHERE `new_record_id` = @system_id_room_update_l3_2
 			AND `external_property_type_id` = 3
 		);
 
-	SET @upstream_create_method := NEW.`creation_method` ;
-	SET @upstream_update_method := NEW.`update_method` ;
+	SET @upstream_create_method_update_l3_2 := NEW.`creation_method` ;
+	SET @upstream_update_method_update_l3_2 := NEW.`update_method` ;
 
-	IF @is_creation_needed_in_unee_t = 1
-		AND @do_not_insert = 0 
-		AND @mefe_unit_id IS NOT NULL
-		AND (@upstream_create_method = 'ut_update_external_property_level_3'
-			OR @upstream_update_method = 'ut_update_external_property_level_3'
+	IF @is_creation_needed_in_unee_t_update_l3_2 = 1
+		AND @do_not_insert_update_l3_2 = 0 
+		AND @mefe_unit_id_update_l3_2 IS NOT NULL
+		AND (@upstream_create_method_update_l3_2 = 'ut_update_external_property_level_3'
+			OR @upstream_update_method_update_l3_2 = 'ut_update_external_property_level_3'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate:
 
-		SET @this_trigger = 'ut_update_map_external_source_unit_edit_level_3' ;
+		SET @this_trigger_update_l3_2 = 'ut_update_map_external_source_unit_edit_level_3' ;
 
-		SET @syst_created_datetime = NOW();
-		SET @creation_system_id = NEW.`update_system_id`;
-		SET @created_by_id = NEW.`updated_by_id`;
-		SET @creation_method = @this_trigger ;
+		SET @syst_created_datetime_update_l3_2 = NOW();
+		SET @creation_system_id_update_l3_2 = NEW.`update_system_id`;
+		SET @created_by_id_update_l3_2 = NEW.`updated_by_id`;
+		SET @creation_method_update_l3_2 = @this_trigger_update_l3_2 ;
 
-		SET @syst_updated_datetime = NOW();
-		SET @update_system_id = NEW.`update_system_id`;
-		SET @updated_by_id = NEW.`updated_by_id`;
-		SET @update_method = @this_trigger ;
+		SET @syst_updated_datetime_update_l3_2 = NOW();
+		SET @update_system_id_update_l3_2 = NEW.`update_system_id`;
+		SET @updated_by_id_update_l3_2 = NEW.`updated_by_id`;
+		SET @update_method_update_l3_2 = @this_trigger_update_l3_2 ;
 
-		SET @organization_id = NEW.`organization_id`;
+		SET @organization_id_update_l3_2 = NEW.`organization_id`;
 		
-		SET @is_obsolete = NEW.`is_obsolete`;
-		SET @is_update_needed = NULL;
+		SET @is_obsolete_update_l3_2 = NEW.`is_obsolete`;
+		SET @is_update_needed_update_l3_2 = NULL;
 			
-		SET @uneet_name = NEW.`room_designation`;
+		SET @uneet_name_update_l3_2 = NEW.`room_designation`;
 
-		SET @unee_t_unit_type = (IFNULL(NEW.`unee_t_unit_type`
+		SET @unee_t_unit_type_update_l3_2 = (IFNULL(NEW.`unee_t_unit_type`
 				, 'Unknown'
 				)
 			)
 			;
 			
-		SET @new_record_id = NEW.`system_id_room`;
-		SET @external_property_type_id = 3;
+		SET @new_record_id_update_l3_2 = NEW.`system_id_room`;
+		SET @external_property_type_id_update_l3_2 = 3;
 
-		SET @external_property_id = NEW.`external_id`;
-		SET @external_system = NEW.`external_system_id`;
-		SET @table_in_external_system = NEW.`external_table`;			
+		SET @external_property_id_update_l3_2 = NEW.`external_id`;
+		SET @external_system_update_l3_2 = NEW.`external_system_id`;
+		SET @table_in_external_system_update_l3_2 = NEW.`external_table`;			
 
-		SET @is_mefe_api_success := 0 ;
-		SET @mefe_api_error_message := (CONCAT('N/A - written by '
+		SET @is_mefe_api_success_update_l3_2 := 0 ;
+		SET @mefe_api_error_message_update_l3_2 := (CONCAT('N/A - written by '
 				, '`'
-				, @this_trigger
+				, @this_trigger_update_l3_2
 				, '`'
 				)
 			);
@@ -12393,39 +14519,330 @@ BEGIN
 				, `table_in_external_system`
 				)
 				VALUES
-					(@syst_created_datetime
-					, @creation_system_id
-					, @created_by_id
-					, @creation_method
-					, @organization_id
-					, @is_obsolete
-					, @is_update_needed
-					, @is_mefe_api_success
-					, @mefe_api_error_message
-					, @uneet_name
-					, @unee_t_unit_type
-					, @new_record_id
-					, @external_property_type_id
-					, @external_property_id
-					, @external_system
-					, @table_in_external_system
+					(@syst_created_datetime_update_l3_2
+					, @creation_system_id_update_l3_2
+					, @created_by_id_update_l3_2
+					, @creation_method_update_l3_2
+					, @organization_id_update_l3_2
+					, @is_obsolete_update_l3_2
+					, @is_update_needed_update_l3_2
+					, @is_mefe_api_success_update_l3_2
+					, @mefe_api_error_message_update_l3_2
+					, @uneet_name_update_l3_2
+					, @unee_t_unit_type_update_l3_2
+					, @new_record_id_update_l3_2
+					, @external_property_type_id_update_l3_2
+					, @external_property_id_update_l3_2
+					, @external_system_update_l3_2
+					, @table_in_external_system_update_l3_2
 					)
 				ON DUPLICATE KEY UPDATE 
-					`syst_updated_datetime` = @syst_updated_datetime
-					, `update_system_id` = @update_system_id
-					, `updated_by_id` = @updated_by_id
-					, `update_method` = @update_method
-					, `organization_id` = @organization_id
-					, `is_mefe_api_success` = @is_mefe_api_success
-					, `mefe_api_error_message` = @mefe_api_error_message
-					, `uneet_name` = @uneet_name
-					, `unee_t_unit_type` = @unee_t_unit_type
+					`syst_updated_datetime` = @syst_updated_datetime_update_l3_2
+					, `update_system_id` = @update_system_id_update_l3_2
+					, `updated_by_id` = @updated_by_id_update_l3_2
+					, `update_method` = @update_method_update_l3_2
+					, `organization_id` = @organization_id_update_l3_2
+					, `is_mefe_api_success` = @is_mefe_api_success_update_l3_2
+					, `mefe_api_error_message` = @mefe_api_error_message_update_l3_2
+					, `uneet_name` = @uneet_name_update_l3_2
+					, `unee_t_unit_type` = @unee_t_unit_type_update_l3_2
 					, `is_update_needed` = 1
 				;
 
 	END IF;
 END;
 $$
+DELIMITER ;
+
+#################
+#
+# Views and procedures we need if we need to re-try
+#   - Create a unit in Unee-T
+#
+#################
+#
+# This script creates the following tables:
+#	- `retry_create_units_list_units`
+#
+# This script will create or update the following:
+#	- Views:
+#		- `ut_list_unit_id_level_1_failed_creation`
+#		- `ut_list_unit_id_level_2_failed_creation`
+#		- `ut_list_unit_id_level_3_failed_creation`
+#
+# 	- Procedures
+#		- `ut_retry_create_unit_level_1`
+#		- `ut_retry_create_unit_level_2`
+#		- `ut_retry_create_unit_level_3`
+#		- ``
+#
+
+# We Create a table that will be used to activate the trigger for re-creation
+
+	DROP TABLE IF EXISTS `retry_create_units_list_units` ;
+
+	CREATE TABLE `retry_create_units_list_units` (
+		`unit_creation_request_id` INT(11) NOT NULL COMMENT 'Id in this table',
+		`created_by_id` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
+		`creation_method` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL,
+		`uneet_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The name of the unit in the MEFE',
+		`unee_t_unit_type` VARCHAR(100) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The Unee-T type of unit for this property - this MUST be one of the `designation` in the table `ut_unit_types`',
+		`more_info` TEXT COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'detailed description of the building',
+		`street_address` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
+		`city` VARCHAR(50) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The City',
+		`state` VARCHAR(50) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The State',
+		`zip_code` VARCHAR(50) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'ZIP or Postal code',
+		`country` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'Description/help text'
+		) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
+		;
+
+# Level 1 units we need to re-create are listes in the View `ut_list_unit_id_level_1_failed_creation`
+
+	DROP VIEW IF EXISTS `ut_list_unit_id_level_1_failed_creation` ;
+
+	CREATE VIEW `ut_list_unit_id_level_1_failed_creation`
+	AS 
+	SELECT 
+		`a`.`id_map` AS `unit_creation_request_id`
+		, `a`.`syst_created_datetime` AS `creation_request_ts`
+		, `a`.`syst_updated_datetime` AS `mefe_api_reply_ts`
+		, `a`.`mefe_api_error_message`
+		, `a`.`created_by_id`
+		, `a`.`organization_id`
+		, `a`.`new_record_id` AS `building_id`
+		, `a`.`uneet_name`
+		, `a`.`unee_t_unit_type`
+		, `b`.`more_info`
+		, `b`.`street_address`
+		, `b`.`city`
+		, `b`.`state`
+		, `b`.`zip_code`
+		, `b`.`country`
+	FROM `ut_map_external_source_units` AS `a`
+	INNER JOIN `ut_add_information_unit_level_1` AS `b`
+		ON (`b`.`unit_level_1_id` = `a`.`new_record_id`)
+	WHERE `unee_t_mefe_unit_id` IS NULL
+		AND `external_property_type_id` = 1
+		;
+
+# Level 2 units we need to re-create are listes in the View `ut_list_unit_id_level_2_failed_creation`
+
+	DROP VIEW IF EXISTS `ut_list_unit_id_level_2_failed_creation` ;
+
+	CREATE VIEW `ut_list_unit_id_level_2_failed_creation`
+	AS 
+	SELECT 
+		`a`.`id_map` AS `unit_creation_request_id`
+		, `a`.`syst_created_datetime` AS `creation_request_ts`
+		, `a`.`syst_updated_datetime` AS `mefe_api_reply_ts`
+		, `a`.`mefe_api_error_message`
+		, `a`.`created_by_id`
+		, `a`.`organization_id`
+		, `a`.`new_record_id` AS `system_id_unit`
+		, `a`.`uneet_name`
+		, `a`.`unee_t_unit_type`
+		, `b`.`more_info`
+		, `b`.`street_address`
+		, `b`.`city`
+		, `b`.`state`
+		, `b`.`zip_code`
+		, `b`.`country`
+	FROM `ut_map_external_source_units` AS `a`
+	INNER JOIN `ut_add_information_unit_level_2` AS `b`
+		ON (`b`.`unit_level_2_id` = `a`.`new_record_id`)
+	WHERE `unee_t_mefe_unit_id` IS NULL
+		AND `external_property_type_id` = 2
+		;
+
+# Level 3 units we need to re-create are listes in the View `ut_list_unit_id_level_3_failed_creation`
+
+	DROP VIEW IF EXISTS `ut_list_unit_id_level_3_failed_creation` ;
+
+	CREATE VIEW `ut_list_unit_id_level_3_failed_creation`
+	AS 
+	SELECT 
+		`a`.`id_map` AS `unit_creation_request_id`
+		, `a`.`syst_created_datetime` AS `creation_request_ts`
+		, `a`.`syst_updated_datetime` AS `mefe_api_reply_ts`
+		, `a`.`mefe_api_error_message`
+		, `a`.`created_by_id`
+		, `a`.`organization_id`
+		, `a`.`new_record_id` AS `system_id_room`
+		, `a`.`uneet_name`
+		, `a`.`unee_t_unit_type`
+		, `b`.`more_info`
+		, `b`.`street_address`
+		, `b`.`city`
+		, `b`.`state`
+		, `b`.`zip_code`
+		, `b`.`country`
+	FROM `ut_map_external_source_units` AS `a`
+	INNER JOIN `ut_add_information_unit_level_3` AS `b`
+		ON (`b`.`unit_level_3_id` = `a`.`new_record_id`)
+	WHERE `unee_t_mefe_unit_id` IS NULL
+		AND `external_property_type_id` = 3
+		;
+
+# Level 1 units - Create the procedure to re-try creating the units if the API failed
+
+	DROP PROCEDURE IF EXISTS `ut_retry_create_unit_level_1`;
+
+DELIMITER $$
+CREATE PROCEDURE `ut_retry_create_unit_level_1`()
+	LANGUAGE SQL
+SQL SECURITY INVOKER
+BEGIN
+
+####################
+#
+# WARNING!!
+# Only run this if you are CERTAIN that the API has failed somehow
+#
+####################
+
+# Clean slate - remove all data from `retry_create_units_list_units`
+
+	TRUNCATE TABLE `retry_create_units_list_units` ;
+
+# We insert the data we need in the table `retry_create_units_list_units`
+
+	INSERT INTO `retry_create_units_list_units`
+		(`unit_creation_request_id`
+		, `created_by_id`
+		, `creation_method`
+		, `uneet_name`
+		, `unee_t_unit_type`
+		, `more_info`
+		, `street_address`
+		, `city`
+		, `state`
+		, `zip_code`
+		, `country`
+		)
+	SELECT
+		`unit_creation_request_id`
+		, `created_by_id`
+		, 'ut_retry_create_unit_level_1' AS `creation_method`
+		, `uneet_name`
+		, `unee_t_unit_type`
+		, `more_info`
+		, `street_address`
+		, `city`
+		, `state`
+		, `zip_code`
+		, `country`
+	FROM `ut_list_unit_id_level_1_failed_creation`
+		;
+
+END $$
+DELIMITER ;
+
+# Level 2 units - Create the procedure to re-try creating the units if the API failed
+
+	DROP PROCEDURE IF EXISTS `ut_retry_create_unit_level_2`;
+
+DELIMITER $$
+CREATE PROCEDURE `ut_retry_create_unit_level_2`()
+	LANGUAGE SQL
+SQL SECURITY INVOKER
+BEGIN
+
+####################
+#
+# WARNING!!
+# Only run this if you are CERTAIN that the API has failed somehow
+#
+####################
+
+# Clean slate - remove all data from `retry_create_units_list_units`
+
+	TRUNCATE TABLE `retry_create_units_list_units` ;
+
+# We insert the data we need in the new table
+
+	INSERT INTO `retry_create_units_list_units`
+		(`unit_creation_request_id`
+		, `created_by_id`
+		, `creation_method`
+		, `uneet_name`
+		, `unee_t_unit_type`
+		, `more_info`
+		, `street_address`
+		, `city`
+		, `state`
+		, `zip_code`
+		, `country`
+		)
+	SELECT
+		`unit_creation_request_id`
+		, `created_by_id`
+		, 'ut_retry_create_unit_level_2' AS `creation_method`
+		, `uneet_name`
+		, `unee_t_unit_type`
+		, `more_info`
+		, `street_address`
+		, `city`
+		, `state`
+		, `zip_code`
+		, `country`
+	FROM `ut_list_unit_id_level_2_failed_creation`
+		;
+
+END $$
+DELIMITER ;
+
+# Level 3 units - Create the procedure to re-try creating the units if the API failed
+
+	DROP PROCEDURE IF EXISTS `ut_retry_create_unit_level_3`;
+
+DELIMITER $$
+CREATE PROCEDURE `ut_retry_create_unit_level_3`()
+	LANGUAGE SQL
+SQL SECURITY INVOKER
+BEGIN
+
+####################
+#
+# WARNING!!
+# Only run this if you are CERTAIN that the API has failed somehow
+#
+####################
+
+# Clean slate - remove all data from `retry_create_units_list_units`
+
+	TRUNCATE TABLE `retry_create_units_list_units` ;
+
+# We insert the data we need in the new table
+
+	INSERT INTO `retry_create_units_list_units`
+		(`unit_creation_request_id`
+		, `created_by_id`
+		, `creation_method`
+		, `uneet_name`
+		, `unee_t_unit_type`
+		, `more_info`
+		, `street_address`
+		, `city`
+		, `state`
+		, `zip_code`
+		, `country`
+		)
+	SELECT
+		`unit_creation_request_id`
+		, `created_by_id`
+		, 'ut_retry_create_unit_level_3' AS `creation_method`
+		, `uneet_name`
+		, `unee_t_unit_type`
+		, `more_info`
+		, `street_address`
+		, `city`
+		, `state`
+		, `zip_code`
+		, `country`
+	FROM `ut_list_unit_id_level_3_failed_creation`
+		;
+
+END $$
 DELIMITER ;
 
 #################
@@ -12814,1016 +15231,4 @@ BEGIN
 
 END;
 $$
-DELIMITER ;
-
-#################
-#
-# Views and procedures we need if we need to re-try
-#   - Association user to unit
-# The source of the error was:
-#	- `[the requestor] is not an owner of unit`
-#	- `The invited user already has a role in this unit`
-#
-#################
-#
-# This script creates the following tables:
-#	- `retry_assign_user_to_units_list`
-#
-# This script will create or update the following:
-#	- Views:
-#		- `ut_analysis_errors_user_already_has_a_role_list`
-#		- `ut_analysis_errors_user_already_has_a_role_count`
-#		- `ut_analysis_errors_not_an_owner_list`
-#		- `ut_analysis_errors_not_an_owner_count`
-#
-# 	- Procedures
-#		- `ut_retry_assign_user_to_units_error_ownership`
-#		- `ut_retry_assign_user_to_units_error_already_has_role`
-#		- ``
-
-
-# We Create a table that will be used to activate the trigger for re-creation
-
-	DROP TABLE IF EXISTS `retry_assign_user_to_units_list` ;
-
-	CREATE TABLE `retry_assign_user_to_units_list` (
-		`id_map_user_unit_permissions` INT(11) NOT NULL COMMENT 'Id in this table',
-  		`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
-  		`creation_system_id` int(11) NOT NULL DEFAULT 1 COMMENT 'What is the id of the sytem that was used for the creation of the record?',
-		`created_by_id` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
-		`creation_method` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL,
-		`mefe_user_id` VARCHAR (255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
-		`uneet_login_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The MEFE login of the user we invite',
-		`mefe_unit_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'ID of that Unit in Unee-T. This is the value of the field _id in the Mongo collection units',
-		`uneet_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The name of the unit in the MEFE',
-		`unee_t_role_id` smallint(6) DEFAULT NULL COMMENT 'FK to the Unee-T BZFE table `ut_role_types` - ID of the Role for this user.',
-		`is_occupant` tinyint(1) DEFAULT 0 COMMENT '1 is the user is an occupant of the unit',
-		`is_default_assignee` tinyint(1) DEFAULT 0 COMMENT '1 if this user is the default assignee for this role for this unit.',
-		`is_default_invited` tinyint(1) DEFAULT 0 COMMENT '1 if the user is automatically invited to all the new cases in this role for this unit',
-		`is_unit_owner` tinyint(1) DEFAULT 0 COMMENT '1 if this user is one of the Unee-T `owner` of that unit',
-		`is_public` tinyint(1) DEFAULT 0 COMMENT '1 if the user is Visible to other Unee-T users in other roles for this unit. If yes/1/TRUE then all other roles will be able to see this user. IF No/FALSE/0 then only the users in the same role for that unit will be able to see this user in this unit',
-		`can_see_role_landlord` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `landlord` (2) for this unit',
-		`can_see_role_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `tenant` (1) for this unit',
-		`can_see_role_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `Mgt Company` (4) for this unit',
-		`can_see_role_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `agent` (5) for this unit',
-		`can_see_role_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `contractor` (3) for this unit',
-		`can_see_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC occupants for this unit',
-		`is_assigned_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_invited_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_next_step_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_deadline_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_solution_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_resolved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_blocker` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_critical` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_any_new_message` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_my_role` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_ll` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_new_ir` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_new_item` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_item_removed` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_item_moved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		PRIMARY KEY (`mefe_user_id`,`mefe_unit_id`),
-		UNIQUE KEY `map_user_unit_role_permissions` (`id_map_user_unit_permissions`),
-		KEY `retry_mefe_unit_must_exist` (`mefe_unit_id`)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
-		;
-
-# We create a view to list all the error where the user already has a role in the unit
-
-	DROP VIEW IF EXISTS `ut_analysis_errors_user_already_has_a_role_list` ;
-
-	CREATE VIEW `ut_analysis_errors_user_already_has_a_role_list`
-	AS
-		SELECT
-		`a`.`id_map_user_unit_permissions`
-		, `a`.`syst_created_datetime`
-		, `a`.`unee_t_update_ts`
-		, `a`.`is_mefe_api_success`
-		, `a`.`mefe_api_error_message`
-		, `a`.`unee_t_mefe_id` AS `mefe_user_id`
-		, `b`.`uneet_login_name`
-		, `a`.`unee_t_unit_id`
-		, `c`.`uneet_name`
-		, `d`.`role_type`
-	FROM
-		`ut_map_user_permissions_unit_all` AS `a`
-		LEFT JOIN `ut_map_external_source_users` AS `b`
-		ON (`a`.`unee_t_mefe_id` = `b`.`unee_t_mefe_user_id`)
-		LEFT JOIN `ut_map_external_source_units` AS `c`
-		ON (`a`.`unee_t_unit_id` = `c`.`unee_t_mefe_unit_id`)
-		LEFT JOIN `ut_user_role_types` AS `d`
-		ON (`a`.`unee_t_role_id` = `d`.`id_role_type`)
-	WHERE (`a`.`is_mefe_api_success` = 0
-		AND `a`.`mefe_api_error_message` LIKE '%The invited user already has a role in this unit%')
-		;
-
-# We create a view to count all the error where the user already has a role in the unit
-
-	DROP VIEW IF EXISTS `ut_analysis_errors_user_already_has_a_role_count` ;
-
-	CREATE VIEW `ut_analysis_errors_user_already_has_a_role_count`
-	AS	
-	SELECT
-		COUNT(`id_map_user_unit_permissions`) AS `count_user_already_has_role`
-	FROM
-		`ut_analysis_errors_user_already_has_a_role_list`
-	GROUP BY `is_mefe_api_success`
-	;
-
-# We create a view to list all the error where the unit the reqestor is not an owner of the unit
-
-	DROP VIEW IF EXISTS `ut_analysis_errors_not_an_owner_list` ;
-
-	CREATE VIEW `ut_analysis_errors_not_an_owner_list`
-	AS
-		SELECT
-		`a`.`id_map_user_unit_permissions`
-		, `a`.`syst_created_datetime`
-		, `a`.`unee_t_update_ts`
-		, `a`.`is_mefe_api_success`
-		, `a`.`mefe_api_error_message`
-		, `a`.`unee_t_mefe_id` AS `mefe_user_id`
-		, `b`.`uneet_login_name`
-		, `a`.`unee_t_unit_id`
-		, `c`.`uneet_name`
-		, `d`.`role_type`
-	FROM
-		`ut_map_user_permissions_unit_all` AS `a`
-		LEFT JOIN `ut_map_external_source_users` AS `b`
-		ON (`a`.`unee_t_mefe_id` = `b`.`unee_t_mefe_user_id`)
-		LEFT JOIN `ut_map_external_source_units` AS `c`
-		ON (`a`.`unee_t_unit_id` = `c`.`unee_t_mefe_unit_id`)
-		LEFT JOIN `ut_user_role_types` AS `d`
-		ON (`a`.`unee_t_role_id` = `d`.`id_role_type`)
-	WHERE (`a`.`is_mefe_api_success` = 0
-		AND `a`.`mefe_api_error_message` LIKE '%not an owner of unit%')
-		;
-
-# We create a view to count all the error where the user already has a role in the unit
-
-	DROP VIEW IF EXISTS `ut_analysis_errors_not_an_owner_count` ;
-
-	CREATE VIEW `ut_analysis_errors_not_an_owner_count`
-	AS	
-	SELECT
-		COUNT(`id_map_user_unit_permissions`) AS `count_reuquestor_not_an_owner`
-	FROM
-		`ut_analysis_errors_not_an_owner_list`
-	GROUP BY `is_mefe_api_success`
-	;
-
-# Error `[the requestor] is not an owner of unit`
-# Create the procedure to re-try creating the association user to unit if the API failed
-
-	DROP PROCEDURE IF EXISTS `ut_retry_assign_user_to_units_error_ownership`;
-
-DELIMITER $$
-CREATE PROCEDURE `ut_retry_assign_user_to_units_error_ownership`()
-	LANGUAGE SQL
-SQL SECURITY INVOKER
-BEGIN
-
-####################
-#
-# WARNING!!
-# Only run this if you are CERTAIN that the API has failed somehow
-#
-####################
-
-# Clean slate - remove all data from `retry_assign_user_to_units_list`
-
-	TRUNCATE TABLE `retry_assign_user_to_units_list` ;
-
-# We insert the data we need in the table `retry_assign_user_to_units_list`
-# This will trigger a retry of the lambda call
-
-	INSERT INTO `retry_assign_user_to_units_list`
-		( `id_map_user_unit_permissions`
-		, `syst_created_datetime`
-		, `creation_system_id`
-		, `created_by_id`
-		, `creation_method`
-		, `mefe_user_id`
-		, `uneet_login_name`
-		, `mefe_unit_id`
-		, `uneet_name`
-		, `unee_t_role_id`
-		, `is_occupant`
-		, `is_default_assignee`
-		, `is_default_invited`
-		, `is_unit_owner`
-		, `is_public`
-		, `can_see_role_landlord`
-		, `can_see_role_tenant`
-		, `can_see_role_mgt_cny`
-		, `can_see_role_agent`
-		, `can_see_role_contractor`
-		, `can_see_occupant`
-		, `is_assigned_to_case`
-		, `is_invited_to_case`
-		, `is_next_step_updated`
-		, `is_deadline_updated`
-		, `is_solution_updated`
-		, `is_case_resolved`
-		, `is_case_blocker`
-		, `is_case_critical`
-		, `is_any_new_message`
-		, `is_message_from_my_role`
-		, `is_message_from_tenant`
-		, `is_message_from_ll`
-		, `is_message_from_occupant`
-		, `is_message_from_agent`
-		, `is_message_from_mgt_cny`
-		, `is_message_from_contractor`
-		, `is_new_ir`
-		, `is_new_item`
-		, `is_item_removed`
-		, `is_item_moved`
-		)
-	SELECT
-		`a`.`id_map_user_unit_permissions`
-		, `b`.`syst_created_datetime`
-		, `b`.`creation_system_id`
-		, `b`.`created_by_id`
-		, 'ut_retry_assign_user_to_units_error_ownership'
-		, `a`.`mefe_user_id`
-		, `a`.`uneet_login_name`
-		, `a`.`unee_t_unit_id`
-		, `a`.`uneet_name`
-		, `b`.`unee_t_role_id`
-		, `b`.`is_occupant`
-		, `b`.`is_default_assignee`
-		, `b`.`is_default_invited`
-		, `b`.`is_unit_owner`
-		, `b`.`is_public`
-		, `b`.`can_see_role_landlord`
-		, `b`.`can_see_role_tenant`
-		, `b`.`can_see_role_mgt_cny`
-		, `b`.`can_see_role_agent`
-		, `b`.`can_see_role_contractor`
-		, `b`.`can_see_occupant`
-		, `b`.`is_assigned_to_case`
-		, `b`.`is_invited_to_case`
-		, `b`.`is_next_step_updated`
-		, `b`.`is_deadline_updated`
-		, `b`.`is_solution_updated`
-		, `b`.`is_case_resolved`
-		, `b`.`is_case_blocker`
-		, `b`.`is_case_critical`
-		, `b`.`is_any_new_message`
-		, `b`.`is_message_from_my_role`
-		, `b`.`is_message_from_tenant`
-		, `b`.`is_message_from_ll`
-		, `b`.`is_message_from_occupant`
-		, `b`.`is_message_from_agent`
-		, `b`.`is_message_from_mgt_cny`
-		, `b`.`is_message_from_contractor`
-		, `b`.`is_new_ir`
-		, `b`.`is_new_item`
-		, `b`.`is_item_removed`
-		, `b`.`is_item_moved`
-	FROM `ut_analysis_errors_not_an_owner_list` AS `a`
-		INNER JOIN `ut_map_user_permissions_unit_all` AS `b`
-			ON (`a`.`id_map_user_unit_permissions` = `b`.`id_map_user_unit_permissions`)
-		;
-
-END $$
-DELIMITER ;
-
-# Error `The invited user already has a role in this unit`
-# Create the procedure to re-try creating the association user to unit if the API failed
-
-	DROP PROCEDURE IF EXISTS `ut_retry_assign_user_to_units_error_already_has_role`;
-
-DELIMITER $$
-CREATE PROCEDURE `ut_retry_assign_user_to_units_error_already_has_role`()
-	LANGUAGE SQL
-SQL SECURITY INVOKER
-BEGIN
-
-####################
-#
-# WARNING!!
-# Only run this if you are CERTAIN that the API has failed somehow
-#
-####################
-
-	SET @creation_method := 'ut_retry_assign_user_to_units_error_already_has_role' ;
-
-# Level 1 units first
-# We create a TEMP table that will store the info so they can be accessible after deletion
-
-	DROP TEMPORARY TABLE IF EXISTS `retry_assign_user_to_units_list_temporary_level_1` ;
-
-	CREATE TEMPORARY TABLE `retry_assign_user_to_units_list_temporary_level_1` (
-		`id_map_user_unit_permissions` INT(11) NOT NULL COMMENT 'Id in this table',
-  		`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
-  		`creation_system_id` int(11) NOT NULL DEFAULT 1 COMMENT 'What is the id of the sytem that was used for the creation of the record?',
-		`created_by_id` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
-		`creation_method` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL,
-		`organization_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
-		`mefe_user_id` VARCHAR (255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
-		`uneet_login_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The MEFE login of the user we invite',
-		`mefe_unit_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'ID of that Unit in Unee-T. This is the value of the field _id in the Mongo collection units',
-		`unee_t_level_1_id` int(11) NOT NULL COMMENT 'A FK to the table `property_level_1_buildings`',
-		`unee_t_user_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_user_types`',
-		`external_property_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_property_types`',
-		`uneet_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The name of the unit in the MEFE',
-		`unee_t_role_id` smallint(6) DEFAULT NULL COMMENT 'FK to the Unee-T BZFE table `ut_role_types` - ID of the Role for this user.',
-		`is_occupant` tinyint(1) DEFAULT 0 COMMENT '1 is the user is an occupant of the unit',
-		`is_default_assignee` tinyint(1) DEFAULT 0 COMMENT '1 if this user is the default assignee for this role for this unit.',
-		`is_default_invited` tinyint(1) DEFAULT 0 COMMENT '1 if the user is automatically invited to all the new cases in this role for this unit',
-		`is_unit_owner` tinyint(1) DEFAULT 0 COMMENT '1 if this user is one of the Unee-T `owner` of that unit',
-		`is_public` tinyint(1) DEFAULT 0 COMMENT '1 if the user is Visible to other Unee-T users in other roles for this unit. If yes/1/TRUE then all other roles will be able to see this user. IF No/FALSE/0 then only the users in the same role for that unit will be able to see this user in this unit',
-		`can_see_role_landlord` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `landlord` (2) for this unit',
-		`can_see_role_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `tenant` (1) for this unit',
-		`can_see_role_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `Mgt Company` (4) for this unit',
-		`can_see_role_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `agent` (5) for this unit',
-		`can_see_role_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `contractor` (3) for this unit',
-		`can_see_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC occupants for this unit',
-		`is_assigned_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_invited_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_next_step_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_deadline_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_solution_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_resolved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_blocker` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_critical` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_any_new_message` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_my_role` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_ll` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_new_ir` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_new_item` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_item_removed` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_item_moved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		PRIMARY KEY (`mefe_user_id`,`mefe_unit_id`),
-		UNIQUE KEY `map_user_unit_role_permissions` (`id_map_user_unit_permissions`),
-		KEY `retry_mefe_unit_must_exist` (`mefe_unit_id`)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
-		;
-
-# We insert the data we need in the table `retry_assign_user_to_units_list_temporary_level_1`
-# We start with the Level 1 units.
-
-	INSERT INTO `retry_assign_user_to_units_list_temporary_level_1`
-		( `id_map_user_unit_permissions`
-		, `syst_created_datetime`
-		, `creation_system_id`
-		, `created_by_id`
-		, `creation_method`
-		, `organization_id`
-		, `mefe_user_id`
-		, `uneet_login_name`
-		, `mefe_unit_id`
-		, `unee_t_level_1_id`
-		, `unee_t_user_type_id`
-		, `external_property_type_id`
-		, `uneet_name`
-		, `unee_t_role_id`
-		, `is_occupant`
-		, `is_default_assignee`
-		, `is_default_invited`
-		, `is_unit_owner`
-		, `is_public`
-		, `can_see_role_landlord`
-		, `can_see_role_tenant`
-		, `can_see_role_mgt_cny`
-		, `can_see_role_agent`
-		, `can_see_role_contractor`
-		, `can_see_occupant`
-		, `is_assigned_to_case`
-		, `is_invited_to_case`
-		, `is_next_step_updated`
-		, `is_deadline_updated`
-		, `is_solution_updated`
-		, `is_case_resolved`
-		, `is_case_blocker`
-		, `is_case_critical`
-		, `is_any_new_message`
-		, `is_message_from_my_role`
-		, `is_message_from_tenant`
-		, `is_message_from_ll`
-		, `is_message_from_occupant`
-		, `is_message_from_agent`
-		, `is_message_from_mgt_cny`
-		, `is_message_from_contractor`
-		, `is_new_ir`
-		, `is_new_item`
-		, `is_item_removed`
-		, `is_item_moved`
-		)
-	SELECT
-		`a`.`id_map_user_unit_permissions`
-		, `b`.`syst_created_datetime`
-		, `b`.`creation_system_id`
-		, `b`.`organization_id`
-		, @creation_method
-		, `b`.`organization_id`
-		, `a`.`mefe_user_id`
-		, `a`.`uneet_login_name`
-		, `a`.`unee_t_unit_id`
-		, `c`.`new_record_id`
-		, `e`.`unee_t_user_type_id`
-		, `c`.`external_property_type_id`
-		, `a`.`uneet_name`
-		, `b`.`unee_t_role_id`
-		, `b`.`is_occupant`
-		, `b`.`is_default_assignee`
-		, `b`.`is_default_invited`
-		, `b`.`is_unit_owner`
-		, `b`.`is_public`
-		, `b`.`can_see_role_landlord`
-		, `b`.`can_see_role_tenant`
-		, `b`.`can_see_role_mgt_cny`
-		, `b`.`can_see_role_agent`
-		, `b`.`can_see_role_contractor`
-		, `b`.`can_see_occupant`
-		, `b`.`is_assigned_to_case`
-		, `b`.`is_invited_to_case`
-		, `b`.`is_next_step_updated`
-		, `b`.`is_deadline_updated`
-		, `b`.`is_solution_updated`
-		, `b`.`is_case_resolved`
-		, `b`.`is_case_blocker`
-		, `b`.`is_case_critical`
-		, `b`.`is_any_new_message`
-		, `b`.`is_message_from_my_role`
-		, `b`.`is_message_from_tenant`
-		, `b`.`is_message_from_ll`
-		, `b`.`is_message_from_occupant`
-		, `b`.`is_message_from_agent`
-		, `b`.`is_message_from_mgt_cny`
-		, `b`.`is_message_from_contractor`
-		, `b`.`is_new_ir`
-		, `b`.`is_new_item`
-		, `b`.`is_item_removed`
-		, `b`.`is_item_moved`
-	FROM `ut_analysis_errors_user_already_has_a_role_list` AS `a`
-		INNER JOIN `ut_map_user_permissions_unit_all` AS `b`
-			ON (`a`.`id_map_user_unit_permissions` = `b`.`id_map_user_unit_permissions`)
-		INNER JOIN `ut_map_external_source_units` AS `c`
-			ON (`a`.`unee_t_unit_id` = `c`.`unee_t_mefe_unit_id`)
-		INNER JOIN `ut_map_external_source_users` AS `d`
-			ON (`a`.`mefe_user_id` = `d`.`unee_t_mefe_user_id`)
-		INNER JOIN `persons` AS `e`
-			ON (`e`.`id_person` = `d`.`person_id`)
-		WHERE `c`.`external_property_type_id` = 1
-		;
-
-# We can now DELETE all the offending records from the table `external_map_user_unit_role_permissions_level_1`
-# The deletion will cascase to Level 2 and level 3 units.
-
-	DELETE `external_map_user_unit_role_permissions_level_1` FROM `external_map_user_unit_role_permissions_level_1`
-		INNER JOIN `retry_assign_user_to_units_list_temporary_level_1`
-			ON (`external_map_user_unit_role_permissions_level_1`.`unee_t_level_1_id` = `retry_assign_user_to_units_list_temporary_level_1`.`unee_t_level_1_id`
-				AND `external_map_user_unit_role_permissions_level_1`.`unee_t_mefe_user_id` = `retry_assign_user_to_units_list_temporary_level_1`.`mefe_user_id`)
-		;
-
-# Clean slate - remove all data from `retry_assign_user_to_units_list`
-
-	TRUNCATE TABLE `retry_assign_user_to_units_list` ;
-
-# Are now re-inserting the records that were deleted for the Level 1 units:
-
-	INSERT INTO `external_map_user_unit_role_permissions_level_1`
-		( `syst_created_datetime`
-		, `creation_system_id`
-		, `created_by_id`
-		, `creation_method`
-		, `organization_id`
-		, `unee_t_mefe_user_id`
-		, `unee_t_level_1_id`
-		, `unee_t_user_type_id`
-		, `unee_t_role_id`
-		, `propagate_level_2`
-		, `propagate_level_3`
-		)
-	SELECT
-		`a`.`syst_created_datetime`
-		, `a`.`creation_system_id`
-		, `a`.`created_by_id`
-		, `a`.`creation_method`
-		, `a`.`organization_id`
-		, `a`.`mefe_user_id`
-		, `a`.`unee_t_level_1_id`
-		, `a`.`unee_t_user_type_id`
-		, `a`.`unee_t_role_id`
-		, 1
-		, 1
-	FROM `retry_assign_user_to_units_list_temporary_level_1` AS `a`
-		;
-
-# Level 2 units
-# We create a TEMP table that will store the info so they can be accessible after deletion
-
-	DROP TEMPORARY TABLE IF EXISTS `retry_assign_user_to_units_list_temporary_level_2` ;
-
-	CREATE TEMPORARY TABLE `retry_assign_user_to_units_list_temporary_level_2` (
-		`id_map_user_unit_permissions` INT(11) NOT NULL COMMENT 'Id in this table',
-  		`syst_created_datetime` timestamp NULL DEFAULT NULL COMMENT 'When was this record created?',
-  		`creation_system_id` int(11) NOT NULL DEFAULT 1 COMMENT 'What is the id of the sytem that was used for the creation of the record?',
-		`created_by_id` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
-		`creation_method` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL,
-		`organization_id` int(11) unsigned NOT NULL COMMENT 'a FK to the table `uneet_enterprise_organizations` The ID of the organization that created this record',
-		`mefe_user_id` VARCHAR (255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The current Unee-T profile id of the person - this is the value of the field `_id` in the Mongo Collection `users`',
-		`uneet_login_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The MEFE login of the user we invite',
-		`mefe_unit_id` varchar(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'ID of that Unit in Unee-T. This is the value of the field _id in the Mongo collection units',
-		`unee_t_level_2_id` int(11) NOT NULL COMMENT 'A FK to the table `property_level_1_buildings`',
-		`unee_t_user_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_user_types`',
-		`external_property_type_id` int(11) NOT NULL COMMENT 'A FK to the table `ut_property_types`',
-		`uneet_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The name of the unit in the MEFE',
-		`unee_t_role_id` smallint(6) DEFAULT NULL COMMENT 'FK to the Unee-T BZFE table `ut_role_types` - ID of the Role for this user.',
-		`is_occupant` tinyint(1) DEFAULT 0 COMMENT '1 is the user is an occupant of the unit',
-		`is_default_assignee` tinyint(1) DEFAULT 0 COMMENT '1 if this user is the default assignee for this role for this unit.',
-		`is_default_invited` tinyint(1) DEFAULT 0 COMMENT '1 if the user is automatically invited to all the new cases in this role for this unit',
-		`is_unit_owner` tinyint(1) DEFAULT 0 COMMENT '1 if this user is one of the Unee-T `owner` of that unit',
-		`is_public` tinyint(1) DEFAULT 0 COMMENT '1 if the user is Visible to other Unee-T users in other roles for this unit. If yes/1/TRUE then all other roles will be able to see this user. IF No/FALSE/0 then only the users in the same role for that unit will be able to see this user in this unit',
-		`can_see_role_landlord` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `landlord` (2) for this unit',
-		`can_see_role_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `tenant` (1) for this unit',
-		`can_see_role_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `Mgt Company` (4) for this unit',
-		`can_see_role_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `agent` (5) for this unit',
-		`can_see_role_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC users in the role `contractor` (3) for this unit',
-		`can_see_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user is allowed to see the PUBLIC occupants for this unit',
-		`is_assigned_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_invited_to_case` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_next_step_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_deadline_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_solution_updated` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_resolved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_blocker` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_case_critical` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_any_new_message` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_my_role` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_tenant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_ll` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_occupant` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_agent` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_mgt_cny` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_message_from_contractor` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_new_ir` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_new_item` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_item_removed` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		`is_item_moved` tinyint(1) DEFAULT 0 COMMENT '1 if user wants to be notified',
-		PRIMARY KEY (`mefe_user_id`,`mefe_unit_id`),
-		UNIQUE KEY `map_user_unit_role_permissions` (`id_map_user_unit_permissions`),
-		KEY `retry_mefe_unit_must_exist` (`mefe_unit_id`)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
-		;
-
-# We insert the data we need in the table `retry_assign_user_to_units_list_temporary_level_2`
-# Level 2 units.
-
-	INSERT INTO `retry_assign_user_to_units_list_temporary_level_2`
-		( `id_map_user_unit_permissions`
-		, `syst_created_datetime`
-		, `creation_system_id`
-		, `created_by_id`
-		, `creation_method`
-		, `organization_id`
-		, `mefe_user_id`
-		, `uneet_login_name`
-		, `mefe_unit_id`
-		, `unee_t_level_2_id`
-		, `unee_t_user_type_id`
-		, `external_property_type_id`
-		, `uneet_name`
-		, `unee_t_role_id`
-		, `is_occupant`
-		, `is_default_assignee`
-		, `is_default_invited`
-		, `is_unit_owner`
-		, `is_public`
-		, `can_see_role_landlord`
-		, `can_see_role_tenant`
-		, `can_see_role_mgt_cny`
-		, `can_see_role_agent`
-		, `can_see_role_contractor`
-		, `can_see_occupant`
-		, `is_assigned_to_case`
-		, `is_invited_to_case`
-		, `is_next_step_updated`
-		, `is_deadline_updated`
-		, `is_solution_updated`
-		, `is_case_resolved`
-		, `is_case_blocker`
-		, `is_case_critical`
-		, `is_any_new_message`
-		, `is_message_from_my_role`
-		, `is_message_from_tenant`
-		, `is_message_from_ll`
-		, `is_message_from_occupant`
-		, `is_message_from_agent`
-		, `is_message_from_mgt_cny`
-		, `is_message_from_contractor`
-		, `is_new_ir`
-		, `is_new_item`
-		, `is_item_removed`
-		, `is_item_moved`
-		)
-	SELECT
-		`a`.`id_map_user_unit_permissions`
-		, `b`.`syst_created_datetime`
-		, `b`.`creation_system_id`
-		, `b`.`organization_id`
-		, @creation_method
-		, `b`.`organization_id`
-		, `a`.`mefe_user_id`
-		, `a`.`uneet_login_name`
-		, `a`.`unee_t_unit_id`
-		, `c`.`new_record_id`
-		, `e`.`unee_t_user_type_id`
-		, `c`.`external_property_type_id`
-		, `a`.`uneet_name`
-		, `b`.`unee_t_role_id`
-		, `b`.`is_occupant`
-		, `b`.`is_default_assignee`
-		, `b`.`is_default_invited`
-		, `b`.`is_unit_owner`
-		, `b`.`is_public`
-		, `b`.`can_see_role_landlord`
-		, `b`.`can_see_role_tenant`
-		, `b`.`can_see_role_mgt_cny`
-		, `b`.`can_see_role_agent`
-		, `b`.`can_see_role_contractor`
-		, `b`.`can_see_occupant`
-		, `b`.`is_assigned_to_case`
-		, `b`.`is_invited_to_case`
-		, `b`.`is_next_step_updated`
-		, `b`.`is_deadline_updated`
-		, `b`.`is_solution_updated`
-		, `b`.`is_case_resolved`
-		, `b`.`is_case_blocker`
-		, `b`.`is_case_critical`
-		, `b`.`is_any_new_message`
-		, `b`.`is_message_from_my_role`
-		, `b`.`is_message_from_tenant`
-		, `b`.`is_message_from_ll`
-		, `b`.`is_message_from_occupant`
-		, `b`.`is_message_from_agent`
-		, `b`.`is_message_from_mgt_cny`
-		, `b`.`is_message_from_contractor`
-		, `b`.`is_new_ir`
-		, `b`.`is_new_item`
-		, `b`.`is_item_removed`
-		, `b`.`is_item_moved`
-	FROM `ut_analysis_errors_user_already_has_a_role_list` AS `a`
-		INNER JOIN `ut_map_user_permissions_unit_all` AS `b`
-			ON (`a`.`id_map_user_unit_permissions` = `b`.`id_map_user_unit_permissions`)
-		INNER JOIN `ut_map_external_source_units` AS `c`
-			ON (`a`.`unee_t_unit_id` = `c`.`unee_t_mefe_unit_id`)
-		INNER JOIN `ut_map_external_source_users` AS `d`
-			ON (`a`.`mefe_user_id` = `d`.`unee_t_mefe_user_id`)
-		INNER JOIN `persons` AS `e`
-			ON (`e`.`id_person` = `d`.`person_id`)
-		WHERE `c`.`external_property_type_id` = 2
-		;
-
-# We can now DELETE all the offending records from the table `external_map_user_unit_role_permissions_level_2`
-# The deletion will cascase to Level 2 and level 3 units.
-
-	DELETE `external_map_user_unit_role_permissions_level_2` FROM `external_map_user_unit_role_permissions_level_2`
-		INNER JOIN `retry_assign_user_to_units_list_temporary_level_2`
-			ON (`external_map_user_unit_role_permissions_level_2`.`unee_t_level_2_id` = `retry_assign_user_to_units_list_temporary_level_2`.`unee_t_level_2_id`
-				AND `external_map_user_unit_role_permissions_level_2`.`unee_t_mefe_user_id` = `retry_assign_user_to_units_list_temporary_level_2`.`mefe_user_id`)
-		;
-
-# Clean slate - remove all data from `retry_assign_user_to_units_list`
-
-	TRUNCATE TABLE `retry_assign_user_to_units_list` ;
-
-# Are now re-inserting the records that were deleted for the Level 2 units:
-
-	INSERT INTO `external_map_user_unit_role_permissions_level_2`
-		( `syst_created_datetime`
-		, `creation_system_id`
-		, `created_by_id`
-		, `creation_method`
-		, `organization_id`
-		, `unee_t_mefe_user_id`
-		, `unee_t_level_2_id`
-		, `unee_t_user_type_id`
-		, `unee_t_role_id`
-		, `propagate_level_2`
-		, `propagate_level_3`
-		)
-	SELECT
-		`a`.`syst_created_datetime`
-		, `a`.`creation_system_id`
-		, `a`.`created_by_id`
-		, `a`.`creation_method`
-		, `a`.`organization_id`
-		, `a`.`mefe_user_id`
-		, `a`.`unee_t_level_2_id`
-		, `a`.`unee_t_user_type_id`
-		, `a`.`unee_t_role_id`
-		, 1
-		, 1
-	FROM `retry_assign_user_to_units_list_temporary_level_2` AS `a`
-		;
-
-
-
-END $$
-DELIMITER ;
-
-#################
-#
-# Views and procedures we need if we need to re-try
-#   - Create a unit in Unee-T
-#
-#################
-#
-# This script creates the following tables:
-#	- `retry_create_units_list_units`
-#
-# This script will create or update the following:
-#	- Views:
-#		- `ut_list_unit_id_level_1_failed_creation`
-#		- `ut_list_unit_id_level_2_failed_creation`
-#		- `ut_list_unit_id_level_3_failed_creation`
-#
-# 	- Procedures
-#		- `ut_retry_create_unit_level_1`
-#		- `ut_retry_create_unit_level_2`
-#		- `ut_retry_create_unit_level_3`
-#		- ``
-#
-
-# We Create a table that will be used to activate the trigger for re-creation
-
-	DROP TABLE IF EXISTS `retry_create_units_list_units` ;
-
-	CREATE TABLE `retry_create_units_list_units` (
-		`unit_creation_request_id` INT(11) NOT NULL COMMENT 'Id in this table',
-		`created_by_id` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The MEFE ID of the user who created this record',
-		`creation_method` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL,
-		`uneet_name` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The name of the unit in the MEFE',
-		`unee_t_unit_type` VARCHAR(100) COLLATE utf8mb4_unicode_520_ci NOT NULL COMMENT 'The Unee-T type of unit for this property - this MUST be one of the `designation` in the table `ut_unit_types`',
-		`more_info` TEXT COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'detailed description of the building',
-		`street_address` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL,
-		`city` VARCHAR(50) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The City',
-		`state` VARCHAR(50) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'The State',
-		`zip_code` VARCHAR(50) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'ZIP or Postal code',
-		`country` VARCHAR(255) COLLATE utf8mb4_unicode_520_ci DEFAULT NULL COMMENT 'Description/help text'
-		) ENGINE=INNODB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci
-		;
-
-# Level 1 units we need to re-create are listes in the View `ut_list_unit_id_level_1_failed_creation`
-
-	DROP VIEW IF EXISTS `ut_list_unit_id_level_1_failed_creation` ;
-
-	CREATE VIEW `ut_list_unit_id_level_1_failed_creation`
-	AS 
-	SELECT 
-		`a`.`id_map` AS `unit_creation_request_id`
-		, `a`.`syst_created_datetime` AS `creation_request_ts`
-		, `a`.`syst_updated_datetime` AS `mefe_api_reply_ts`
-		, `a`.`mefe_api_error_message`
-		, `a`.`created_by_id`
-		, `a`.`organization_id`
-		, `a`.`new_record_id` AS `building_id`
-		, `a`.`uneet_name`
-		, `a`.`unee_t_unit_type`
-		, `b`.`more_info`
-		, `b`.`street_address`
-		, `b`.`city`
-		, `b`.`state`
-		, `b`.`zip_code`
-		, `b`.`country`
-	FROM `ut_map_external_source_units` AS `a`
-	INNER JOIN `ut_add_information_unit_level_1` AS `b`
-		ON (`b`.`unit_level_1_id` = `a`.`new_record_id`)
-	WHERE `unee_t_mefe_unit_id` IS NULL
-		AND `external_property_type_id` = 1
-		;
-
-# Level 2 units we need to re-create are listes in the View `ut_list_unit_id_level_2_failed_creation`
-
-	DROP VIEW IF EXISTS `ut_list_unit_id_level_2_failed_creation` ;
-
-	CREATE VIEW `ut_list_unit_id_level_2_failed_creation`
-	AS 
-	SELECT 
-		`a`.`id_map` AS `unit_creation_request_id`
-		, `a`.`syst_created_datetime` AS `creation_request_ts`
-		, `a`.`syst_updated_datetime` AS `mefe_api_reply_ts`
-		, `a`.`mefe_api_error_message`
-		, `a`.`created_by_id`
-		, `a`.`organization_id`
-		, `a`.`new_record_id` AS `system_id_unit`
-		, `a`.`uneet_name`
-		, `a`.`unee_t_unit_type`
-		, `b`.`more_info`
-		, `b`.`street_address`
-		, `b`.`city`
-		, `b`.`state`
-		, `b`.`zip_code`
-		, `b`.`country`
-	FROM `ut_map_external_source_units` AS `a`
-	INNER JOIN `ut_add_information_unit_level_2` AS `b`
-		ON (`b`.`unit_level_2_id` = `a`.`new_record_id`)
-	WHERE `unee_t_mefe_unit_id` IS NULL
-		AND `external_property_type_id` = 2
-		;
-
-# Level 3 units we need to re-create are listes in the View `ut_list_unit_id_level_3_failed_creation`
-
-	DROP VIEW IF EXISTS `ut_list_unit_id_level_3_failed_creation` ;
-
-	CREATE VIEW `ut_list_unit_id_level_3_failed_creation`
-	AS 
-	SELECT 
-		`a`.`id_map` AS `unit_creation_request_id`
-		, `a`.`syst_created_datetime` AS `creation_request_ts`
-		, `a`.`syst_updated_datetime` AS `mefe_api_reply_ts`
-		, `a`.`mefe_api_error_message`
-		, `a`.`created_by_id`
-		, `a`.`organization_id`
-		, `a`.`new_record_id` AS `system_id_room`
-		, `a`.`uneet_name`
-		, `a`.`unee_t_unit_type`
-		, `b`.`more_info`
-		, `b`.`street_address`
-		, `b`.`city`
-		, `b`.`state`
-		, `b`.`zip_code`
-		, `b`.`country`
-	FROM `ut_map_external_source_units` AS `a`
-	INNER JOIN `ut_add_information_unit_level_3` AS `b`
-		ON (`b`.`unit_level_3_id` = `a`.`new_record_id`)
-	WHERE `unee_t_mefe_unit_id` IS NULL
-		AND `external_property_type_id` = 3
-		;
-
-# Level 1 units - Create the procedure to re-try creating the units if the API failed
-
-	DROP PROCEDURE IF EXISTS `ut_retry_create_unit_level_1`;
-
-DELIMITER $$
-CREATE PROCEDURE `ut_retry_create_unit_level_1`()
-	LANGUAGE SQL
-SQL SECURITY INVOKER
-BEGIN
-
-####################
-#
-# WARNING!!
-# Only run this if you are CERTAIN that the API has failed somehow
-#
-####################
-
-# Clean slate - remove all data from `retry_create_units_list_units`
-
-	TRUNCATE TABLE `retry_create_units_list_units` ;
-
-# We insert the data we need in the table `retry_create_units_list_units`
-
-	INSERT INTO `retry_create_units_list_units`
-		(`unit_creation_request_id`
-		, `created_by_id`
-		, `creation_method`
-		, `uneet_name`
-		, `unee_t_unit_type`
-		, `more_info`
-		, `street_address`
-		, `city`
-		, `state`
-		, `zip_code`
-		, `country`
-		)
-	SELECT
-		`unit_creation_request_id`
-		, `created_by_id`
-		, 'ut_retry_create_unit_level_1' AS `creation_method`
-		, `uneet_name`
-		, `unee_t_unit_type`
-		, `more_info`
-		, `street_address`
-		, `city`
-		, `state`
-		, `zip_code`
-		, `country`
-	FROM `ut_list_unit_id_level_1_failed_creation`
-		;
-
-END $$
-DELIMITER ;
-
-# Level 2 units - Create the procedure to re-try creating the units if the API failed
-
-	DROP PROCEDURE IF EXISTS `ut_retry_create_unit_level_2`;
-
-DELIMITER $$
-CREATE PROCEDURE `ut_retry_create_unit_level_2`()
-	LANGUAGE SQL
-SQL SECURITY INVOKER
-BEGIN
-
-####################
-#
-# WARNING!!
-# Only run this if you are CERTAIN that the API has failed somehow
-#
-####################
-
-# Clean slate - remove all data from `retry_create_units_list_units`
-
-	TRUNCATE TABLE `retry_create_units_list_units` ;
-
-# We insert the data we need in the new table
-
-	INSERT INTO `retry_create_units_list_units`
-		(`unit_creation_request_id`
-		, `created_by_id`
-		, `creation_method`
-		, `uneet_name`
-		, `unee_t_unit_type`
-		, `more_info`
-		, `street_address`
-		, `city`
-		, `state`
-		, `zip_code`
-		, `country`
-		)
-	SELECT
-		`unit_creation_request_id`
-		, `created_by_id`
-		, 'ut_retry_create_unit_level_2' AS `creation_method`
-		, `uneet_name`
-		, `unee_t_unit_type`
-		, `more_info`
-		, `street_address`
-		, `city`
-		, `state`
-		, `zip_code`
-		, `country`
-	FROM `ut_list_unit_id_level_2_failed_creation`
-		;
-
-END $$
-DELIMITER ;
-
-# Level 3 units - Create the procedure to re-try creating the units if the API failed
-
-	DROP PROCEDURE IF EXISTS `ut_retry_create_unit_level_3`;
-
-DELIMITER $$
-CREATE PROCEDURE `ut_retry_create_unit_level_3`()
-	LANGUAGE SQL
-SQL SECURITY INVOKER
-BEGIN
-
-####################
-#
-# WARNING!!
-# Only run this if you are CERTAIN that the API has failed somehow
-#
-####################
-
-# Clean slate - remove all data from `retry_create_units_list_units`
-
-	TRUNCATE TABLE `retry_create_units_list_units` ;
-
-# We insert the data we need in the new table
-
-	INSERT INTO `retry_create_units_list_units`
-		(`unit_creation_request_id`
-		, `created_by_id`
-		, `creation_method`
-		, `uneet_name`
-		, `unee_t_unit_type`
-		, `more_info`
-		, `street_address`
-		, `city`
-		, `state`
-		, `zip_code`
-		, `country`
-		)
-	SELECT
-		`unit_creation_request_id`
-		, `created_by_id`
-		, 'ut_retry_create_unit_level_3' AS `creation_method`
-		, `uneet_name`
-		, `unee_t_unit_type`
-		, `more_info`
-		, `street_address`
-		, `city`
-		, `state`
-		, `zip_code`
-		, `country`
-	FROM `ut_list_unit_id_level_3_failed_creation`
-		;
-
-END $$
 DELIMITER ;

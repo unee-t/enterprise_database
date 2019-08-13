@@ -44,7 +44,6 @@
 #	- `ut_create_user`
 #	- `ut_create_unit`
 #	- `ut_add_user_to_role_in_unit_with_visibility`
-#	- `ut_add_user_to_role_in_unit_with_visibility_update`
 #	- `ut_update_unit_creation_needed`
 #	- `ut_update_unit_already_exists`
 #	- `ut_retry_create_unit`
@@ -132,6 +131,7 @@ BEGIN
 			WHERE `person_id` = @person_id
 			)
 			;
+
 		SET @action_type = 'CREATE_USER';
 		SET @creator_id = NEW.`created_by_id` ;
 		SET @email_address = (SELECT `email_address` 
@@ -162,15 +162,20 @@ BEGIN
 
 			# The JSON Object:
 
-				SET @json_object = (
-						JSON_OBJECT(
-							'userCreationRequestId' , @user_creation_request_id
-							, 'actionType', @action_type
-							, 'creatorId', @creator_id
-							, 'emailAddress', @email_address
-							, 'firstName', @first_name
-							, 'lastName', @last_name
-							, 'phoneNumber', @phone_number
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+				SET @json_object := (
+					JSON_OBJECT(
+						'mefeAPIRequestId' , @mefeAPIRequestId
+						, 'userCreationRequestId' , @user_creation_request_id
+						, 'actionType', @action_type
+						, 'creatorId', @creator_id
+						, 'emailAddress', @email_address
+						, 'firstName', @first_name
+						, 'lastName', @last_name
+						, 'phoneNumber', @phone_number
 						)
 					)
 					;
@@ -214,7 +219,8 @@ BEGIN
 /*
 	# We call the Lambda procedure to create the user
 
-		CALL `lambda_create_user`(@user_creation_request_id
+		CALL `lambda_create_user`(@mefeAPIRequestId
+			, @user_creation_request_id
 			, @action_type
 			, @creator_id
 			, @email_address
@@ -235,7 +241,8 @@ DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE `lambda_create_user`(
-	IN user_creation_request_id INT(11)
+	IN mefe_api_request_id VARCHAR(255)
+	, IN user_creation_request_id INT(11)
 	, IN action_type VARCHAR(255)
 	, IN creator_id VARCHAR(255)
 	, IN email_address VARCHAR(255)
@@ -255,7 +262,8 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
 				, JSON_OBJECT(
-					'userCreationRequestId' , user_creation_request_id
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'userCreationRequestId' , user_creation_request_id
 					, 'actionType', action_type
 					, 'creatorId', creator_id
 					, 'emailAddress', email_address
@@ -551,9 +559,14 @@ BEGIN
 
 			# The JSON Object:
 
-				SET @json_object = (
-						JSON_OBJECT(
-						'unitCreationRequestId' , @unit_creation_request_id
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+				SET @json_object := (
+					JSON_OBJECT(
+						'mefeAPIRequestId' , @mefeAPIRequestId
+						, 'unitCreationRequestId' , @unit_creation_request_id
 						, 'actionType', @action_type
 						, 'creatorId', @creator_id
 						, 'name', @uneet_name
@@ -608,7 +621,8 @@ BEGIN
 /*
 	# We call the Lambda procedure to create a unit
 
-		CALL `lambda_create_unit`(@unit_creation_request_id
+		CALL `lambda_create_unit`(@mefeAPIRequestId
+			, @unit_creation_request_id
 			, @action_type
 			, @creator_id
 			, @uneet_name
@@ -635,7 +649,8 @@ DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE `lambda_create_unit`(
-	IN unit_creation_request_id INT(11)
+	IN mefe_api_request_id VARCHAR(255)
+	, IN unit_creation_request_id INT(11)
 	, IN action_type VARCHAR(255)
 	, IN creator_id VARCHAR(255)
 	, IN uneet_name VARCHAR(255)
@@ -660,7 +675,8 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
 				, JSON_OBJECT(
-					'unitCreationRequestId' , unit_creation_request_id
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'unitCreationRequestId' , unit_creation_request_id
 					, 'actionType', action_type
 					, 'creatorId', creator_id
 					, 'name', uneet_name
@@ -729,7 +745,7 @@ BEGIN
 
 	# The variables that we need:
 
-		SET @mefe_api_request_id = NEW.`id_map_user_unit_permissions` ;
+		SET @id_map_user_unit_permissions = NEW.`id_map_user_unit_permissions` ;
 
 		SET @action_type = 'ASSIGN_ROLE' ;
 
@@ -870,9 +886,14 @@ BEGIN
 
 			# The JSON Object:
 
-				SET @json_object = (
-					JSON_OBJECT(
-						'mefeAPIRequestId' , @mefe_api_request_id
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+				SET @json_object := (
+						JSON_OBJECT(
+						'mefeAPIRequestId' , @mefeAPIRequestId
+						, 'idMapUserUnitPermission' , @id_map_user_unit_permissions
 						, 'actionType', @action_type
 						, 'requestorUserId', @requestor_mefe_user_id
 						, 'addedUserId', @invited_mefe_user_id
@@ -943,7 +964,8 @@ BEGIN
 /*
 	# We call the Lambda procedure to add a user to a role in a unit
 
-		CALL `lambda_add_user_to_role_in_unit_with_visibility`(@mefe_api_request_id
+		CALL `lambda_add_user_to_role_in_unit_with_visibility`(@mefeAPIRequestId
+			, @id_map_user_unit_permissions
 			, @action_type
 			, @requestor_mefe_user_id
 			, @invited_mefe_user_id
@@ -973,7 +995,8 @@ DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE `lambda_add_user_to_role_in_unit_with_visibility`(
-	IN mefe_api_request_id int(11)
+	IN mefe_api_request_id VARCHAR(255)
+	, IN id_map_user_unit_permissions int(11)
 	, IN action_type varchar(255)
 	, IN requestor_mefe_user_id varchar(255)
 	, IN invited_mefe_user_id varchar(255)
@@ -1003,6 +1026,7 @@ BEGIN
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
+					, 'idMapUserUnitPermission' , id_map_user_unit_permissions
 					, 'actionType', action_type
 					, 'requestorUserId', requestor_mefe_user_id
 					, 'addedUserId', invited_mefe_user_id
@@ -1046,7 +1070,7 @@ BEGIN
 #	- We have a MEFE user ID
 #WIP	- There was NO change to the fact that we need to create a Unee-T account
 #	- This is done via an authorized insert method:
-#		- `ut_person_has_been_updated_and_ut_account_needed`
+#WIP		- `ut_person_has_been_updated_and_ut_account_needed`
 #		- ''
 #		- ''
 #
@@ -1137,23 +1161,28 @@ BEGIN
 			# Simulate what the Procedure `lambda_create_user` does
 			# Make sure to update that if you update the procedure `lambda_create_user`
 
-				# The JSON Object:
+			# The JSON Object:
 
-					SET @json_object = (
-						JSON_OBJECT(
-							'updateUserRequestId' , @update_user_request_id
-							, 'actionType', @action_type
-							, 'requestorUserId', @requestor_mefe_user_id
-							, 'creatorId', @creator_mefe_user_id
-							, 'userId', @mefe_user_id_uu_l_1
-							, 'firstName', @first_name
-							, 'lastName', @last_name
-							, 'phoneNumber', @phone_number
-							, 'emailAddress', @mefe_email_address
-							, 'bzfeEmailAddress', @bzfe_email_address
-							)
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+				SET @json_object := (
+					JSON_OBJECT(
+						'mefeAPIRequestId' , @mefeAPIRequestId
+						, 'updateUserRequestId' , @update_user_request_id
+						, 'actionType', @action_type
+						, 'requestorUserId', @requestor_mefe_user_id
+						, 'creatorId', @creator_mefe_user_id
+						, 'userId', @mefe_user_id_uu_l_1
+						, 'firstName', @first_name
+						, 'lastName', @last_name
+						, 'phoneNumber', @phone_number
+						, 'emailAddress', @mefe_email_address
+						, 'bzfeEmailAddress', @bzfe_email_address
 						)
-						;
+					)
+					;
 
 				# The specific lambda:
 
@@ -1199,7 +1228,8 @@ BEGIN
 /*
 		# We call the Lambda procedure to update the user
 
-			CALL `lambda_update_user_profile`(@update_user_request_id
+			CALL `lambda_update_user_profile`(@mefeAPIRequestId
+				, @update_user_request_id
 				, @action_type
 				, @requestor_mefe_user_id
 				, @creator_mefe_user_id
@@ -1223,7 +1253,8 @@ DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE `lambda_update_user_profile`(
-	IN update_user_request_id int(11)
+	IN mefe_api_request_id VARCHAR(255)
+	, IN update_user_request_id int(11)
 	, IN action_type varchar(255)
 	, IN requestor_mefe_user_id varchar(255)
 	, IN creator_mefe_user_id varchar(255)
@@ -1246,7 +1277,8 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
 				, JSON_OBJECT(
-					'updateUserRequestId' , update_user_request_id
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'updateUserRequestId' , update_user_request_id
 					, 'actionType', action_type
 					, 'requestorUserId', requestor_mefe_user_id
 					, 'creatorId', creator_mefe_user_id
@@ -1542,9 +1574,14 @@ BEGIN
 
 			# The JSON Object:
 
-				SET @json_object = (
-						JSON_OBJECT(
-						'unitCreationRequestId' , @unit_creation_request_id
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+				SET @json_object := (
+					JSON_OBJECT(
+						'mefeAPIRequestId' , @mefeAPIRequestId
+						, 'unitCreationRequestId' , @unit_creation_request_id
 						, 'actionType', @action_type
 						, 'creatorId', @creator_id
 						, 'name', @uneet_name
@@ -1599,7 +1636,8 @@ BEGIN
 /*
 	# We call the Lambda procedure to create a unit
 
-		CALL `lambda_create_unit`(@unit_creation_request_id
+		CALL `lambda_create_unit`(@mefeAPIRequestId
+			, @unit_creation_request_id
 			, @action_type
 			, @creator_id
 			, @uneet_name
@@ -1884,21 +1922,26 @@ BEGIN
 
 			# The JSON Object:
 
-				SET @json_object = (
-						JSON_OBJECT(
-							'updateUnitRequestId' , @update_unit_request_id
-							, 'actionType', @action_type
-							, 'requestorUserId', @requestor_user_id
-							, 'unitId', @mefe_unit_id
-							, 'creatorId', @creator_id
-							, 'type', @unee_t_unit_type
-							, 'name', @unee_t_unit_name
-							, 'moreInfo', @more_info
-							, 'streetAddress', @street_address
-							, 'city', @city
-							, 'state', @state
-							, 'zipCode', @zip_code
-							, 'country', @country
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+				SET @json_object := (
+					JSON_OBJECT(
+						'mefeAPIRequestId' , @mefeAPIRequestId
+						, 'updateUnitRequestId' , @update_unit_request_id
+						, 'actionType', @action_type
+						, 'requestorUserId', @requestor_user_id
+						, 'unitId', @mefe_unit_id
+						, 'creatorId', @creator_id
+						, 'type', @unee_t_unit_type
+						, 'name', @unee_t_unit_name
+						, 'moreInfo', @more_info
+						, 'streetAddress', @street_address
+						, 'city', @city
+						, 'state', @state
+						, 'zipCode', @zip_code
+						, 'country', @country
 						)
 					)
 					;
@@ -1948,6 +1991,7 @@ BEGIN
 	# We call the Lambda procedure to update the unit
 
 		CALL `lambda_update_unit`(@update_unit_request_id
+			, @update_unit_request_id
 			, @action_type
 			, @requestor_user_id
 			, @mefe_unit_id
@@ -1974,7 +2018,8 @@ DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE `lambda_update_unit`(
-	IN update_unit_request_id int(11)
+	IN mefe_api_request_id VARCHAR(255)
+	, IN update_unit_request_id int(11)
 	, IN action_type varchar(255)
 	, IN requestor_user_id varchar(255)
 	, IN mefe_unit_id varchar(255)
@@ -2000,7 +2045,8 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
 				, JSON_OBJECT(
-					'updateUnitRequestId' , update_unit_request_id
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'updateUnitRequestId' , update_unit_request_id
 					, 'actionType', action_type
 					, 'requestorUserId', requestor_user_id
 					, 'unitId', mefe_unit_id
@@ -2079,10 +2125,10 @@ BEGIN
 			# The specifics
 
 				# What is this trigger (for log_purposes)
-					SET @this_procedure_8_7 = 'ut_remove_user_from_unit';
+					SET @this_procedure_8_7 := 'ut_remove_user_from_unit';
 
 				# What is the procedure associated with this trigger:
-					SET @associated_procedure = 'lambda_remove_user_from_unit';
+					SET @associated_procedure := 'lambda_remove_user_from_unit';
 			
 			# lambda:
 			# https://github.com/unee-t/lambda2sns/blob/master/tests/call-lambda-as-root.sh#L5
@@ -2090,55 +2136,60 @@ BEGIN
 			#	- Prod: 192458993663
 			#	- Demo: 915001051872
 
-					SET @lambda_key = 192458993663;
+					SET @lambda_key := 192458993663;
 
 				# MEFE API Key:
-					SET @key_this_envo = 'ABCDEFG';
+					SET @key_this_envo := 'ABCDEFG';
 
 		# The variables that we need:
 
-			SET @remove_user_from_unit_request_id = (SELECT `id_map_user_unit_permissions`
+			SET @remove_user_from_unit_request_id := (SELECT `id_map_user_unit_permissions`
 				FROM `ut_map_user_permissions_unit_all`
 				WHERE `unee_t_mefe_id` = @unee_t_mefe_id
 					AND `unee_t_unit_id` = @unee_t_unit_id
 				) ;
 
-			SET @action_type = 'DEASSIGN_ROLE' ;
+			SET @action_type := 'DEASSIGN_ROLE' ;
 
-			SET @requestor_user_id = @updated_by_id ;
+			SET @requestor_user_id := @updated_by_id ;
 			
-			SET @mefe_user_id = @unee_t_mefe_id ;
+			SET @mefe_user_id := @unee_t_mefe_id ;
 
-			SET @mefe_unit_id = @unee_t_unit_id ;
+			SET @mefe_unit_id := @unee_t_unit_id ;
 		
 		# We insert the event in the relevant log table
 
 			# Simulate what the Procedure `lambda_add_user_to_role_in_unit_with_visibility` does
 			# Make sure to update that if you update the procedure `lambda_add_user_to_role_in_unit_with_visibility`
 
-				# The JSON Object:
+			# The JSON Object:
 
-					SET @json_object = (
-						JSON_OBJECT(
-							'removeUserFromUnitRequestId' , @remove_user_from_unit_request_id
-							, 'actionType', @action_type
-							, 'requestorUserId', @requestor_user_id
-							, 'userId', @mefe_user_id
-							, 'unitId', @mefe_unit_id
-							)
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+				SET @json_object := (
+					JSON_OBJECT(
+						'mefeAPIRequestId' , @mefeAPIRequestId
+						, 'removeUserFromUnitRequestId' , @remove_user_from_unit_request_id
+						, 'actionType', @action_type
+						, 'requestorUserId', @requestor_user_id
+						, 'userId', @mefe_user_id
+						, 'unitId', @mefe_unit_id
 						)
-						;
+					)
+					;
 
 				# The specific lambda:
 
-					SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
+					SET @lambda := CONCAT('arn:aws:lambda:ap-southeast-1:'
 						, @lambda_key
 						, ':function:alambda_simple')
 						;
 				
 				# The specific Lambda CALL:
 
-					SET @lambda_call = CONCAT('CALL mysql.lambda_async'
+					SET @lambda_call := CONCAT('CALL mysql.lambda_async'
 						, @lambda
 						, @json_object
 						)
@@ -2179,7 +2230,8 @@ BEGIN
 /*
 		# We call the Lambda procedure to remove a user from a role in a unit
 
-			CALL `lambda_remove_user_from_unit`(@remove_user_from_unit_request_id
+			CALL `lambda_remove_user_from_unit`(@mefeAPIRequestId
+				, @remove_user_from_unit_request_id
 				, @action_type
 				, @requestor_user_id
 				, @mefe_user_id
@@ -2198,7 +2250,8 @@ DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE `lambda_remove_user_from_unit`(
-	IN remove_user_from_unit_request_id int(11)
+	IN mefe_api_request_id VARCHAR(255)
+	, IN remove_user_from_unit_request_id int(11)
 	, IN action_type varchar(255)
 	, IN requestor_user_id varchar(255)
 	, IN mefe_user_id varchar(255)
@@ -2216,7 +2269,8 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
 				, JSON_OBJECT(
-					'removeUserFromUnitRequestId' , remove_user_from_unit_request_id
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'removeUserFromUnitRequestId' , remove_user_from_unit_request_id
 					, 'actionType', action_type
 					, 'requestorUserId', requestor_user_id
 					, 'userId', mefe_user_id
@@ -2234,7 +2288,8 @@ DELIMITER ;
 
 DELIMITER $$
 CREATE PROCEDURE `lambda_update_unit_name_type`(
-	IN update_unit_request_id int(11)
+	IN mefe_api_request_id VARCHAR(255)
+	, IN update_unit_request_id int(11)
 	, IN action_type varchar(255)
 	, IN requestor_user_id varchar(255)
 	, IN mefe_unit_id varchar(255)
@@ -2253,17 +2308,18 @@ BEGIN
 		#	- Demo: 915001051872
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
-                , JSON_OBJECT(
-                	'updateUnitRequestId' , update_unit_request_id
-                	, 'actionType', action_type
-                	, 'requestorUserId', requestor_user_id
-                	, 'unitId', mefe_unit_id
-                	, 'creatorId', creator_id
-                	, 'type', unee_t_unit_type
-                	, 'name', unee_t_unit_name
-                	)
-                )
-                ;
+				, JSON_OBJECT(
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'updateUnitRequestId' , update_unit_request_id
+					, 'actionType', action_type
+					, 'requestorUserId', requestor_user_id
+					, 'unitId', mefe_unit_id
+					, 'creatorId', creator_id
+					, 'type', unee_t_unit_type
+					, 'name', unee_t_unit_name
+					)
+				)
+				;
 
 END $$
 DELIMITER ;
@@ -2346,7 +2402,8 @@ BEGIN
 
 				SET @json_object := (
 						JSON_OBJECT(
-						'unitCreationRequestId' , @unit_creation_request_id
+						'mefeAPIRequestId' , @mefeAPIRequestId
+						, 'unitCreationRequestId' , @unit_creation_request_id
 						, 'actionType', @action_type
 						, 'creatorId', @creator_id
 						, 'name', @uneet_name
@@ -2402,7 +2459,8 @@ BEGIN
 /*
 	# We call the Lambda procedure to create a unit
 
-		CALL `lambda_create_unit`(@unit_creation_request_id
+		CALL `lambda_create_unit`(@mefeAPIRequestId
+			, @unit_creation_request_id
 			, @action_type
 			, @creator_id
 			, @uneet_name
@@ -2611,9 +2669,13 @@ BEGIN
 
 			# The JSON Object:
 
-				SET @json_object = (
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+				SET @json_object := (
 					JSON_OBJECT(
-						'mefeAPIRequestId' , @mefe_api_request_id
+						'mefeAPIRequestId' , @mefeAPIRequestId
 						, 'actionType', @action_type
 						, 'requestorUserId', @requestor_mefe_user_id
 						, 'addedUserId', @invited_mefe_user_id
@@ -2684,7 +2746,7 @@ BEGIN
 /*
 	# We call the Lambda procedure to add a user to a role in a unit
 
-		CALL `lambda_add_user_to_role_in_unit_with_visibility`(@mefe_api_request_id
+		CALL `lambda_add_user_to_role_in_unit_with_visibility`(@mefeAPIRequestId
 			, @action_type
 			, @requestor_mefe_user_id
 			, @invited_mefe_user_id
