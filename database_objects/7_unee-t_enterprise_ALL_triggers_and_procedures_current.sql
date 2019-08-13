@@ -10963,7 +10963,6 @@ BEGIN
 END;
 $$
 DELIMITER ;
-
 #################
 #
 # This lists all the triggers we use to create 
@@ -10975,7 +10974,6 @@ DELIMITER ;
 # This script creates the following objects:
 #	- Triggers
 #		- `ut_insert_external_property_level_1`
-#			Updated to work with UNTE API to create new unit.
 #		- `ut_update_external_property_level_1`
 #		- `ut_update_external_property_level_1_creation_needed`
 #		- `ut_update_map_external_source_unit_add_building`
@@ -10984,6 +10982,8 @@ DELIMITER ;
 #		- ``
 #		- ``
 #	- Procedures
+#		- ``
+#		- ``
 #		- ``
 #		- ``
 
@@ -11015,8 +11015,6 @@ BEGIN
 #		- 'Manage_Buildings_Edit_Page'
 #		- 'Manage_Buildings_Import_Page'
 #		- 'Export_and_Import_Buildings_Import_Page'
-#		- 'unte_api_create_property'
-#		- ''
 #		- ''
 
 	SET @is_creation_needed_in_unee_t_insert_ext_l1_1 = NEW.`is_creation_needed_in_unee_t` ;
@@ -11103,27 +11101,17 @@ BEGIN
 			OR @upstream_create_method_insert_ext_l1_1 = 'Manage_Buildings_Edit_Page'
 			OR @upstream_create_method_insert_ext_l1_1 = 'Manage_Buildings_Import_Page'
 			OR @upstream_create_method_insert_ext_l1_1 = 'Export_and_Import_Buildings_Import_Page'
-			OR @upstream_create_method_insert_ext_l1_1 = 'unte_api_create_property'
 			OR @upstream_update_method_insert_ext_l1_1 = 'imported_from_hmlet_ipi'
 			OR @upstream_update_method_insert_ext_l1_1 = 'Manage_Buildings_Add_Page'
 			OR @upstream_update_method_insert_ext_l1_1 = 'Manage_Buildings_Edit_Page'
 			OR @upstream_update_method_insert_ext_l1_1 = 'Manage_Buildings_Import_Page'
 			OR @upstream_update_method_insert_ext_l1_1 = 'Export_and_Import_Buildings_Import_Page'
-			OR @upstream_update_method_insert_ext_l1_1 = 'unte_api_create_property'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `property_level_1_buildings` table:
 
 		SET @this_trigger_insert_ext_l1_1 := 'ut_insert_external_property_level_1' ;
-
-		SET @create_api_request_id_ext_l1_1 := NEW.`create_api_request_id` ;
-		SET @edit_api_request_ext_id_l1_1 := NEW.`edit_api_request_id` ;
-		SET @is_update_on_duplicate_key_ext_l1_1 := NEW.`is_update_on_duplicate_key` ;
-		SET @mgt_cny_default_assignee_ext_l1_1 := NEW.`mgt_cny_default_assignee` ;
-		SET @landlord_default_assignee_ext_l1_1 := NEW.`landlord_default_assignee` ;
-		SET @tenant_default_assignee_ext_l1_1 := NEW.`tenant_default_assignee` ;
-		SET @agent_default_assignee_ext_l1_1 := NEW.`agent_default_assignee` ;
 
 		SET @syst_created_datetime_insert_ext_l1_1 = NOW();
 		SET @creation_system_id_insert_ext_l1_1 = (SELECT `id_external_sot_for_unee_t` 
@@ -11166,14 +11154,12 @@ BEGIN
 
 		INSERT INTO `property_level_1_buildings`
 			(`external_id`
-			, `create_api_request_id`
 			, `external_system_id` 
 			, `external_table`
 			, `syst_created_datetime`
 			, `creation_system_id`
 			, `created_by_id`
 			, `creation_method`
-			, `is_update_on_duplicate_key`
 			, `organization_id`
 			, `is_obsolete`
 			, `order`
@@ -11190,21 +11176,15 @@ BEGIN
 			, `city`
 			, `country_code`
 			, `description`
-			, `mgt_cny_default_assignee`
-			, `landlord_default_assignee`
-			, `tenant_default_assignee`
-			, `agent_default_assignee`
 			)
 			VALUES
 				(@external_id_insert_ext_l1_1
-				, @create_api_request_id_ext_l1_1
 				, @external_system_id_insert_ext_l1_1
 				, @external_table_insert_ext_l1_1
 				, @syst_created_datetime_insert_ext_l1_1
 				, @creation_system_id_insert_ext_l1_1
 				, @created_by_id_insert_ext_l1_1
 				, @downstream_creation_method_insert_ext_l1_1
-				, 0
 				, @organization_id_create_insert_ext_l1_1
 				, @is_obsolete_insert_ext_l1_1
 				, @order_insert_ext_l1_1
@@ -11221,18 +11201,12 @@ BEGIN
 				, @city_insert_ext_l1_1
 				, @country_code_insert_ext_l1_1
 				, @description_insert_ext_l1_1
-				, @mgt_cny_default_assignee_ext_l1_1
-				, @landlord_default_assignee_ext_l1_1
-				, @tenant_default_assignee_ext_l1_1
-				, @agent_default_assignee_ext_l1_1
 				)
 			ON DUPLICATE KEY UPDATE
-				`edit_api_request_id` := @create_api_request_id_ext_l1_1
-				, `syst_updated_datetime` = @syst_updated_datetime_insert_ext_l1_1
+				`syst_updated_datetime` = @syst_updated_datetime_insert_ext_l1_1
 				, `update_system_id` = @update_system_id_insert_ext_l1_1
 				, `updated_by_id` = @updated_by_id_insert_ext_l1_1
 				, `update_method` = @downstream_update_method_insert_ext_l1_1
-				, `is_update_on_duplicate_key` := @is_update_on_duplicate_key_ext_l1_1
 				, `organization_id` = @organization_id_update_insert_ext_l1_1
 				, `is_obsolete` = @is_obsolete_insert_ext_l1_1
 				, `order` = @order_insert_ext_l1_1
@@ -11249,10 +11223,6 @@ BEGIN
 				, `city` = @city_insert_ext_l1_1
 				, `country_code` = @country_code_insert_ext_l1_1
 				, `description` = @description_insert_ext_l1_1
-				, `mgt_cny_default_assignee` := @mgt_cny_default_assignee
-				, `landlord_default_assignee` := @landlord_default_assignee_ext_l1_1
-				, `tenant_default_assignee` := @tenant_default_assignee_ext_l1_1
-				, `agent_default_assignee` := @agent_default_assignee_ext_l1_1
 			;
 
 	END IF;
@@ -11870,31 +11840,6 @@ BEGIN
 
 		SET @this_trigger_insert_l1_1 = 'ut_update_map_external_source_unit_add_building' ;
 
-		SET @create_api_request_id_l1_1 := NEW.`create_api_request_id` ;
-
-			# We use this to get the MEFE ID of the area
-
-				SET @mefe_area_id_l1_1 := (SELECT `area_mefe_id`
-					FROM `unte_api_add_unit`
-					WHERE `request_id` = @create_api_request_id_l1_1
-					)
-					;
-
-			# We use this to get the MEFE ID of the parent
-
-				SET @mefe_unit_id_parent_l1_1 := (SELECT `parent_mefe_id`
-					FROM `unte_api_add_unit`
-					WHERE `request_id` = @create_api_request_id_l1_1
-					)
-					;
-
-		SET @edit_api_request_id_l1_1 := NEW.`edit_api_request_id` ;
-		SET @is_update_on_duplicate_key_l1_1 := NEW.`is_update_on_duplicate_key` ;
-		SET @mgt_cny_default_assignee_l1_1 := NEW.`mgt_cny_default_assignee` ;
-		SET @landlord_default_assignee_l1_1 := NEW.`landlord_default_assignee` ;
-		SET @tenant_default_assignee_l1_1 := NEW.`tenant_default_assignee` ;
-		SET @agent_default_assignee_l1_1 := NEW.`agent_default_assignee` ;
-
 		SET @syst_created_datetime_insert_l1_1 = NOW();
 		SET @creation_system_id_insert_l1_1 = NEW.`creation_system_id`;
 		SET @created_by_id_insert_l1_1 = NEW.`created_by_id`;
@@ -11922,17 +11867,13 @@ BEGIN
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
 			INSERT INTO `ut_map_external_source_units`
-				( `create_api_request_id`
-				, `syst_created_datetime`
+				( `syst_created_datetime`
 				, `creation_system_id`
 				, `created_by_id`
 				, `creation_method`
-				, `is_update_on_duplicate_key`
 				, `organization_id`
 				, `is_obsolete`
 				, `is_update_needed`
-				, `mefe_area_id`
-				, `mefe_unit_id_parent`
 				, `uneet_name`
 				, `unee_t_unit_type`
 				, `new_record_id`
@@ -11943,17 +11884,13 @@ BEGIN
 				, `tower`
 				)
 				VALUES
-					(@create_api_request_id_l1_1
-					, @syst_created_datetime_insert_l1_1
+					(@syst_created_datetime_insert_l1_1
 					, @creation_system_id_insert_l1_1
 					, @created_by_id_insert_l1_1
 					, @this_trigger_insert_l1_1
-					, 0
 					, @organization_id_insert_l1_1
 					, @is_obsolete_insert_l1_1
 					, @is_update_needed_insert_l1_1
-					, @mefe_area_id_l1_1
-					, @mefe_unit_id_parent_l1_1
 					, @uneet_name_insert_l1_1
 					, @unee_t_unit_type_insert_l1_1
 					, @new_record_id_insert_l1_1
@@ -11964,15 +11901,11 @@ BEGIN
 					, @tower_insert_l1_1
 					)
 				ON DUPLICATE KEY UPDATE 
-					`edit_api_request_id` = @create_api_request_id_l1_1
-					, `syst_updated_datetime` = @syst_updated_datetime_insert_l1_1
+					`syst_updated_datetime` = @syst_updated_datetime_insert_l1_1
 					, `update_system_id` = @update_system_id_insert_l1_1
 					, `updated_by_id` = @updated_by_id_insert_l1_1
 					, `update_method` = @this_trigger_insert_l1_1
-					, `is_update_on_duplicate_key` = 1
 					, `organization_id` = @organization_id_insert_l1_1
-					, `mefe_area_id` := @mefe_area_id_l1_1
-					, `mefe_unit_id_parent` := @mefe_unit_id_parent_l1_1
 					, `uneet_name` = @uneet_name_insert_l1_1
 					, `unee_t_unit_type` = @unee_t_unit_type_insert_l1_1
 					, `is_update_needed` = @is_update_needed_insert_l1_1
