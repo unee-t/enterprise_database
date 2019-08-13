@@ -1,7 +1,5 @@
 #################
 #
-# This is valid for version v22.1 of the UNTE database schema
-#
 # This is a compilation of the following files
 #	- `1_views_v1_21_0`
 #	- `add_user_to_property_areas_v1_21_0`
@@ -119,7 +117,7 @@
 		`mefe_user_id`
 		, `organization_id`
 	FROM
-		`unte_api_keys`
+		`ut_api_keys`
 	WHERE `is_obsolete` = 0
 		OR `revoked_datetime` IS NOT NULL
 	GROUP BY `mefe_user_id`, `organization_id`
@@ -633,7 +631,7 @@
 		, `external_id`
 		, `external_system`
 		, `external_table`
-		, `created_by_id` as `organization_id`
+		, `created_by_id` AS `organization_id`
 		, CONCAT(IFNULL(`given_name`
 			, ''), ' ', IFNULL(`middle_name`
 			, ''), ' ', IFNULL(`family_name`
@@ -869,7 +867,7 @@
 	SELECT 
 		`mefe_user_id` AS `associated_mefe_user`
 		, `organization_id`
-	FROM `unte_api_keys`
+	FROM `ut_api_keys`
 	;
 
 # We create a view to list user by organization by country
