@@ -31,8 +31,8 @@
 #
 # What are the version of the Unee-T BZ Database schema BEFORE and AFTER this update?
 
-	SET @old_schema_version := 'v1.22.1';
-	SET @new_schema_version := 'v1.22.2';
+	SET @old_schema_version := 'v1.22.2';
+	SET @new_schema_version := 'v1.22.3';
 
 # What is the name of this script?
 
@@ -40,18 +40,10 @@
 
 # In this update
 #
-#	- Add some views to verify the number of units per organization and per countries.
-#OK alpha_1		- `ut_verify_list_L1P_by_org_and_countries`
-#OK alpha_1		- `ut_verify_count_L1P_by_org_and_countries`
-#OK alpha_1		- `ut_verify_list_L2P_by_org_and_countries`
-#OK alpha_1		- `ut_verify_count_L2P_by_org_and_countries`
-#OK alpha_1		- `ut_verify_list_L3P_by_org_and_countries`
-#OK alpha_1		- `ut_verify_count_L3P_by_org_and_countries`
-#OK alpha_1		- `ut_verify_count_all_P_by_org_and_countries`
-#		- 
-#		- 
-#		- 
-#		- 
+#WIP	- Fix a bug where some of the level 2 properties are not assigned to users who should be assigned to all the properties in the country.
+# For more details, see
+# https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
+#
 #
 # - Create new tables
 #	- ``
