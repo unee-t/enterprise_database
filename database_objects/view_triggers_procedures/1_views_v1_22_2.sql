@@ -1216,8 +1216,8 @@
             , `b`.`count_L2P`
             , `c`.`count_L3P`
             , (`a`.`count_L1P` 
-        		+ `b`.`count_L2P`
-                + `c`.`count_L3P`
+        		+ IFNULL(`b`.`count_L2P`, 0)
+                + IFNULL(`c`.`count_L3P`, 0)
                 )
                 AS `total_non_obsolete_properties`
         FROM
@@ -1230,4 +1230,3 @@
                 AND (`a`.`country` = `c`.`country`)
         ;
 
-		
