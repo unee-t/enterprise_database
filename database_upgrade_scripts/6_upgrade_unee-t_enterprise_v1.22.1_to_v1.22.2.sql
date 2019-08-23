@@ -45,8 +45,12 @@
 # https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
 #
 #	- Add some views to verify the number of units per organization and per countries.
-#		- ut_verify_list_L1P_by_org_and_countries
-#		- ut_verify_count_L1P_by_org_and_countries
+#		- `ut_verify_list_L1P_by_org_and_countries`
+#		- `ut_verify_count_L1P_by_org_and_countries`
+#		- `ut_verify_list_L2P_by_org_and_countries`
+#		- `ut_verify_count_L2P_by_org_and_countries`
+#WIP		- `ut_verify_list_L3P_by_org_and_countries`
+#WIP		- `ut_verify_count_L3P_by_org_and_countries`
 #		- 
 #		- 
 #		- 

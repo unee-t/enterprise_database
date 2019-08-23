@@ -25,8 +25,8 @@
 #		- `ut_list_mefe_unit_id_level_3_by_area`
 #		- `ut_verify_list_L1P_by_org_and_countries`
 #		- `ut_verify_count_L1P_by_org_and_countries`
-#WIP		- `ut_verify_list_L2P_by_org_and_countries`
-#WIP		- `ut_verify_count_L2P_by_org_and_countries`
+#		- `ut_verify_list_L2P_by_org_and_countries`
+#		- `ut_verify_count_L2P_by_org_and_countries`
 #WIP		- `ut_verify_list_L3P_by_org_and_countries`
 #WIP		- `ut_verify_count_L3P_by_org_and_countries`
 #		- 
@@ -923,7 +923,7 @@
 				, `c`.`ut_user_role_type_id` ASC
 			;
 
-# Check all the non obsolete the L1P
+# Check all the non obsolete L1P
 
 	DROP VIEW IF EXISTS `ut_verify_list_L1P_by_org_and_countries`;
 
@@ -1009,13 +1009,95 @@
 			, `a`.`country_code` ASC
 	;
 
-# Check all the non obsolete the L2P
+# Check all the non obsolete L2P
 
+    DROP VIEW IF EXISTS `ut_verify_list_L2P_by_org_and_countries`;
+
+    CREATE VIEW `ut_verify_list_L2P_by_org_and_countries`
+    AS
+
+        # This is a UNTE Db view
+        # created for UNTE Db schema v22.2
+        #
+        # This query list all the L1P by:
+        #   - Organization
+        #   - Country code
+        #   - Property name
+        #
+        # It shows 
+        #   - mefe unit id
+        #   - error message if applicable
+        #
+        # WHERE the L2P is NOT obsolete
+
+        SELECT
+            `c`.`designation` AS `organization`
+            , `d`.`country`
+            , `a`.`designation` AS `L2P`
+            , `a`.`system_id_unit`
+            , `b`.`unee_t_mefe_unit_id`
+            , `b`.`mefe_api_error_message`
+            , `b`.`uneet_created_datetime`
+        FROM
+            `property_level_2_units` AS `a`
+            INNER JOIN `ut_map_external_source_units` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`external_id` = `b`.`external_property_id`) 
+                AND (`a`.`external_system_id` = `b`.`external_system`) 
+                AND (`a`.`external_table` = `b`.`table_in_external_system`)
+            INNER JOIN `uneet_enterprise_organizations` AS `c`
+                ON (`a`.`organization_id` = `c`.`id_organization`)
+            INNER JOIN `ut_add_information_unit_level_2` AS `d`
+                ON (`a`.`system_id_unit` = `d`.`unit_level_2_id`)
+        WHERE (`a`.`is_obsolete` = 0)
+        ORDER BY 
+            `organization` ASC
+            , `d`.`country` ASC
+        ;
 
 # Count all the non obsolete L2P
 
+    DROP VIEW IF EXISTS `ut_verify_count_L2P_by_org_and_countries`;
 
-# Check all the non obsolete the L3P
+    CREATE VIEW `ut_verify_count_L2P_by_org_and_countries`
+    AS
+
+        # This is a UNTE Db view
+        # created for UNTE Db schema v22.2
+        #
+        # This query counts all the L2P by:
+        #   - Organization
+        #   - Country code
+        #   - Property name
+        #
+        # WHERE MEFE unit id is NOT NULL.
+
+        SELECT
+            `c`.`designation` AS `organization`
+            , `d`.`country`
+            , COUNT(`b`.`unee_t_mefe_unit_id`) AS `count_L2P`
+        FROM
+            `property_level_2_units` AS `a`
+            INNER JOIN `ut_map_external_source_units` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`external_id` = `b`.`external_property_id`) 
+                AND (`a`.`external_system_id` = `b`.`external_system`) 
+                AND (`a`.`external_table` = `b`.`table_in_external_system`)
+            INNER JOIN `uneet_enterprise_organizations` AS `c`
+                ON (`a`.`organization_id` = `c`.`id_organization`)
+            INNER JOIN `ut_add_information_unit_level_2` AS `d`
+                ON (`a`.`system_id_unit` = `d`.`unit_level_2_id`)
+        WHERE `b`.`unee_t_mefe_unit_id` IS NOT NULL
+            AND `a`.`is_obsolete` = 0
+        GROUP BY 
+            `organization`
+            , `d`.`country`
+        ORDER BY 
+            `organization` ASC
+            , `d`.`country` ASC
+        ;
+
+# Check all the non obsolete L3P
 
 
 # Count all the non obsolete L3P
