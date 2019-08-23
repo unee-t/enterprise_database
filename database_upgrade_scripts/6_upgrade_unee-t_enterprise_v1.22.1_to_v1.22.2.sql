@@ -40,9 +40,18 @@
 
 # In this update
 #
-# Fix a bug where some of the level 2 properties are not assigned to users who should be assigned to all the properties in the country.
+#	-  Fix a bug where some of the level 2 properties are not assigned to users who should be assigned to all the properties in the country.
 # For more details, see
 # https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
+#
+#	- Add some views to verify the number of units per organization and per countries.
+#		- ut_verify_list_L1P_by_org_and_countries
+#		- ut_verify_count_L1P_by_org_and_countries
+#		- 
+#		- 
+#		- 
+#		- 
+#		- 
 #
 # - Create new tables
 #	- ``
