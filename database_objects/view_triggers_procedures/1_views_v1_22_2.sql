@@ -29,6 +29,7 @@
 #		- `ut_verify_count_L2P_by_org_and_countries`
 #		- `ut_verify_list_L3P_by_org_and_countries`
 #		- `ut_verify_count_L3P_by_org_and_countries`
+#		- ``
 #		- 
 #
 #
@@ -1189,3 +1190,44 @@
             `organization` ASC
             , `d`.`country` ASC
         ;
+
+# Count ALL the NON obsolete properties by organization and by countries
+
+    DROP VIEW IF EXISTS `ut_verify_count_all_P_by_org_and_countries`;
+
+    CREATE VIEW `ut_verify_count_all_P_by_org_and_countries`
+    AS
+
+        # This is a UNTE Db view
+        # created for UNTE Db schema v22.2
+        #
+        # This query counts all the Properties by:
+        #   - Organization
+        #   - Country code
+        #   - Property type
+        #
+        # WHERE MEFE unit id is NOT NULL.
+
+        SELECT
+            `a`.`organization`
+            , `a`.`organization_id`
+            , `a`.`country`
+            , `a`.`count_L1P`
+            , `b`.`count_L2P`
+            , `c`.`count_L3P`
+            , (`a`.`count_L1P` 
+        		+ `b`.`count_L2P`
+                + `c`.`count_L3P`
+                )
+                AS `total_non_obsolete_properties`
+        FROM
+            `ut_verify_count_L1P_by_org_and_countries` AS `a`
+            LEFT JOIN `ut_verify_count_L2P_by_org_and_countries` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`country` = `b`.`country`)
+            LEFT JOIN `ut_verify_count_L3P_by_org_and_countries` AS `c`
+                ON (`a`.`organization_id` = `c`.`organization_id`) 
+                AND (`a`.`country` = `c`.`country`)
+        ;
+
+		
