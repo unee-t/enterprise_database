@@ -966,6 +966,7 @@
 		;
 
 # Count all the non obsolete L1P
+
 	DROP VIEW IF EXISTS `ut_verify_count_L1P_by_org_and_countries`;
 
 	CREATE VIEW `ut_verify_count_L1P_by_org_and_countries`
@@ -981,30 +982,34 @@
 		#
 		# WHERE MEFE unit id is NOT NULL.
 
-		SELECT
-			`c`.`designation` AS `organization`
-			, `a`.`country_code`
-			, COUNT(`b`.`unee_t_mefe_unit_id`) AS `count_L1P`
-		FROM
-			`property_level_1_buildings` AS `a`
-			INNER JOIN `ut_map_external_source_units` AS `b`
-				ON (`a`.`organization_id` = `b`.`organization_id`) 
-				AND (`a`.`external_id` = `b`.`external_property_id`) 
-				AND (`a`.`external_system_id` = `b`.`external_system`) 
-				AND (`a`.`external_table` = `b`.`table_in_external_system`) 
-				AND (`a`.`tower` = `b`.`tower`)
-			INNER JOIN `uneet_enterprise_organizations` AS `c`
-				ON (`a`.`organization_id` = `c`.`id_organization`)
-		
-		WHERE `b`.`unee_t_mefe_unit_id` IS NOT NULL
-			AND `a`.`is_obsolete` = 0
-		GROUP BY 
-			`organization`
-			, `a`.`country_code`
-		ORDER BY 
-			`organization` ASC
-			, `a`.`country_code` ASC
-	;
+        SELECT
+            `c`.`designation` AS `organization`
+            , `a`.`organization_id`
+            , `a`.`country_code`
+            , `d`.`country_name` AS `country`
+            , COUNT(`b`.`unee_t_mefe_unit_id`) AS `count_L1P`
+        FROM
+            `property_level_1_buildings` AS `a`
+            INNER JOIN `ut_map_external_source_units` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`external_id` = `b`.`external_property_id`) 
+                AND (`a`.`external_system_id` = `b`.`external_system`) 
+                AND (`a`.`external_table` = `b`.`table_in_external_system`) 
+                AND (`a`.`tower` = `b`.`tower`)
+            INNER JOIN `uneet_enterprise_organizations` AS `c`
+                ON (`a`.`organization_id` = `c`.`id_organization`)
+            LEFT JOIN `property_groups_countries` AS `d`
+                ON (`a`.`country_code` = `d`.`country_code`)
+        
+        WHERE `b`.`unee_t_mefe_unit_id` IS NOT NULL
+            AND `a`.`is_obsolete` = 0
+        GROUP BY 
+            `organization`
+            , `country`
+        ORDER BY 
+            `organization` ASC
+            , `country` ASC
+    ;
 
 # Check all the non obsolete L2P
 
