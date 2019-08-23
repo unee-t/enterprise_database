@@ -1142,7 +1142,7 @@
 
 # Count all the non obsolete L3P
 
-    DROP VIEW IF EXISTS `ut_verify_count_L32P_by_org_and_countries`;
+    DROP VIEW IF EXISTS `ut_verify_count_L3P_by_org_and_countries`;
 
     CREATE VIEW `ut_verify_count_L3P_by_org_and_countries`
     AS
