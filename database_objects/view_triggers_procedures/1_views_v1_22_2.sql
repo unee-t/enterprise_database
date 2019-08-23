@@ -1029,6 +1029,7 @@
 
         SELECT
             `c`.`designation` AS `organization`
+            , `a`.`organization_id`
             , `d`.`country`
             , `a`.`designation` AS `L2P`
             , `a`.`system_id_unit`
@@ -1071,6 +1072,7 @@
 
         SELECT
             `c`.`designation` AS `organization`
+            , `a`.`organization_id`
             , `d`.`country`
             , COUNT(`b`.`unee_t_mefe_unit_id`) AS `count_L2P`
         FROM
@@ -1159,6 +1161,7 @@
 
         SELECT
             `c`.`designation` AS `organization`
+            , `a`.`organization_id`
             , `d`.`country`
             , COUNT(`b`.`unee_t_mefe_unit_id`) AS `count_L3P`
         FROM
