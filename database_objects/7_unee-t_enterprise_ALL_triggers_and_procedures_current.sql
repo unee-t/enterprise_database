@@ -14864,7 +14864,8 @@ DELIMITER ;
 	FROM `ut_map_external_source_units` AS `a`
 	INNER JOIN `ut_add_information_unit_level_1` AS `b`
 		ON (`b`.`unit_level_1_id` = `a`.`new_record_id`)
-	WHERE `unee_t_mefe_unit_id` IS NULL
+	WHERE `a`.`unee_t_mefe_unit_id` IS NULL
+		AND `a`.`is_obsolete` = 0
 		AND `external_property_type_id` = 1
 		;
 
@@ -14893,7 +14894,8 @@ DELIMITER ;
 	FROM `ut_map_external_source_units` AS `a`
 	INNER JOIN `ut_add_information_unit_level_2` AS `b`
 		ON (`b`.`unit_level_2_id` = `a`.`new_record_id`)
-	WHERE `unee_t_mefe_unit_id` IS NULL
+	WHERE `a`.`unee_t_mefe_unit_id` IS NULL
+		AND `a`.`is_obsolete` = 0
 		AND `external_property_type_id` = 2
 		;
 
@@ -14923,7 +14925,8 @@ DELIMITER ;
 	INNER JOIN `ut_add_information_unit_level_3` AS `b`
 		ON (`b`.`unit_level_3_id` = `a`.`new_record_id`)
 	WHERE `unee_t_mefe_unit_id` IS NULL
-		AND `external_property_type_id` = 3
+		AND `a`.`is_obsolete` = 0
+		AND `a`.`external_property_type_id` = 3
 		;
 
 # Level 1 units - Create the procedure to re-try creating the units if the API failed
