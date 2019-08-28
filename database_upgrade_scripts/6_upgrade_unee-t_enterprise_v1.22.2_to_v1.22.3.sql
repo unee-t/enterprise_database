@@ -44,6 +44,13 @@
 # For more details, see
 # https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
 #
+# - Update buggy view:
+#		- `ut_retry_create_unit_level_1`
+#		- `ut_retry_create_unit_level_2`
+#		- `ut_retry_create_unit_level_3`
+#
+# - Update buggy procedure:
+#		- `ut_retry_create_unit`
 #
 # - Create new tables
 #	- ``
