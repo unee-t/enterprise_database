@@ -1,24 +1,24 @@
 #################
 #
 # This is a compilation of the following files
-#	- `1_views_v1_21_0`
-#	- `add_user_to_property_areas_v1_21_0`
-#	- `add_user_to_property_level_1_v1_21_0`
-#	- `add_user_to_property_level_2_v1_21_0`
-#	- `add_user_to_property_level_3_v1_21_0`
-#	- `add_user_to_property_procedures_bulk_assign_v1_21_0`
-#	- `add_user_to_property_retry_if_error_v1_21_0`
-#	- `add_user_to_property_trigger_bulk_assign_to_new_unit_v1_21_0`
-#	- `logs_result_after_api_was_called_v1_21_0`
-#	- `misc_procedures_v1_21_0`
-#	- `person_creation_v1_21_0`
-#	- `person_update_v1_21_0`
-#	- `properties_areas_creation_update_v1_21_0`
-#	- `properties_level_1_creation_update_v1_21_0`
-#	- `properties_level_2_creation_update_v1_21_0`
+#	- `1_views_v1_22_2`
+#	- `add_user_to_property_areas_v1_10_0`
+#	- `add_user_to_property_level_1_v1_19_0`
+#	- `add_user_to_property_level_2_v1_20_0`
+#	- `add_user_to_property_level_3_v1_22_0`
+#	- `add_user_to_property_procedures_bulk_assign_v1_20_0`
+#	- `add_user_to_property_retry_if_error_v1_22_0`
+#	- `add_user_to_property_trigger_bulk_assign_to_new_unit_v1_20_0`
+#	- `logs_result_after_api_was_called_v1_21_4`
+#	- `misc_procedures_v1_17_0`
+#	- `person_creation_v1_18_0`
+#	- `person_update_v1_18_0`
+#	- `properties_areas_creation_update_v1_20_0`
+#	- `properties_level_1_creation_update_v1_22_0`
+#	- `properties_level_2_creation_update_v1_22_0`
 #	- `properties_level_3_creation_update_v1_21_0`
-#	- `properties_retry_unit_creation_if_not_created_v1_21_0`
-#	- `remove_user_from_a_role_all_v1_21_0`
+#	- `properties_retry_unit_creation_if_not_created_v1_22_3`
+#	- `remove_user_from_a_role_all_v1_18_0`
 #
 #################
 
@@ -935,6 +935,318 @@
 				, `b`.`country_code` ASC
 				, `c`.`ut_user_role_type_id` ASC
 			;
+
+# Check all the non obsolete L1P
+
+	DROP VIEW IF EXISTS `ut_verify_list_L1P_by_org_and_countries`;
+
+	CREATE VIEW `ut_verify_list_L1P_by_org_and_countries`
+	AS
+
+		# This is a UNTE Db view
+		# created for UNTE Db schema v22.2
+		#
+		# This query list all the L1P by:
+		#   - Organization
+		#   - Country code
+		#   - Property name
+		#
+		# It shows 
+		#   - mefe unit id
+		#   - error message if applicable
+		#
+		# WHERE the L1P is NOT obsolete
+
+		SELECT
+			`c`.`designation` AS `organization`
+			, `a`.`country_code`
+            , `d`.`country_name` AS `country`
+			, `a`.`designation` AS `L1P`
+			, `a`.`id_building`
+			, `b`.`unee_t_mefe_unit_id`
+			, `b`.`mefe_api_error_message`
+			, `b`.`uneet_created_datetime`
+		FROM
+			`property_level_1_buildings` AS `a`
+			INNER JOIN `ut_map_external_source_units` AS `b`
+				ON (`a`.`organization_id` = `b`.`organization_id`) 
+				AND (`a`.`external_id` = `b`.`external_property_id`) 
+				AND (`a`.`external_system_id` = `b`.`external_system`) 
+				AND (`a`.`external_table` = `b`.`table_in_external_system`) 
+				AND (`a`.`tower` = `b`.`tower`)
+			INNER JOIN `uneet_enterprise_organizations` AS `c`
+				ON (`a`.`organization_id` = `c`.`id_organization`)
+            LEFT JOIN `property_groups_countries` AS `d`
+                ON (`a`.`country_code` = `d`.`country_code`)
+		WHERE `a`.`is_obsolete` = 0
+		ORDER BY 
+			`organization` ASC
+			, `a`.`country_code` ASC
+		;
+
+# Count all the non obsolete L1P
+
+	DROP VIEW IF EXISTS `ut_verify_count_L1P_by_org_and_countries`;
+
+	CREATE VIEW `ut_verify_count_L1P_by_org_and_countries`
+	AS
+
+		# This is a UNTE Db view
+		# created for UNTE Db schema v22.2
+		#
+		# This query counts all the L1P by:
+		#   - Organization
+		#   - Country code
+		#   - Property name
+		#
+		# WHERE MEFE unit id is NOT NULL.
+
+        SELECT
+            `c`.`designation` AS `organization`
+            , `a`.`organization_id`
+            , `a`.`country_code`
+            , `d`.`country_name` AS `country`
+            , COUNT(`b`.`unee_t_mefe_unit_id`) AS `count_L1P`
+        FROM
+            `property_level_1_buildings` AS `a`
+            INNER JOIN `ut_map_external_source_units` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`external_id` = `b`.`external_property_id`) 
+                AND (`a`.`external_system_id` = `b`.`external_system`) 
+                AND (`a`.`external_table` = `b`.`table_in_external_system`) 
+                AND (`a`.`tower` = `b`.`tower`)
+            INNER JOIN `uneet_enterprise_organizations` AS `c`
+                ON (`a`.`organization_id` = `c`.`id_organization`)
+            LEFT JOIN `property_groups_countries` AS `d`
+                ON (`a`.`country_code` = `d`.`country_code`)
+        
+        WHERE `b`.`unee_t_mefe_unit_id` IS NOT NULL
+            AND `a`.`is_obsolete` = 0
+        GROUP BY 
+            `organization`
+            , `country`
+        ORDER BY 
+            `organization` ASC
+            , `country` ASC
+    ;
+
+# Check all the non obsolete L2P
+
+    DROP VIEW IF EXISTS `ut_verify_list_L2P_by_org_and_countries`;
+
+    CREATE VIEW `ut_verify_list_L2P_by_org_and_countries`
+    AS
+
+        # This is a UNTE Db view
+        # created for UNTE Db schema v22.2
+        #
+        # This query list all the L1P by:
+        #   - Organization
+        #   - Country code
+        #   - Property name
+        #
+        # It shows 
+        #   - mefe unit id
+        #   - error message if applicable
+        #
+        # WHERE the L2P is NOT obsolete
+
+        SELECT
+            `c`.`designation` AS `organization`
+            , `a`.`organization_id`
+            , `d`.`country`
+            , `a`.`designation` AS `L2P`
+            , `a`.`system_id_unit`
+            , `b`.`unee_t_mefe_unit_id`
+            , `b`.`mefe_api_error_message`
+            , `b`.`uneet_created_datetime`
+        FROM
+            `property_level_2_units` AS `a`
+            INNER JOIN `ut_map_external_source_units` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`external_id` = `b`.`external_property_id`) 
+                AND (`a`.`external_system_id` = `b`.`external_system`) 
+                AND (`a`.`external_table` = `b`.`table_in_external_system`)
+            INNER JOIN `uneet_enterprise_organizations` AS `c`
+                ON (`a`.`organization_id` = `c`.`id_organization`)
+            INNER JOIN `ut_add_information_unit_level_2` AS `d`
+                ON (`a`.`system_id_unit` = `d`.`unit_level_2_id`)
+        WHERE (`a`.`is_obsolete` = 0)
+        ORDER BY 
+            `organization` ASC
+            , `d`.`country` ASC
+        ;
+
+# Count all the non obsolete L2P
+
+    DROP VIEW IF EXISTS `ut_verify_count_L2P_by_org_and_countries`;
+
+    CREATE VIEW `ut_verify_count_L2P_by_org_and_countries`
+    AS
+
+        # This is a UNTE Db view
+        # created for UNTE Db schema v22.2
+        #
+        # This query counts all the L2P by:
+        #   - Organization
+        #   - Country code
+        #   - Property name
+        #
+        # WHERE MEFE unit id is NOT NULL.
+
+        SELECT
+            `c`.`designation` AS `organization`
+            , `a`.`organization_id`
+            , `d`.`country`
+            , COUNT(`b`.`unee_t_mefe_unit_id`) AS `count_L2P`
+        FROM
+            `property_level_2_units` AS `a`
+            INNER JOIN `ut_map_external_source_units` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`external_id` = `b`.`external_property_id`) 
+                AND (`a`.`external_system_id` = `b`.`external_system`) 
+                AND (`a`.`external_table` = `b`.`table_in_external_system`)
+            INNER JOIN `uneet_enterprise_organizations` AS `c`
+                ON (`a`.`organization_id` = `c`.`id_organization`)
+            INNER JOIN `ut_add_information_unit_level_2` AS `d`
+                ON (`a`.`system_id_unit` = `d`.`unit_level_2_id`)
+        WHERE `b`.`unee_t_mefe_unit_id` IS NOT NULL
+            AND `a`.`is_obsolete` = 0
+        GROUP BY 
+            `organization`
+            , `d`.`country`
+        ORDER BY 
+            `organization` ASC
+            , `d`.`country` ASC
+        ;
+
+# Check all the non obsolete L3P
+
+    DROP VIEW IF EXISTS `ut_verify_list_L3P_by_org_and_countries`;
+
+    CREATE VIEW `ut_verify_list_L3P_by_org_and_countries`
+    AS
+
+        # This is a UNTE Db view
+        # created for UNTE Db schema v22.2
+        #
+        # This query list all the L1P by:
+        #   - Organization
+        #   - Country code
+        #   - Property name
+        #
+        # It shows 
+        #   - mefe unit id
+        #   - error message if applicable
+        #
+        # WHERE the L3P is NOT obsolete
+
+        SELECT
+            `c`.`designation` AS `organization`
+            , `d`.`country`
+            , `a`.`room_designation` AS `L3P`
+            , `a`.`system_id_room`
+            , `b`.`unee_t_mefe_unit_id`
+            , `b`.`mefe_api_error_message`
+            , `b`.`uneet_created_datetime`
+        FROM
+            `property_level_3_rooms` AS `a`
+            INNER JOIN `ut_map_external_source_units` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`external_id` = `b`.`external_property_id`) 
+                AND (`a`.`external_system_id` = `b`.`external_system`) 
+                AND (`a`.`external_table` = `b`.`table_in_external_system`)
+            INNER JOIN `uneet_enterprise_organizations` AS `c`
+                ON (`a`.`organization_id` = `c`.`id_organization`)
+            INNER JOIN `ut_add_information_unit_level_3` AS `d`
+                ON (`a`.`system_id_room` = `d`.`unit_level_3_id`)
+        WHERE (`a`.`is_obsolete` = 0)
+        ORDER BY 
+            `organization` ASC
+            , `d`.`country` ASC
+        ;
+
+# Count all the non obsolete L3P
+
+    DROP VIEW IF EXISTS `ut_verify_count_L3P_by_org_and_countries`;
+
+    CREATE VIEW `ut_verify_count_L3P_by_org_and_countries`
+    AS
+
+        # This is a UNTE Db view
+        # created for UNTE Db schema v22.2
+        #
+        # This query counts all the L3P by:
+        #   - Organization
+        #   - Country code
+        #   - Property name
+        #
+        # WHERE MEFE unit id is NOT NULL.
+
+        SELECT
+            `c`.`designation` AS `organization`
+            , `a`.`organization_id`
+            , `d`.`country`
+            , COUNT(`b`.`unee_t_mefe_unit_id`) AS `count_L3P`
+        FROM
+            `property_level_3_rooms` AS `a`
+            INNER JOIN `ut_map_external_source_units` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`external_id` = `b`.`external_property_id`) 
+                AND (`a`.`external_system_id` = `b`.`external_system`) 
+                AND (`a`.`external_table` = `b`.`table_in_external_system`)
+            INNER JOIN `uneet_enterprise_organizations` AS `c`
+                ON (`a`.`organization_id` = `c`.`id_organization`)
+            INNER JOIN `ut_add_information_unit_level_3` AS `d`
+                ON (`a`.`system_id_room` = `d`.`unit_level_3_id`)
+        WHERE `b`.`unee_t_mefe_unit_id` IS NOT NULL
+            AND `a`.`is_obsolete` = 0
+        GROUP BY 
+            `organization`
+            , `d`.`country`
+        ORDER BY 
+            `organization` ASC
+            , `d`.`country` ASC
+        ;
+
+# Count ALL the NON obsolete properties by organization and by countries
+
+    DROP VIEW IF EXISTS `ut_verify_count_all_P_by_org_and_countries`;
+
+    CREATE VIEW `ut_verify_count_all_P_by_org_and_countries`
+    AS
+
+        # This is a UNTE Db view
+        # created for UNTE Db schema v22.2
+        #
+        # This query counts all the Properties by:
+        #   - Organization
+        #   - Country code
+        #   - Property type
+        #
+        # WHERE MEFE unit id is NOT NULL.
+
+        SELECT
+            `a`.`organization`
+            , `a`.`organization_id`
+            , `a`.`country`
+            , `a`.`count_L1P`
+            , `b`.`count_L2P`
+            , `c`.`count_L3P`
+            , (`a`.`count_L1P` 
+        		+ IFNULL(`b`.`count_L2P`, 0)
+                + IFNULL(`c`.`count_L3P`, 0)
+                )
+                AS `total_non_obsolete_properties`
+        FROM
+            `ut_verify_count_L1P_by_org_and_countries` AS `a`
+            LEFT JOIN `ut_verify_count_L2P_by_org_and_countries` AS `b`
+                ON (`a`.`organization_id` = `b`.`organization_id`) 
+                AND (`a`.`country` = `b`.`country`)
+            LEFT JOIN `ut_verify_count_L3P_by_org_and_countries` AS `c`
+                ON (`a`.`organization_id` = `c`.`organization_id`) 
+                AND (`a`.`country` = `c`.`country`)
+        ;
 
 #################
 #
@@ -14552,7 +14864,8 @@ DELIMITER ;
 	FROM `ut_map_external_source_units` AS `a`
 	INNER JOIN `ut_add_information_unit_level_1` AS `b`
 		ON (`b`.`unit_level_1_id` = `a`.`new_record_id`)
-	WHERE `unee_t_mefe_unit_id` IS NULL
+	WHERE `a`.`unee_t_mefe_unit_id` IS NULL
+		AND `a`.`is_obsolete` = 0
 		AND `external_property_type_id` = 1
 		;
 
@@ -14581,7 +14894,8 @@ DELIMITER ;
 	FROM `ut_map_external_source_units` AS `a`
 	INNER JOIN `ut_add_information_unit_level_2` AS `b`
 		ON (`b`.`unit_level_2_id` = `a`.`new_record_id`)
-	WHERE `unee_t_mefe_unit_id` IS NULL
+	WHERE `a`.`unee_t_mefe_unit_id` IS NULL
+		AND `a`.`is_obsolete` = 0
 		AND `external_property_type_id` = 2
 		;
 
@@ -14611,7 +14925,8 @@ DELIMITER ;
 	INNER JOIN `ut_add_information_unit_level_3` AS `b`
 		ON (`b`.`unit_level_3_id` = `a`.`new_record_id`)
 	WHERE `unee_t_mefe_unit_id` IS NULL
-		AND `external_property_type_id` = 3
+		AND `a`.`is_obsolete` = 0
+		AND `a`.`external_property_type_id` = 3
 		;
 
 # Level 1 units - Create the procedure to re-try creating the units if the API failed

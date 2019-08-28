@@ -945,6 +945,7 @@
 		SELECT
 			`c`.`designation` AS `organization`
 			, `a`.`country_code`
+            , `d`.`country_name` AS `country`
 			, `a`.`designation` AS `L1P`
 			, `a`.`id_building`
 			, `b`.`unee_t_mefe_unit_id`
@@ -960,6 +961,8 @@
 				AND (`a`.`tower` = `b`.`tower`)
 			INNER JOIN `uneet_enterprise_organizations` AS `c`
 				ON (`a`.`organization_id` = `c`.`id_organization`)
+            LEFT JOIN `property_groups_countries` AS `d`
+                ON (`a`.`country_code` = `d`.`country_code`)
 		WHERE `a`.`is_obsolete` = 0
 		ORDER BY 
 			`organization` ASC
@@ -1001,7 +1004,6 @@
                 ON (`a`.`organization_id` = `c`.`id_organization`)
             LEFT JOIN `property_groups_countries` AS `d`
                 ON (`a`.`country_code` = `d`.`country_code`)
-        
         WHERE `b`.`unee_t_mefe_unit_id` IS NOT NULL
             AND `a`.`is_obsolete` = 0
         GROUP BY 

@@ -1,6 +1,6 @@
 #################
 #
-# This is valid for version v22.1 of the UNTE database schema
+# This is valid for version v22.3 of the UNTE database schema
 #
 # All lambda related objects
 #
@@ -2401,6 +2401,10 @@ BEGIN
 		# Simulate what the trigger does
 
 			# The JSON Object:
+
+				# We need a random ID as a `mefeAPIRequestId`
+
+				SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 						JSON_OBJECT(
