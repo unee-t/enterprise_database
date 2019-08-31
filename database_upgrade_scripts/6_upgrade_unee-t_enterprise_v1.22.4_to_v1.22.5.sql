@@ -44,12 +44,7 @@
 # For more details, see
 # https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
 #
-#
-#OK Replace the code `alambda_simple` with `push`.
-# See https://github.com/unee-t/bz-database/issues/73#issuecomment-526525084 for more details
-# This is done by running the scripts:
-#	- `8_lambda_related_objects_for_[environment]`
-#	- ``
+#OK Replace the code `alambda_simple` with `push`. See https://github.com/unee-t/bz-database/issues/73#issuecomment-526525084 for more details
 # 
 # - Create new tables
 #	- ``
@@ -98,18 +93,14 @@
 	SET @the_timestamp := NOW();
 
 # Do the changes:
-
-# this change is done by running the scripts:
-#	- ``
-
-
-
-
-
-
-
-
-
+#
+# Replace the code `alambda_simple` with `push`.
+# See https://github.com/unee-t/bz-database/issues/73#issuecomment-526525084 for more details
+# 	This is done by running the scripts:
+#	- `8_lambda_related_objects_for_[environment]`
+#
+#
+#
 
 
 
