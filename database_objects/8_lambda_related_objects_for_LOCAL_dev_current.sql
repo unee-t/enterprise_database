@@ -1,6 +1,6 @@
 #################
 #
-# This is valid for version v22.3 of the UNTE database schema
+# This is valid for version v22.5 of the UNTE database schema
 #
 # All lambda related objects
 #
@@ -186,7 +186,7 @@ BEGIN
 
 				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
 					, @lambda_key
-					, ':function:alambda_simple')
+					, ':function:push')
 					;
 			
 			# The specific Lambda CALL:
@@ -262,7 +262,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'userCreationRequestId' , user_creation_request_id
@@ -588,7 +588,7 @@ BEGIN
 
 				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
 					, @lambda_key
-					, ':function:alambda_simple')
+					, ':function:push')
 					;
 			
 			# The specific Lambda CALL:
@@ -675,7 +675,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'unitCreationRequestId' , unit_creation_request_id
@@ -920,7 +920,7 @@ BEGIN
 
 				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
 					, @lambda_key
-					, ':function:alambda_simple')
+					, ':function:push')
 					;
 			
 			# The specific Lambda CALL:
@@ -1025,7 +1025,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'idMapUserUnitPermission' , id_map_user_unit_permissions
@@ -1190,7 +1190,7 @@ BEGIN
 
 					SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
 						, @lambda_key
-						, ':function:alambda_simple')
+						, ':function:push')
 						;
 				
 				# The specific Lambda CALL:
@@ -1277,7 +1277,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'updateUserRequestId' , update_user_request_id
@@ -1603,7 +1603,7 @@ BEGIN
 
 				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
 					, @lambda_key
-					, ':function:alambda_simple')
+					, ':function:push')
 					;
 			
 			# The specific Lambda CALL:
@@ -1952,7 +1952,7 @@ BEGIN
 
 				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
 					, @lambda_key
-					, ':function:alambda_simple')
+					, ':function:push')
 					;
 			
 			# The specific Lambda CALL:
@@ -2045,7 +2045,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'updateUnitRequestId' , update_unit_request_id
@@ -2186,7 +2186,7 @@ BEGIN
 
 					SET @lambda := CONCAT('arn:aws:lambda:ap-southeast-1:'
 						, @lambda_key
-						, ':function:alambda_simple')
+						, ':function:push')
 						;
 				
 				# The specific Lambda CALL:
@@ -2269,7 +2269,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'removeUserFromUnitRequestId' , remove_user_from_unit_request_id
@@ -2309,7 +2309,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:alambda_simple')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:192458993663:function:push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'updateUnitRequestId' , update_unit_request_id
@@ -2429,7 +2429,7 @@ BEGIN
 
 				SET @lambda := CONCAT('arn:aws:lambda:ap-southeast-1:'
 					, @lambda_key
-					, ':function:alambda_simple')
+					, ':function:push')
 					;
 			
 			# The specific Lambda CALL:
@@ -2706,7 +2706,7 @@ BEGIN
 
 				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
 					, @lambda_key
-					, ':function:alambda_simple')
+					, ':function:push')
 					;
 			
 			# The specific Lambda CALL:
