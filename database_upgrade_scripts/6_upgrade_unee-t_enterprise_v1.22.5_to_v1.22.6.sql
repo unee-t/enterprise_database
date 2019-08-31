@@ -45,9 +45,9 @@
 # https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
 #
 # WIP Make sure that we do NOT create the properties if they are marked as obsolete
-#TEST NEEDED	- L1P (updated script `properties_level_1_creation_update_v1_22_6`)
-#WIP	- L2P (updated script `properties_level_2_creation_update_v1_22_6`)
-#WIP	- L3P (updated script `properties_level_3_creation_update_v1_22_6`)
+#OK	- L1P (updated script `properties_level_1_creation_update_v1_22_6`)
+#OK	- L2P (updated script `properties_level_2_creation_update_v1_22_6`)
+#OK	- L3P (updated script `properties_level_3_creation_update_v1_22_6`)
 #
 # - Create new tables
 #	- ``
