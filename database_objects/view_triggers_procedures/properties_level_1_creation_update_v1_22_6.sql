@@ -848,12 +848,22 @@ BEGIN
 		);
 
 	# This is an insert - if the record does NOT exist, we create the record
-	# unless it is specifically specified that we do NOT need to create the record.
+	# unless 
+	#	- it is specifically specified that we do NOT need to create the record.
+	#	- the record is marked as obsolete
+
+		SET @is_obsolete_insert_l1_1 = NEW.`is_obsolete`;
+
 		SET @do_not_insert_insert_l1_1 = (IF (@id_in_ut_map_external_source_units_insert_l1_1 IS NULL
-				, 0
-				, NEW.`do_not_insert`
+				,  IF (@is_obsolete_insert_l1_1 != 0
+					, 1
+					, 0
+					)
+				, IF (@is_obsolete_insert_l1_1 != 0
+					, 1
+					, NEW.`do_not_insert`
+					)
 				)
-			
 			);
 
 	SET @upstream_create_method_insert_l1_1 = NEW.`creation_method` ;
@@ -885,7 +895,6 @@ BEGIN
 		SET @updated_by_id_insert_l1_1 = NEW.`created_by_id`;
 		SET @update_method_insert_l1_1 = @this_trigger_insert_l1_1 ;
 
-		SET @is_obsolete_insert_l1_1 = NEW.`is_obsolete`;
 		SET @is_update_needed_insert_l1_1 = NULL;
 			
 		SET @uneet_name_insert_l1_1 = NEW.`designation`;
@@ -981,7 +990,7 @@ BEGIN
 	SET @new_is_creation_needed_in_unee_t_update_l1_1 =  NEW.`is_creation_needed_in_unee_t` ;
 	SET @old_is_creation_needed_in_unee_t_update_l1_1 = OLD.`is_creation_needed_in_unee_t` ; 
 
-	SET @do_not_insert_update_l1_1 = NEW.`do_not_insert` ;
+	SET @do_not_insert_update_l1_1_raw = NEW.`do_not_insert` ;
 
 	SET @id_building_update_l1_1 = NEW.`id_building` ;
 
@@ -994,6 +1003,25 @@ BEGIN
 			AND `organization_id` = @organization_id_update_l1_1
 			AND `tower` = @tower_update_l1_1
 		);
+
+	# This is an insert - if the record does NOT exist, we create the record
+	# unless 
+	#	- it is specifically specified that we do NOT need to create the record.
+	#	- the record is marked as obsolete
+
+		SET @is_obsolete_update_l1_1 = NEW.`is_obsolete`;
+
+		SET @do_not_insert_update_l1_1 = (IF (@do_not_insert_update_l1_1_raw IS NULL
+				, IF (@is_obsolete_update_l1_1 != 0
+					, 1
+					, 0
+					)
+				, IF (@is_obsolete_update_l1_1 != 0
+					, 1
+					, NEW.`do_not_insert`
+					)
+				)
+			);
 
 	SET @upstream_create_method_update_l1_1 = NEW.`creation_method` ;
 	SET @upstream_update_method_update_l1_1 = NEW.`update_method` ;
@@ -1026,7 +1054,6 @@ BEGIN
 
 			SET @tower_update_l1_1 = NEW.`tower` ; 
 			
-			SET @is_obsolete_update_l1_1 = NEW.`is_obsolete`;
 			SET @is_update_needed_update_l1_1 = 1 ;
 			
 			SET @uneet_name_update_l1_1 = NEW.`designation`;
@@ -1126,7 +1153,7 @@ BEGIN
 	SET @new_is_creation_needed_in_unee_t_update_l1_2 =  NEW.`is_creation_needed_in_unee_t` ;
 	SET @old_is_creation_needed_in_unee_t_update_l1_2 = OLD.`is_creation_needed_in_unee_t` ; 
 
-	SET @do_not_insert_update_l1_2 = NEW.`do_not_insert` ;
+	SET @do_not_insert_update_l1_2_raw = NEW.`do_not_insert` ;
 
 	SET @id_building_update_l1_2 = NEW.`id_building` ;
 
@@ -1139,6 +1166,26 @@ BEGIN
 			AND `organization_id` = @organization_id_update_l1_2
 			AND `tower` = @tower_update_l1_2
 		);
+
+	# This is an insert - if the record does NOT exist, we create the record
+	# unless 
+	#	- it is specifically specified that we do NOT need to create the record.
+	#	- the record is marked as obsolete
+
+		SET @is_obsolete_update_l1_2 = NEW.`is_obsolete`;
+
+		SET @do_not_insert_update_l1_2 = (IF (@do_not_insert_update_l1_2_raw IS NULL
+				, IF (@is_obsolete_update_l1_2 != 0
+					, 1
+					, 0
+					)
+				, IF (@is_obsolete_update_l1_2 != 0
+					, 1
+					, NEW.`do_not_insert`
+					)
+				)
+			);
+
 
 	SET @upstream_create_method_update_l1_2 = NEW.`creation_method` ;
 	SET @upstream_update_method_update_l1_2 = NEW.`update_method` ;
@@ -1165,7 +1212,6 @@ BEGIN
 			SET @updated_by_id_update_l1_2 = NEW.`updated_by_id`;
 			SET @update_method_update_l1_2 = @this_trigger_update_l1_2 ;
 
-			SET @is_obsolete_update_l1_2 = NEW.`is_obsolete`;
 			SET @is_update_needed_update_l1_2 = 1 ;
 			
 			SET @uneet_name_update_l1_2 = NEW.`designation`;
