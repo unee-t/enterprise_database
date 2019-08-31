@@ -44,7 +44,8 @@
 # For more details, see
 # https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
 #
-#OK Replace the code `alambda_simple` with `push`. See https://github.com/unee-t/bz-database/issues/73#issuecomment-526525084 for more details
+#OK	- Replace the code `alambda_simple` with `push`. See https://github.com/unee-t/bz-database/issues/73#issuecomment-526525084 for more details
+#	- Fix a bug in the table `log_lambdas` Make sure the field to store lambda calls is big enough
 # 
 # - Create new tables
 #	- ``
@@ -99,10 +100,14 @@
 # 	This is done by running the scripts:
 #	- `8_lambda_related_objects_for_[environment]`
 #
-#
-#
+# Make sure the field to store lambda calls is big enough
+# 
+		/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 
+			ALTER TABLE `log_lambdas` 
+				CHANGE `payload` `payload` mediumtext  COLLATE utf8mb4_unicode_520_ci NULL after `unee_t_login` ;
 
+		/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 
 # We can now update the version of the database schema
 	# A comment for the update
