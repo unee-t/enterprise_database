@@ -44,6 +44,8 @@
 # For more details, see
 # https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
 #
+#WIP Fix bug when updated `is_obsolete` is not propagating from extL2P to L2P to ut_map
+#
 #
 # - Create new tables
 #	- ``
