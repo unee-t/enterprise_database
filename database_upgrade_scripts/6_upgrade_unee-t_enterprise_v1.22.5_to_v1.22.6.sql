@@ -48,6 +48,19 @@
 #OK	- L1P (updated script `properties_level_1_creation_update_v1_22_6`)
 #OK	- L2P (updated script `properties_level_2_creation_update_v1_22_6`)
 #OK	- L3P (updated script `properties_level_3_creation_update_v1_22_6`)
+#	- Break up 2 similar triggers
+#		- `ut_update_external_property_level_2`
+#		- `ut_update_external_property_level_2_creation_needed`
+#	- Instead, we use a combination of:
+#TEST NEEDED		- Procedure `ut_update_L2P_when_ext_L2P_is_updated`
+#TEST NEEDED		- Trigger `ut_after_update_external_property_level_2` 
+#
+#	- Break up 2 similar triggers
+#		- `ut_update_external_property_level_3`
+#		- `ut_update_external_property_level_3_creation_needed`
+#	- Instead, we use a combination of:
+#WIP		- Procedure `ut_update_L3P_when_ext_L3P_is_updated`
+#WIP		- Trigger `ut_update_external_property_level_3` 
 #
 # - Create new tables
 #	- ``
@@ -96,6 +109,315 @@
 	SET @the_timestamp := NOW();
 
 # Do the changes:
+#
+# We Drop the legacy triggers:
+
+	DROP TRIGGER IF EXISTS `ut_update_external_property_level_2`;
+	DROP TRIGGER IF EXISTS `ut_update_external_property_level_2_creation_needed`;
+
+# Create the The procedure that does the update in the table `property_level_2_units`
+# When the table `external_property_level_2_units` has been updated
+
+	DROP PROCEDURE IF EXISTS `ut_update_L2P_when_ext_L2P_is_updated`;
+
+DELIMITER $$
+CREATE PROCEDURE `ut_update_L2P_when_ext_L2P_is_updated`()
+	LANGUAGE SQL
+SQL SECURITY INVOKER
+BEGIN
+
+	# We update the record in the table `external_property_level_2_units`
+	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
+
+		INSERT INTO `property_level_2_units`
+			(`external_id`
+			, `external_system_id` 
+			, `external_table`
+			, `syst_created_datetime`
+			, `creation_system_id`
+			, `created_by_id`
+			, `creation_method`
+			, `organization_id`
+			, `activated_by_id`
+			, `is_obsolete`
+			, `is_creation_needed_in_unee_t`
+			, `do_not_insert`
+			, `unee_t_unit_type`
+			, `building_system_id`
+			, `tower`
+			, `unit_category_id`
+			, `designation`
+			, `count_rooms`
+			, `unit_id`
+			, `surface`
+			, `surface_measurment_unit`
+			, `description`
+			)
+			VALUES
+ 				(@external_id_update_extl2
+				, @external_system_id_update_extl2
+				, @external_table_update_extl2
+				, @syst_created_datetime_update_extl2
+				, @creation_system_id_update_extl2
+				, @created_by_id_update_extl2
+				, @downstream_creation_method_update_extl2
+				, @organization_id_create_update_extl2
+				, @activated_by_id_update_extl2
+				, @is_obsolete_update_extl2
+				, @is_creation_needed_in_unee_t_update_extl2
+				, @do_not_insert_update_extl2
+				, @unee_t_unit_type_update_extl2
+				, @building_system_id_update_extl2
+				, @tower_update_extl2
+				, @unit_category_id_update_extl2
+				, @designation_update_extl2
+				, @count_rooms_update_extl2
+				, @unit_id_update_extl2
+				, @surface_update_extl2
+				, @surface_measurment_unit_update_extl2
+				, @description_update_extl2
+ 			)
+			ON DUPLICATE KEY UPDATE
+ 				`syst_updated_datetime` = @syst_updated_datetime_update_extl2
+ 				, `update_system_id` = @update_system_id_update_extl2
+ 				, `updated_by_id` = @updated_by_id_update_extl2
+				, `update_method` = @downstream_update_method_update_extl2
+				, `organization_id` = @organization_id_update_update_extl2
+				, `activated_by_id` = @activated_by_id_update_extl2
+				, `is_obsolete` = @is_obsolete_update_extl2
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_extl2
+				, `do_not_insert` = @do_not_insert_update_extl2
+				, `unee_t_unit_type` = @unee_t_unit_type_update_extl2
+				, `building_system_id` = @building_system_id_update_extl2
+				, `tower` = @tower_update_extl2
+				, `unit_category_id` = @unit_category_id_update_extl2
+				, `designation` = @designation_update_extl2
+				, `count_rooms` = @count_rooms_update_extl2
+				, `unit_id` = @unit_id_update_extl2
+				, `surface` = @surface_update_extl2
+				, `surface_measurment_unit` = @surface_measurment_unit_update_extl2
+				, `description` = @description_update_extl2
+			;
+				
+		# Housekeeping - we make sure that if a unit is obsolete - all rooms in that unit are obsolete too
+		# We only do that if the field `is_obsolete` is changed from 0 to 1
+
+			SET @system_id_unit_update_extl2 = NEW.`system_id_unit` ;
+
+			UPDATE `external_property_level_3_rooms` AS `a`
+				INNER JOIN `external_property_level_2_units` AS `b`
+					ON (`a`.`system_id_unit` = `b`.`system_id_unit`)
+				SET `a`.`is_obsolete` = `b`.`is_obsolete`
+				WHERE `a`.`system_id_unit` = @system_id_unit_update_extl2
+				;
+				
+END;
+$$
+DELIMITER ;
+
+# Create the trigger when the extL2P is updated
+# This trigger will:
+#	- Check if several conditions are met
+#	- Capture the value we need in several variables
+#	- Call the procedure `ut_update_L2P_when_ext_L2P_is_updated` if needed.
+
+	DROP TRIGGER IF EXISTS `ut_after_update_external_property_level_2`;
+
+DELIMITER $$
+CREATE TRIGGER `ut_after_update_external_property_level_2`
+AFTER UPDATE ON `external_property_level_2_units`
+FOR EACH ROW
+BEGIN
+
+# We only do this if 
+#	- we need to create the property in Unee-T
+#	- We have a `external_id`
+#	- We have a `external_system_id`
+#	- We have a `external_table`
+#	- We have a `organization_id`
+#	- We have a `tower`
+#	- We have a MEFE user ID for the user who did the update
+#	- The unit was already marked as needed to be created in Unee-T
+#	- The unit already exists in the table `property_level_2_units`
+#	- We have a valid building_id for that unit.
+#	- The `do_not_insert_field` is NOT equal to 1
+#	- This is a valid update method:
+#		- `imported_from_hmlet_ipi`
+#		- `Manage_Units_Add_Page`
+#		- `Manage_Units_Edit_Page`
+#		- 'Manage_Units_Import_Page'
+#		- 'Export_and_Import_Units_Import_Page'
+
+
+# Capture the variables we need to verify if conditions are met:
+
+	SET @is_creation_needed_in_unee_t_update_extl2 = NEW.`is_creation_needed_in_unee_t` ;
+
+	SET @source_system_creator_update_extl2 = NEW.`created_by_id` ;
+	SET @source_system_updater_update_extl2 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_update_extl2
+			, NEW.`updated_by_id`
+			)
+		);
+
+	SET @creator_mefe_user_id_update_extl2 = (SELECT `mefe_user_id` 
+		FROM `ut_organization_mefe_user_id`
+		WHERE `organization_id` = @source_system_creator_update_extl2
+		)
+		;
+
+	SET @upstream_create_method_update_extl2 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_extl2 = NEW.`update_method` ;
+
+	SET @organization_id_update_extl2 = @source_system_creator_update_extl2 ;
+
+	SET @external_id_update_extl2 = NEW.`external_id` ;
+	SET @external_system_id_update_extl2 = NEW.`external_system_id` ; 
+	SET @external_table_update_extl2 = NEW.`external_table` ;
+	SET @tower_update_extl2 = NEW.`tower` ;
+
+	SET @new_is_creation_needed_in_unee_t_update_extl2 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @old_is_creation_needed_in_unee_t_update_extl2 = OLD.`is_creation_needed_in_unee_t` ;
+
+	SET @id_in_property_level_2_units_update_extl2 = (SELECT `system_id_unit`
+		FROM `property_level_2_units`
+		WHERE `external_system_id` = @external_system_id_update_extl2
+			AND `external_table` = @external_table_update_extl2
+			AND `external_id` = @external_id_update_extl2
+			AND `organization_id` = @organization_id_update_extl2
+		);
+
+	SET @upstream_do_not_insert_update_extl2 = NEW.`do_not_insert` ;
+
+	# This is an UPDATE - the record SHOULD exist already
+
+		SET @do_not_insert_update_extl2 = (IF (@id_in_property_level_2_units_update_extl2 IS NULL
+				, 1
+				, @upstream_do_not_insert_update_extl2
+				)
+			);
+
+	# Get the information about the building for that unit...
+	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_external_property_level_1_buildings`)
+	
+		SET @building_id_1_update_extl2 = NEW.`building_system_id` ;
+
+		SET @tower_update_extl2 = NEW.`tower` ;
+
+		SET @building_external_id_update_extl2 = (SELECT `external_id`
+			FROM `external_property_level_1_buildings`
+			WHERE `id_building` = @building_id_1_update_extl2
+				);
+		SET @building_external_system_id_update_extl2 = (SELECT `external_system_id`
+			FROM `external_property_level_1_buildings`
+			WHERE `id_building` = @building_id_1_update_extl2
+			);
+		SET @building_external_table_update_extl2 = (SELECT `external_table`
+		   FROM `external_property_level_1_buildings`
+			WHERE `id_building` = @building_id_1_update_extl2
+			);
+		SET @building_external_tower_update_extl2 = (SELECT `tower`
+			FROM `external_property_level_1_buildings`
+			WHERE `id_building` = @building_id_1_update_extl2
+			);
+
+		SET @building_system_id_update_extl2 = (SELECT `id_building`
+			FROM `property_level_1_buildings`
+			WHERE `external_id` = @building_external_id_update_extl2
+				AND `external_system_id` = @building_external_system_id_update_extl2
+				AND `external_table` = @building_external_table_update_extl2
+				AND `organization_id` = @organization_id_update_extl2
+				AND `tower` = @building_external_tower_update_extl2
+				);
+
+# We can now check if the conditions are met:
+
+	IF @is_creation_needed_in_unee_t_update_ext_l2_2 = 1
+		AND @do_not_insert_update_ext_l2_2 = 0
+		AND @external_id_update_ext_l2_2 IS NOT NULL
+		AND @external_system_id_update_ext_l2_2 IS NOT NULL
+		AND @external_table_update_ext_l2_2 IS NOT NULL
+		AND @tower_update_ext_l2_2 IS NOT NULL
+		AND @organization_id_update_ext_l2_2 IS NOT NULL
+		AND @building_system_id_update_ext_l2_2 IS NOT NULL
+		AND (@upstream_update_method_update_ext_l2_2 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_ext_l2_2 = 'Manage_Units_Add_Page'
+			OR @upstream_update_method_update_ext_l2_2 = 'Manage_Units_Edit_Page'
+			OR @upstream_update_method_update_ext_l2_2 = 'Manage_Units_Import_Page'
+			OR @upstream_update_method_update_ext_l2_2 = 'Export_and_Import_Units_Import_Page'
+			)
+	THEN 
+
+	# The conditions are met: we capture the other variables we need
+
+		SET @syst_created_datetime_update_extl2 = NOW();
+		SET @creation_system_id_update_extl2 = (SELECT `id_external_sot_for_unee_t` 
+			FROM `ut_external_sot_for_unee_t_objects`
+			WHERE `organization_id` = @source_system_creator_update_extl2
+			)
+			;
+		SET @created_by_id_update_extl2 = @creator_mefe_user_id_update_extl2 ;
+		SET @downstream_creation_method_update_extl2 = @this_trigger_update_extl2 ;
+
+		SET @syst_updated_datetime_update_extl2 = NOW();
+
+		SET @update_system_id_update_extl2 = (SELECT `id_external_sot_for_unee_t` 
+			FROM `ut_external_sot_for_unee_t_objects`
+			WHERE `organization_id` = @source_system_updater_update_extl2
+			)
+			;
+		SET @updated_by_id_update_extl2 = @creator_mefe_user_id_update_extl2 ;
+		SET @downstream_update_method_update_extl2 = @this_trigger_update_extl2 ;
+
+		SET @organization_id_create_update_extl2 = @source_system_creator_update_extl2 ;
+		SET @organization_id_update_update_extl2 = @source_system_updater_update_extl2 ;
+
+		SET @activated_by_id_update_extl2 = NEW.`activated_by_id` ;
+		SET @is_obsolete_update_extl2 = NEW.`is_obsolete` ;
+		SET @is_creation_needed_in_unee_t_update_extl2 = NEW.`is_creation_needed_in_unee_t` ;
+		SET @unee_t_unit_type_update_extl2 = NEW.`unee_t_unit_type` ;
+			
+		SET @unit_category_id_update_extl2 = NEW.`unit_category_id` ;
+		SET @designation_update_extl2 = NEW.`designation` ;
+		SET @count_rooms_update_extl2 = NEW.`count_rooms` ;
+		SET @unit_id_update_extl2 = NEW.`unit_id` ;
+		SET @surface_update_extl2 = NEW.`surface` ;
+		SET @surface_measurment_unit_update_extl2 = NEW.`surface_measurment_unit` ;
+		SET @description_update_extl2 = NEW.`description` ;
+
+		IF @new_is_creation_needed_in_unee_t_update_ext_l2_2 = @old_is_creation_needed_in_unee_t_update_ext_l2_2
+		THEN 
+			
+			# This is option 1
+
+				SET @this_trigger_update_extl2 = 'ut_update_external_property_level_2';
+
+			# We have all the variables, we can call the procedure that does the update
+
+				CALL `ut_update_L2P_when_ext_L2P_is_updated` ;
+
+
+		END IF;
+
+		ELSEIF @new_is_creation_needed_in_unee_t_update_ext_l2_2 != @old_is_creation_needed_in_unee_t_update_ext_l2_2
+		THEN 
+
+			# This is option 2
+
+				SET @this_trigger_update_ext_l2 = 'ut_update_external_property_level_2_creation_needed';
+
+			# We have all the variables, we can call the procedure that does the update
+
+				CALL `ut_update_L2P_when_ext_L2P_is_updated` ;
+
+		
+		END IF;
+
+	# The conditions are NOT met <-- we do nothing
+				
+END;
+$$
+DELIMITER ;
 #
 #
 #
