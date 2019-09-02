@@ -114,6 +114,10 @@
 
 	DROP TRIGGER IF EXISTS `ut_update_external_property_level_2`;
 	DROP TRIGGER IF EXISTS `ut_update_external_property_level_2_creation_needed`;
+	
+	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_unit_creation_needed`;
+	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_edit_level_2`;
+
 
 # Create the The procedure that does the update in the table `property_level_2_units`
 # When the table `external_property_level_2_units` has been updated
@@ -418,6 +422,229 @@ BEGIN
 END;
 $$
 DELIMITER ;
+
+
+
+# Create the procedure that does the update in the table `ut_map_external_source_units`
+# When the table `property_level_2_units` has been updated
+
+	DROP PROCEDURE IF EXISTS `ut_update_uneet_when_L2P_is_updated`;
+
+DELIMITER $$
+CREATE PROCEDURE `ut_update_uneet_when_L2P_is_updated`()
+	LANGUAGE SQL
+SQL SECURITY INVOKER
+BEGIN
+
+		# We insert/Update a new record in the table `ut_map_external_source_units`
+
+			INSERT INTO `ut_map_external_source_units`
+				( `syst_created_datetime`
+				, `creation_system_id`
+				, `created_by_id`
+				, `creation_method`
+				, `organization_id`
+				, `is_obsolete`
+				, `is_update_needed`
+				, `is_mefe_api_success`
+				, `mefe_api_error_message`
+				, `uneet_name`
+				, `unee_t_unit_type`
+				, `new_record_id`
+				, `external_property_type_id`
+				, `external_property_id`
+				, `external_system`
+				, `table_in_external_system`
+				)
+				VALUES
+					(@syst_created_datetime_update_l2
+					, @creation_system_id_update_l2
+					, @created_by_id_update_l2
+					, @creation_method_update_l2
+					, @organization_id_update_l2
+					, @is_obsolete_update_l2
+					, @is_update_needed_update_l2
+					, @is_mefe_api_success_update_l2
+					, @mefe_api_error_message_update_l2
+					, @uneet_name_update_l2
+					, @unee_t_unit_type_update_l2
+					, @new_record_id_update_l2
+					, @external_property_type_id_update_l2
+					, @external_property_id_update_l2
+					, @external_system_update_l2
+					, @table_in_external_system_update_l2
+					)
+				ON DUPLICATE KEY UPDATE
+					`syst_updated_datetime` = @syst_updated_datetime_update_l2
+					, `update_system_id` = @update_system_id_update_l2
+					, `updated_by_id` = @updated_by_id_update_l2
+					, `update_method` = @update_method_update_l2
+					, `organization_id` = @organization_id_update_l2
+					, `is_mefe_api_success` = @is_mefe_api_success_update_l2
+					, `mefe_api_error_message` = @mefe_api_error_message_update_l2
+					, `uneet_name` = @uneet_name_update_l2
+					, `unee_t_unit_type` = @unee_t_unit_type_update_l2
+					, `is_update_needed` = 1
+				;
+				
+END;
+$$
+DELIMITER ;
+
+# Create the trigger when the L2P is updated
+# This trigger will:
+#	- Check if several conditions are met
+#	- Capture the value we need in several variables
+#	- Call the procedure `ut_update_uneet_when_L2P_is_updated` if needed.
+
+	DROP TRIGGER IF EXISTS `ut_after_update_property_level_2`;
+
+DELIMITER $$
+CREATE TRIGGER `ut_after_update_property_level_2`
+AFTER UPDATE ON `property_level_2_units`
+FOR EACH ROW
+BEGIN
+
+# We only do this IF:
+# 	- We need to create the unit in Unee-T
+#	- The unit is NOT marked as `do_not_insert`
+#	- We do NOT have a MEFE unit ID for that unit
+#	- This is done via an authorized update method:
+#		- 'ut_insert_external_property_level_2'
+#		- 'ut_update_external_property_level_2_creation_needed'
+
+# Capture the variables we need to verify if conditions are met:
+
+
+	SET @is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
+
+	SET @new_is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
+	SET @old_is_creation_needed_in_unee_t_update_l2 = OLD.`is_creation_needed_in_unee_t`;
+
+	SET @do_not_insert_update_l2_raw = NEW.`do_not_insert` ;
+
+	SET @system_id_unit_update_l2 = NEW.`system_id_unit` ;
+
+	SET @mefe_unit_id_update_l2 = NULL ;
+
+	SET @mefe_unit_id_update_l2 = (SELECT `unee_t_mefe_unit_id`
+		FROM `ut_map_external_source_units`
+		WHERE `new_record_id` = @system_id_unit_update_l2
+			AND `external_property_type_id` = 2
+		);
+
+	# This is an insert - if the record does NOT exist, we create the record
+	# unless 
+	#	- it is specifically specified that we do NOT need to create the record.
+	#	- the record is marked as obsolete
+
+		SET @is_obsolete_update_l2 = NEW.`is_obsolete`;
+
+		SET @do_not_insert_update_l2 = (IF (@do_not_insert_update_l2_raw IS NULL
+				, IF (@is_obsolete_update_l2 != 0
+					, 1
+					, 0
+					)
+				, IF (@is_obsolete_update_l2 != 0
+					, 1
+					, NEW.`do_not_insert`
+					)
+				)
+			);
+
+	SET @upstream_create_method_update_l2 = NEW.`creation_method` ;
+	SET @upstream_update_method_update_l2 = NEW.`update_method` ;
+
+# We can now check if the conditions are met:
+
+	IF @is_creation_needed_in_unee_t_update_l2 = 1
+		AND @do_not_insert_update_l2 = 0
+		AND (@upstream_create_method_update_l2 = 'ut_insert_external_property_level_2'
+			OR @upstream_update_method_update_l2 = 'ut_insert_external_property_level_2'
+			OR @upstream_create_method_update_l2 = 'ut_update_external_property_level_2_creation_needed'
+			OR @upstream_update_method_update_l2 = 'ut_update_external_property_level_2_creation_needed'
+			)
+	THEN 
+
+	# The conditions are met: we capture the other variables we need
+
+		SET @syst_created_datetime_update_l2 = NOW();
+		SET @creation_system_id_update_l2 = NEW.`update_system_id`;
+		SET @created_by_id_update_l2 = NEW.`updated_by_id`;
+		SET @creation_method_update_l2 = @this_trigger_update_l2 ;
+
+		SET @syst_updated_datetime_update_l2 = NOW();
+		SET @update_system_id_update_l2 = NEW.`update_system_id`;
+		SET @updated_by_id_update_l2 = NEW.`updated_by_id`;
+		SET @update_method_update_l2 = @this_trigger_update_l2 ;
+
+		SET @organization_id_update_l2 = NEW.`organization_id`;
+		
+		SET @is_update_needed_update_l2 = NULL;
+		
+		SET @uneet_name_update_l2 = NEW.`designation`;
+
+		SET @unee_t_unit_type_update_l2 = (IFNULL(NEW.`unee_t_unit_type`
+				, 'Unknown'
+				)
+			)
+			;
+			
+		SET @new_record_id_update_l2 = NEW.`system_id_unit`;
+		SET @external_property_type_id_update_l2 = 2;
+
+		SET @external_property_id_update_l2 = NEW.`external_id`;
+		SET @external_system_update_l2 = NEW.`external_system_id`;
+		SET @table_in_external_system_update_l2 = NEW.`external_table`;			
+
+
+		IF @mefe_unit_id_update_l2 IS NOT NULL
+		THEN 
+			
+			# This is option 1 - creation is NOT needed
+
+				SET @this_trigger_update_l2 = 'ut_update_map_external_source_unit_edit_level_2';
+
+			# We have all the variables, we can call the procedure that does the update
+
+				CALL `ut_update_uneet_when_L2P_is_updated` ;
+
+
+		END IF;
+
+		ELSEIF @mefe_unit_id_update_l2_2 IS NULL
+		THEN 
+
+			# This is option 2 - creation IS needed
+
+				SET @this_trigger_update_l2 = 'ut_update_map_external_source_unit_add_unit_creation_needed';
+
+			# We have all the variables, we can call the procedure that does the update
+
+				CALL `ut_update_uneet_when_L2P_is_updated` ;
+
+		
+		END IF;
+
+
+	# The conditions are NOT met <-- we do nothing
+				
+END;
+$$
+DELIMITER ;
+
+
+
+
+
+
+
+
+
+
+
+
+
 #
 #
 #
