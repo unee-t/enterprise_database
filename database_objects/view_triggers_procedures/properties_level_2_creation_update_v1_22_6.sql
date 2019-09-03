@@ -500,7 +500,6 @@ BEGIN
 			)
 			;
 		SET @created_by_id_update_extl2 = @creator_mefe_user_id_update_extl2 ;
-		SET @downstream_creation_method_update_extl2 = @this_trigger_update_extl2 ;
 
 		SET @syst_updated_datetime_update_extl2 = NOW();
 
@@ -510,7 +509,6 @@ BEGIN
 			)
 			;
 		SET @updated_by_id_update_extl2 = @creator_mefe_user_id_update_extl2 ;
-		SET @downstream_update_method_update_extl2 = @this_trigger_update_extl2 ;
 
 		SET @organization_id_create_update_extl2 = @source_system_creator_update_extl2 ;
 		SET @organization_id_update_update_extl2 = @source_system_updater_update_extl2 ;
@@ -534,6 +532,8 @@ BEGIN
 			# This is option 1 - creation is NOT needed
 
 				SET @this_trigger_update_extl2 = 'ut_update_external_property_level_2';
+				SET @downstream_creation_method_update_extl2 = @this_trigger_update_extl2 ;
+				SET @downstream_update_method_update_extl2 = @this_trigger_update_extl2 ;
 
 			# We have all the variables, we can call the procedure that does the update
 
@@ -548,6 +548,8 @@ BEGIN
 			# This is option 2 - creation IS needed
 
 				SET @this_trigger_update_extl2 = 'ut_update_external_property_level_2_creation_needed';
+				SET @downstream_creation_method_update_extl2 = @this_trigger_update_extl2 ;
+				SET @downstream_update_method_update_extl2 = @this_trigger_update_extl2 ;
 
 			# We have all the variables, we can call the procedure that does the update
 
@@ -854,12 +856,10 @@ BEGIN
 		SET @syst_created_datetime_update_l2 = NOW();
 		SET @creation_system_id_update_l2 = NEW.`update_system_id`;
 		SET @created_by_id_update_l2 = NEW.`updated_by_id`;
-		SET @creation_method_update_l2 = @this_trigger_update_l2 ;
 
 		SET @syst_updated_datetime_update_l2 = NOW();
 		SET @update_system_id_update_l2 = NEW.`update_system_id`;
 		SET @updated_by_id_update_l2 = NEW.`updated_by_id`;
-		SET @update_method_update_l2 = @this_trigger_update_l2 ;
 
 		SET @organization_id_update_l2 = NEW.`organization_id`;
 		
@@ -887,6 +887,8 @@ BEGIN
 			# This is option 1 - creation is NOT needed
 
 				SET @this_trigger_update_l2 = 'ut_update_map_external_source_unit_edit_level_2';
+				SET @creation_method_update_l2 = @this_trigger_update_l2 ;
+				SET @update_method_update_l2 = @this_trigger_update_l2 ;
 
 			# We have all the variables, we can call the procedure that does the update
 
@@ -901,14 +903,14 @@ BEGIN
 			# This is option 2 - creation IS needed
 
 				SET @this_trigger_update_l2 = 'ut_update_map_external_source_unit_add_unit_creation_needed';
+				SET @creation_method_update_l2 = @this_trigger_update_l2 ;
+				SET @update_method_update_l2 = @this_trigger_update_l2 ;
 
 			# We have all the variables, we can call the procedure that does the update
 
 				CALL `ut_update_uneet_when_L2P_is_updated` ;
-
 		
 		END IF;
-
 
 	# The conditions are NOT met <-- we do nothing
 				
