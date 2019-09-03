@@ -559,7 +559,7 @@ BEGIN
 	# The conditions are NOT met <-- we do nothing
 
 	END IF;
-	
+
 END;
 $$
 DELIMITER ;
@@ -812,12 +812,6 @@ BEGIN
 
 	SET @mefe_unit_id_update_l2 = NULL ;
 
-	SET @mefe_unit_id_update_l2 = (SELECT `unee_t_mefe_unit_id`
-		FROM `ut_map_external_source_units`
-		WHERE `new_record_id` = @system_id_unit_update_l2
-			AND `external_property_type_id` = 2
-		);
-
 	# This is an insert - if the record does NOT exist, we create the record
 	# unless 
 	#	- it is specifically specified that we do NOT need to create the record.
@@ -878,6 +872,11 @@ BEGIN
 		SET @external_system_update_l2 = NEW.`external_system_id`;
 		SET @table_in_external_system_update_l2 = NEW.`external_table`;			
 
+		SET @mefe_unit_id_update_l2 = (SELECT `unee_t_mefe_unit_id`
+			FROM `ut_map_external_source_units`
+			WHERE `new_record_id` = @system_id_unit_update_l2
+				AND `external_property_type_id` = 2
+			);
 
 		IF @mefe_unit_id_update_l2 IS NOT NULL
 		THEN 
