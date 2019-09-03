@@ -800,36 +800,9 @@ BEGIN
 
 # Capture the variables we need to verify if conditions are met:
 
-
-	SET @is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
-
-	SET @new_is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
-	SET @old_is_creation_needed_in_unee_t_update_l2 = OLD.`is_creation_needed_in_unee_t`;
-
-	SET @do_not_insert_update_l2_raw = NEW.`do_not_insert` ;
-
 	SET @system_id_unit_update_l2 = NEW.`system_id_unit` ;
 
 	SET @mefe_unit_id_update_l2 = NULL ;
-
-	# This is an insert - if the record does NOT exist, we create the record
-	# unless 
-	#	- it is specifically specified that we do NOT need to create the record.
-	#	- the record is marked as obsolete
-
-		SET @is_obsolete_update_l2 = NEW.`is_obsolete`;
-
-		SET @do_not_insert_update_l2 = (IF (@do_not_insert_update_l2_raw IS NULL
-				, IF (@is_obsolete_update_l2 != 0
-					, 1
-					, 0
-					)
-				, IF (@is_obsolete_update_l2 != 0
-					, 1
-					, NEW.`do_not_insert`
-					)
-				)
-			);
 
 	SET @upstream_create_method_update_l2 = NEW.`creation_method` ;
 	SET @upstream_update_method_update_l2 = NEW.`update_method` ;
@@ -876,6 +849,32 @@ BEGIN
 			FROM `ut_map_external_source_units`
 			WHERE `new_record_id` = @system_id_unit_update_l2
 				AND `external_property_type_id` = 2
+			);
+
+		# If the record does NOT exist, we create the record
+		# unless 
+		#	- it is specifically specified that we do NOT need to create the record.
+		#	- the record is marked as obsolete
+
+		SET @is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
+
+		SET @new_is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
+		SET @old_is_creation_needed_in_unee_t_update_l2 = OLD.`is_creation_needed_in_unee_t`;
+
+		SET @do_not_insert_update_l2_raw = NEW.`do_not_insert` ;
+
+		SET @is_obsolete_update_l2 = NEW.`is_obsolete`;
+
+		SET @do_not_insert_update_l2 = (IF (@do_not_insert_update_l2_raw IS NULL
+				, IF (@is_obsolete_update_l2 != 0
+					, 1
+					, 0
+					)
+				, IF (@is_obsolete_update_l2 != 0
+					, 1
+					, NEW.`do_not_insert`
+					)
+				)
 			);
 
 		IF @mefe_unit_id_update_l2 IS NOT NULL
