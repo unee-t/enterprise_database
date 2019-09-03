@@ -6,6 +6,15 @@
 #
 #################
 
+# This script creates or updates the following 
+# 	- Procedures: 
+#		- `ut_update_L2P_when_ext_L2P_is_updated`
+#		- `ut_update_uneet_when_L2P_is_updated`
+#	- triggers:
+#		- `ut_insert_external_property_level_2`
+#		- `ut_after_update_external_property_level_2`
+#		- `ut_after_update_property_level_2`
+
 # We create a trigger when a record is added to the `external_property_level_2_units` table
 
 	DROP TRIGGER IF EXISTS `ut_insert_external_property_level_2`;
@@ -432,14 +441,6 @@ BEGIN
 
 	SET @upstream_do_not_insert_update_extl2 = NEW.`do_not_insert` ;
 
-	# This is an UPDATE - the record SHOULD exist already
-
-		SET @do_not_insert_update_extl2 = (IF (@id_in_property_level_2_units_update_extl2 IS NULL
-				, 1
-				, @upstream_do_not_insert_update_extl2
-				)
-			);
-
 	# Get the information about the building for that unit...
 	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_external_property_level_1_buildings`)
 	
@@ -476,7 +477,7 @@ BEGIN
 # We can now check if the conditions are met:
 
 	IF @is_creation_needed_in_unee_t_update_extl2 = 1
-		AND @do_not_insert_update_extl2 = 0
+		AND @upstream_do_not_insert_update_extl2 = 0
 		AND @external_id_update_extl2 IS NOT NULL
 		AND @external_system_id_update_extl2 IS NOT NULL
 		AND @external_table_update_extl2 IS NOT NULL
@@ -539,9 +540,6 @@ BEGIN
 
 				CALL `ut_update_L2P_when_extl2P_is_updated` ;
 
-
-		END IF;
-
 		ELSEIF @new_is_creation_needed_in_unee_t_update_extl2 != @old_is_creation_needed_in_unee_t_update_extl2
 		THEN 
 
@@ -559,7 +557,9 @@ BEGIN
 		END IF;
 
 	# The conditions are NOT met <-- we do nothing
-				
+
+	END IF;
+	
 END;
 $$
 DELIMITER ;
@@ -842,9 +842,7 @@ BEGIN
 
 # We can now check if the conditions are met:
 
-	IF @is_creation_needed_in_unee_t_update_l2 = 1
-		AND @do_not_insert_update_l2 = 0
-		AND (@upstream_create_method_update_l2 = 'ut_insert_external_property_level_2'
+	IF (@upstream_create_method_update_l2 = 'ut_insert_external_property_level_2'
 			OR @upstream_update_method_update_l2 = 'ut_insert_external_property_level_2'
 			OR @upstream_create_method_update_l2 = 'ut_update_external_property_level_2_creation_needed'
 			OR @upstream_update_method_update_l2 = 'ut_update_external_property_level_2_creation_needed'
@@ -894,10 +892,9 @@ BEGIN
 
 				CALL `ut_update_uneet_when_L2P_is_updated` ;
 
-
-		END IF;
-
-		ELSEIF @mefe_unit_id_update_l2_2 IS NULL
+		ELSEIF @is_creation_needed_in_unee_t_update_l2 = 1
+			AND @mefe_unit_id_update_l2 IS NULL
+			AND @do_not_insert_update_l2 = 0
 		THEN 
 
 			# This is option 2 - creation IS needed
@@ -911,6 +908,8 @@ BEGIN
 				CALL `ut_update_uneet_when_L2P_is_updated` ;
 		
 		END IF;
+
+	END IF;
 
 	# The conditions are NOT met <-- we do nothing
 				
