@@ -33,45 +33,45 @@ BEGIN
 #		- 'Export_and_Import_Units_Import_Page'
 #		- ''
 
-	SET @is_creation_needed_in_unee_t_insert_ext_l2_1 = NEW.`is_creation_needed_in_unee_t` ;
+	SET @is_creation_needed_in_unee_t_insert_extl2_1 = NEW.`is_creation_needed_in_unee_t` ;
 
-	SET @source_system_creator_insert_ext_l2_1 = NEW.`created_by_id` ;
-	SET @source_system_updater_insert_ext_l2_1 = (IF(NEW.`updated_by_id` IS NULL
-			, @source_system_creator_insert_ext_l2_1
+	SET @source_system_creator_insert_extl2_1 = NEW.`created_by_id` ;
+	SET @source_system_updater_insert_extl2_1 = (IF(NEW.`updated_by_id` IS NULL
+			, @source_system_creator_insert_extl2_1
 			, NEW.`updated_by_id`
 			)
 		);
 
-	SET @creator_mefe_user_id_insert_ext_l2_1 = (SELECT `mefe_user_id` 
+	SET @creator_mefe_user_id_insert_extl2_1 = (SELECT `mefe_user_id` 
 		FROM `ut_organization_mefe_user_id`
-		WHERE `organization_id` = @source_system_creator_insert_ext_l2_1
+		WHERE `organization_id` = @source_system_creator_insert_extl2_1
 		)
 		;
 
-	SET @upstream_create_method_insert_ext_l2_1 = NEW.`creation_method` ;
-	SET @upstream_update_method_insert_ext_l2_1 = NEW.`update_method` ;
+	SET @upstream_create_method_insert_extl2_1 = NEW.`creation_method` ;
+	SET @upstream_update_method_insert_extl2_1 = NEW.`update_method` ;
 
-	SET @external_system_id_insert_ext_l2_1 = NEW.`external_system_id` ;
-	SET @external_table_insert_ext_l2_1 = NEW.`external_table` ;
-	SET @external_id_insert_ext_l2_1 = NEW.`external_id` ;
+	SET @external_system_id_insert_extl2_1 = NEW.`external_system_id` ;
+	SET @external_table_insert_extl2_1 = NEW.`external_table` ;
+	SET @external_id_insert_extl2_1 = NEW.`external_id` ;
 
-	SET @organization_id_insert_ext_l2_1 = @source_system_creator_insert_ext_l2_1 ;
+	SET @organization_id_insert_extl2_1 = @source_system_creator_insert_extl2_1 ;
 
-	SET @id_in_property_level_2_units_insert_ext_l2_1 = (SELECT `system_id_unit`
+	SET @id_in_property_level_2_units_insert_extl2_1 = (SELECT `system_id_unit`
 		FROM `property_level_2_units`
-		WHERE `external_system_id` = @external_system_id_insert_ext_l2_1
-			AND `external_table` = @external_table_insert_ext_l2_1
-			AND `external_id` = @external_id_insert_ext_l2_1
-			AND `organization_id` = @organization_id_insert_ext_l2_1
+		WHERE `external_system_id` = @external_system_id_insert_extl2_1
+			AND `external_table` = @external_table_insert_extl2_1
+			AND `external_id` = @external_id_insert_extl2_1
+			AND `organization_id` = @organization_id_insert_extl2_1
 		);
 		
-	SET @upstream_do_not_insert_insert_ext_l2_1 = NEW.`do_not_insert` ;
+	SET @upstream_do_not_insert_insert_extl2_1 = NEW.`do_not_insert` ;
 
 	# This is an INSERT - the record should NOT exist already
 
-		SET @do_not_insert_insert_ext_l2_1 = (IF (@id_in_property_level_2_units_insert_ext_l2_1 IS NULL
+		SET @do_not_insert_insert_extl2_1 = (IF (@id_in_property_level_2_units_insert_extl2_1 IS NULL
 				, 0
-				, @upstream_do_not_insert_insert_ext_l2_1
+				, @upstream_do_not_insert_insert_extl2_1
 				)
 			
 			);
@@ -79,94 +79,94 @@ BEGIN
 	# Get the information about the building for that unit...
 	# We need the information from the table `external_property_level_2_units` (and NOT the table `external_external_property_level_1_buildings`)
 	
-		SET @building_id_1_insert_ext_l2_1 = NEW.`building_system_id` ;
+		SET @building_id_1_insert_extl2_1 = NEW.`building_system_id` ;
 
-		SET @tower_insert_ext_l2_1 = NEW.`tower` ;
+		SET @tower_insert_extl2_1 = NEW.`tower` ;
 
-		SET @building_external_id_insert_ext_l2_1 = (SELECT `external_id`
+		SET @building_external_id_insert_extl2_1 = (SELECT `external_id`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_1_insert_ext_l2_1
+			WHERE `id_building` = @building_id_1_insert_extl2_1
 				);
-		SET @building_external_system_id_insert_ext_l2_1 = (SELECT `external_system_id`
+		SET @building_external_system_id_insert_extl2_1 = (SELECT `external_system_id`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_1_insert_ext_l2_1
+			WHERE `id_building` = @building_id_1_insert_extl2_1
 			);
-		SET @building_external_table_insert_ext_l2_1 = (SELECT `external_table`
+		SET @building_external_table_insert_extl2_1 = (SELECT `external_table`
 		   FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_1_insert_ext_l2_1
+			WHERE `id_building` = @building_id_1_insert_extl2_1
 			);
-		SET @building_external_tower_insert_ext_l2_1 = (SELECT `tower`
+		SET @building_external_tower_insert_extl2_1 = (SELECT `tower`
 			FROM `external_property_level_1_buildings`
-			WHERE `id_building` = @building_id_1_insert_ext_l2_1
+			WHERE `id_building` = @building_id_1_insert_extl2_1
 			);
 
-		SET @building_system_id_insert_ext_l2_1 = (SELECT `id_building`
+		SET @building_system_id_insert_extl2_1 = (SELECT `id_building`
 			FROM `property_level_1_buildings`
-			WHERE `external_id` = @building_external_id_insert_ext_l2_1
-				AND `external_system_id` = @building_external_system_id_insert_ext_l2_1
-				AND `external_table` = @building_external_table_insert_ext_l2_1
-				AND `organization_id` = @organization_id_insert_ext_l2_1
-				AND `tower` = @building_external_tower_insert_ext_l2_1
+			WHERE `external_id` = @building_external_id_insert_extl2_1
+				AND `external_system_id` = @building_external_system_id_insert_extl2_1
+				AND `external_table` = @building_external_table_insert_extl2_1
+				AND `organization_id` = @organization_id_insert_extl2_1
+				AND `tower` = @building_external_tower_insert_extl2_1
 				);
 
-	IF @is_creation_needed_in_unee_t_insert_ext_l2_1 = 1
-		AND @do_not_insert_insert_ext_l2_1 = 0
-		AND @external_id_insert_ext_l2_1 IS NOT NULL
-		AND @external_system_id_insert_ext_l2_1 IS NOT NULL
-		AND @external_table_insert_ext_l2_1 IS NOT NULL
-		AND @organization_id_insert_ext_l2_1 IS NOT NULL
-		AND @building_system_id_insert_ext_l2_1 IS NOT NULL
-		AND (@upstream_create_method_insert_ext_l2_1 = 'imported_from_hmlet_ipi'
-			OR @upstream_create_method_insert_ext_l2_1 = 'Manage_Units_Add_Page'
-			OR @upstream_create_method_insert_ext_l2_1 = 'Manage_Units_Edit_Page'
-			OR @upstream_create_method_insert_ext_l2_1 = 'Manage_Units_Import_Page'
-			OR @upstream_update_method_insert_ext_l2_1 = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method_insert_ext_l2_1 = 'Manage_Units_Add_Page'
-			OR @upstream_update_method_insert_ext_l2_1 = 'Manage_Units_Edit_Page'
-			OR @upstream_create_method_insert_ext_l2_1 = 'Manage_Units_Import_Page'
-			OR @upstream_update_method_insert_ext_l2_1 = 'Export_and_Import_Units_Import_Page'
-			OR @upstream_create_method_insert_ext_l2_1 = 'Export_and_Import_Units_Import_Page'
+	IF @is_creation_needed_in_unee_t_insert_extl2_1 = 1
+		AND @do_not_insert_insert_extl2_1 = 0
+		AND @external_id_insert_extl2_1 IS NOT NULL
+		AND @external_system_id_insert_extl2_1 IS NOT NULL
+		AND @external_table_insert_extl2_1 IS NOT NULL
+		AND @organization_id_insert_extl2_1 IS NOT NULL
+		AND @building_system_id_insert_extl2_1 IS NOT NULL
+		AND (@upstream_create_method_insert_extl2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_create_method_insert_extl2_1 = 'Manage_Units_Add_Page'
+			OR @upstream_create_method_insert_extl2_1 = 'Manage_Units_Edit_Page'
+			OR @upstream_create_method_insert_extl2_1 = 'Manage_Units_Import_Page'
+			OR @upstream_update_method_insert_extl2_1 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_insert_extl2_1 = 'Manage_Units_Add_Page'
+			OR @upstream_update_method_insert_extl2_1 = 'Manage_Units_Edit_Page'
+			OR @upstream_create_method_insert_extl2_1 = 'Manage_Units_Import_Page'
+			OR @upstream_update_method_insert_extl2_1 = 'Export_and_Import_Units_Import_Page'
+			OR @upstream_create_method_insert_extl2_1 = 'Export_and_Import_Units_Import_Page'
 			)
 	THEN 
 
 	# We capture the values we need for the insert/udpate to the `external_property_level_2_units` table:
 
-		SET @this_trigger_insert_ext_l2_1 = 'ut_insert_external_property_level_2' ;
+		SET @this_trigger_insert_extl2_1 = 'ut_insert_external_property_level_2' ;
 
-		SET @syst_created_datetime_insert_ext_l2_1 = NOW();
-		SET @creation_system_id_insert_ext_l2_1 = (SELECT `id_external_sot_for_unee_t` 
+		SET @syst_created_datetime_insert_extl2_1 = NOW();
+		SET @creation_system_id_insert_extl2_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_creator_insert_ext_l2_1
+			WHERE `organization_id` = @source_system_creator_insert_extl2_1
 			)
 			;
-		SET @created_by_id_insert_ext_l2_1 = @creator_mefe_user_id_insert_ext_l2_1 ;
-		SET @downstream_creation_method_insert_ext_l2_1 = @this_trigger_insert_ext_l2_1 ;
+		SET @created_by_id_insert_extl2_1 = @creator_mefe_user_id_insert_extl2_1 ;
+		SET @downstream_creation_method_insert_extl2_1 = @this_trigger_insert_extl2_1 ;
 
-		SET @syst_updated_datetime_insert_ext_l2_1 = NOW();
+		SET @syst_updated_datetime_insert_extl2_1 = NOW();
 
-		SET @update_system_id_insert_ext_l2_1 = (SELECT `id_external_sot_for_unee_t` 
+		SET @update_system_id_insert_extl2_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
-			WHERE `organization_id` = @source_system_updater_insert_ext_l2_1
+			WHERE `organization_id` = @source_system_updater_insert_extl2_1
 			)
 			;
-		SET @updated_by_id_insert_ext_l2_1 = @creator_mefe_user_id_insert_ext_l2_1 ;
-		SET @downstream_update_method_insert_ext_l2_1 = @this_trigger_insert_ext_l2_1 ;
+		SET @updated_by_id_insert_extl2_1 = @creator_mefe_user_id_insert_extl2_1 ;
+		SET @downstream_update_method_insert_extl2_1 = @this_trigger_insert_extl2_1 ;
 
-		SET @organization_id_create_insert_ext_l2_1 = @source_system_creator_insert_ext_l2_1 ;
-		SET @organization_id_update_insert_ext_l2_1 = @source_system_updater_insert_ext_l2_1;
+		SET @organization_id_create_insert_extl2_1 = @source_system_creator_insert_extl2_1 ;
+		SET @organization_id_update_insert_extl2_1 = @source_system_updater_insert_extl2_1;
 
-		SET @activated_by_id_insert_ext_l2_1 = NEW.`activated_by_id` ;
-		SET @is_obsolete_insert_ext_l2_1 = NEW.`is_obsolete` ;
-		SET @is_creation_needed_in_unee_t_insert_ext_l2_1 = NEW.`is_creation_needed_in_unee_t` ;
-		SET @unee_t_unit_type_insert_ext_l2_1 = NEW.`unee_t_unit_type` ;
+		SET @activated_by_id_insert_extl2_1 = NEW.`activated_by_id` ;
+		SET @is_obsolete_insert_extl2_1 = NEW.`is_obsolete` ;
+		SET @is_creation_needed_in_unee_t_insert_extl2_1 = NEW.`is_creation_needed_in_unee_t` ;
+		SET @unee_t_unit_type_insert_extl2_1 = NEW.`unee_t_unit_type` ;
 			
-		SET @unit_category_id_insert_ext_l2_1 = NEW.`unit_category_id` ;
-		SET @designation_insert_ext_l2_1 = NEW.`designation` ;
-		SET @count_rooms_insert_ext_l2_1 = NEW.`count_rooms` ;
-		SET @unit_id_insert_ext_l2_1 = NEW.`unit_id` ;
-		SET @surface_insert_ext_l2_1 = NEW.`surface` ;
-		SET @surface_measurment_unit_insert_ext_l2_1 = NEW.`surface_measurment_unit` ;
-		SET @description_insert_ext_l2_1 = NEW.`description` ;
+		SET @unit_category_id_insert_extl2_1 = NEW.`unit_category_id` ;
+		SET @designation_insert_extl2_1 = NEW.`designation` ;
+		SET @count_rooms_insert_extl2_1 = NEW.`count_rooms` ;
+		SET @unit_id_insert_extl2_1 = NEW.`unit_id` ;
+		SET @surface_insert_extl2_1 = NEW.`surface` ;
+		SET @surface_measurment_unit_insert_extl2_1 = NEW.`surface_measurment_unit` ;
+		SET @description_insert_extl2_1 = NEW.`description` ;
 
 	# We insert the record in the table `property_level_2_units`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -196,60 +196,60 @@ BEGIN
 			, `description`
 			)
 			VALUES
- 				(@external_id_insert_ext_l2_1
-				, @external_system_id_insert_ext_l2_1
-				, @external_table_insert_ext_l2_1
-				, @syst_created_datetime_insert_ext_l2_1
-				, @creation_system_id_insert_ext_l2_1
-				, @created_by_id_insert_ext_l2_1
-				, @downstream_creation_method_insert_ext_l2_1
-				, @organization_id_create_insert_ext_l2_1
-				, @activated_by_id_insert_ext_l2_1
-				, @is_obsolete_insert_ext_l2_1
-				, @is_creation_needed_in_unee_t_insert_ext_l2_1
-				, @do_not_insert_insert_ext_l2_1
-				, @unee_t_unit_type_insert_ext_l2_1
-				, @building_system_id_insert_ext_l2_1
-				, @tower_insert_ext_l2_1
-				, @unit_category_id_insert_ext_l2_1
-				, @designation_insert_ext_l2_1
-				, @count_rooms_insert_ext_l2_1
-				, @unit_id_insert_ext_l2_1
-				, @surface_insert_ext_l2_1
-				, @surface_measurment_unit_insert_ext_l2_1
-				, @description_insert_ext_l2_1
+ 				(@external_id_insert_extl2_1
+				, @external_system_id_insert_extl2_1
+				, @external_table_insert_extl2_1
+				, @syst_created_datetime_insert_extl2_1
+				, @creation_system_id_insert_extl2_1
+				, @created_by_id_insert_extl2_1
+				, @downstream_creation_method_insert_extl2_1
+				, @organization_id_create_insert_extl2_1
+				, @activated_by_id_insert_extl2_1
+				, @is_obsolete_insert_extl2_1
+				, @is_creation_needed_in_unee_t_insert_extl2_1
+				, @do_not_insert_insert_extl2_1
+				, @unee_t_unit_type_insert_extl2_1
+				, @building_system_id_insert_extl2_1
+				, @tower_insert_extl2_1
+				, @unit_category_id_insert_extl2_1
+				, @designation_insert_extl2_1
+				, @count_rooms_insert_extl2_1
+				, @unit_id_insert_extl2_1
+				, @surface_insert_extl2_1
+				, @surface_measurment_unit_insert_extl2_1
+				, @description_insert_extl2_1
  			)
 			ON DUPLICATE KEY UPDATE
- 				`syst_updated_datetime` = @syst_updated_datetime_insert_ext_l2_1
- 				, `update_system_id` = @update_system_id_insert_ext_l2_1
- 				, `updated_by_id` = @updated_by_id_insert_ext_l2_1
-				, `update_method` = @downstream_update_method_insert_ext_l2_1
-				, `activated_by_id` = @activated_by_id_insert_ext_l2_1
-				, `organization_id` = @organization_id_update_insert_ext_l2_1
-				, `is_obsolete` = @is_obsolete_insert_ext_l2_1
-				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_insert_ext_l2_1
-				, `do_not_insert` = @do_not_insert_insert_ext_l2_1
-				, `unee_t_unit_type` = @unee_t_unit_type_insert_ext_l2_1
-				, `building_system_id` = @building_system_id_insert_ext_l2_1
-				, `tower` = @tower_insert_ext_l2_1
-				, `unit_category_id` = @unit_category_id_insert_ext_l2_1
-				, `designation` = @designation_insert_ext_l2_1
-				, `count_rooms` = @count_rooms_insert_ext_l2_1_insert_ext_l2_1
-				, `unit_id` = @unit_id_insert_ext_l2_1
-				, `surface` = @surface_insert_ext_l2_1
-				, `surface_measurment_unit` = @surface_measurment_unit_insert_ext_l2_1
-				, `description` = @description_insert_ext_l2_1
+ 				`syst_updated_datetime` = @syst_updated_datetime_insert_extl2_1
+ 				, `update_system_id` = @update_system_id_insert_extl2_1
+ 				, `updated_by_id` = @updated_by_id_insert_extl2_1
+				, `update_method` = @downstream_update_method_insert_extl2_1
+				, `activated_by_id` = @activated_by_id_insert_extl2_1
+				, `organization_id` = @organization_id_update_insert_extl2_1
+				, `is_obsolete` = @is_obsolete_insert_extl2_1
+				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_insert_extl2_1
+				, `do_not_insert` = @do_not_insert_insert_extl2_1
+				, `unee_t_unit_type` = @unee_t_unit_type_insert_extl2_1
+				, `building_system_id` = @building_system_id_insert_extl2_1
+				, `tower` = @tower_insert_extl2_1
+				, `unit_category_id` = @unit_category_id_insert_extl2_1
+				, `designation` = @designation_insert_extl2_1
+				, `count_rooms` = @count_rooms_insert_extl2_1_insert_extl2_1
+				, `unit_id` = @unit_id_insert_extl2_1
+				, `surface` = @surface_insert_extl2_1
+				, `surface_measurment_unit` = @surface_measurment_unit_insert_extl2_1
+				, `description` = @description_insert_extl2_1
 			;
 
 	# Housekeeping - we make sure that if a unit is obsolete - all rooms in that unit are obsolete too
 
-		SET @system_id_unit_insert_ext_l2_1 = NEW.`system_id_unit` ;
+		SET @system_id_unit_insert_extl2_1 = NEW.`system_id_unit` ;
 
 		UPDATE `external_property_level_3_rooms` AS `a`
 			INNER JOIN `external_property_level_2_units` AS `b`
 				ON (`a`.`system_id_unit` = `b`.`system_id_unit`)
 			SET `a`.`is_obsolete` = `b`.`is_obsolete`
-			WHERE `a`.`system_id_unit` = @system_id_unit_insert_ext_l2_1
+			WHERE `a`.`system_id_unit` = @system_id_unit_insert_extl2_1
 			;
 
 	END IF;
@@ -261,10 +261,10 @@ DELIMITER ;
 # Create the procedure that does the update in the table `property_level_2_units`
 # When the table `external_property_level_2_units` has been updated
 
-	DROP PROCEDURE IF EXISTS `ut_update_L2P_when_ext_L2P_is_updated`;
+	DROP PROCEDURE IF EXISTS `ut_update_L2P_when_extl2P_is_updated`;
 
 DELIMITER $$
-CREATE PROCEDURE `ut_update_L2P_when_ext_L2P_is_updated`()
+CREATE PROCEDURE `ut_update_L2P_when_extl2P_is_updated`()
 	LANGUAGE SQL
 SQL SECURITY INVOKER
 BEGIN
@@ -362,7 +362,7 @@ DELIMITER ;
 # This trigger will:
 #	- Check if several conditions are met
 #	- Capture the value we need in several variables
-#	- Call the procedure `ut_update_L2P_when_ext_L2P_is_updated` if needed.
+#	- Call the procedure `ut_update_L2P_when_extl2P_is_updated` if needed.
 
 	DROP TRIGGER IF EXISTS `ut_after_update_external_property_level_2`;
 
@@ -476,18 +476,18 @@ BEGIN
 # We can now check if the conditions are met:
 
 	IF @is_creation_needed_in_unee_t_update_extl2 = 1
-		AND @do_not_insert_update_ext_l2 = 0
-		AND @external_id_update_ext_l2 IS NOT NULL
-		AND @external_system_id_update_ext_l2 IS NOT NULL
-		AND @external_table_update_ext_l2 IS NOT NULL
-		AND @tower_update_ext_l2 IS NOT NULL
-		AND @organization_id_update_ext_l2 IS NOT NULL
-		AND @building_system_id_update_ext_l2 IS NOT NULL
-		AND (@upstream_update_method_update_ext_l2 = 'imported_from_hmlet_ipi'
-			OR @upstream_update_method_update_ext_l2 = 'Manage_Units_Add_Page'
-			OR @upstream_update_method_update_ext_l2 = 'Manage_Units_Edit_Page'
-			OR @upstream_update_method_update_ext_l2 = 'Manage_Units_Import_Page'
-			OR @upstream_update_method_update_ext_l2 = 'Export_and_Import_Units_Import_Page'
+		AND @do_not_insert_update_extl2 = 0
+		AND @external_id_update_extl2 IS NOT NULL
+		AND @external_system_id_update_extl2 IS NOT NULL
+		AND @external_table_update_extl2 IS NOT NULL
+		AND @tower_update_extl2 IS NOT NULL
+		AND @organization_id_update_extl2 IS NOT NULL
+		AND @building_system_id_update_extl2 IS NOT NULL
+		AND (@upstream_update_method_update_extl2 = 'imported_from_hmlet_ipi'
+			OR @upstream_update_method_update_extl2 = 'Manage_Units_Add_Page'
+			OR @upstream_update_method_update_extl2 = 'Manage_Units_Edit_Page'
+			OR @upstream_update_method_update_extl2 = 'Manage_Units_Import_Page'
+			OR @upstream_update_method_update_extl2 = 'Export_and_Import_Units_Import_Page'
 			)
 	THEN 
 
@@ -537,7 +537,7 @@ BEGIN
 
 			# We have all the variables, we can call the procedure that does the update
 
-				CALL `ut_update_L2P_when_ext_L2P_is_updated` ;
+				CALL `ut_update_L2P_when_extl2P_is_updated` ;
 
 
 		END IF;
@@ -547,11 +547,11 @@ BEGIN
 
 			# This is option 2 - creation IS needed
 
-				SET @this_trigger_update_ext_l2 = 'ut_update_external_property_level_2_creation_needed';
+				SET @this_trigger_update_extl2 = 'ut_update_external_property_level_2_creation_needed';
 
 			# We have all the variables, we can call the procedure that does the update
 
-				CALL `ut_update_L2P_when_ext_L2P_is_updated` ;
+				CALL `ut_update_L2P_when_extl2P_is_updated` ;
 
 		
 		END IF;
