@@ -44,8 +44,8 @@
 # For more details, see
 # https://docs.google.com/document/d/1IyLZHC6nmmeOaTdDkswLUN4QbEC_BG_FfwwuWoNyF5E/edit?usp=sharing
 #
-#OK	- Replace the code `alambda_simple` with `push`. See https://github.com/unee-t/bz-database/issues/73#issuecomment-526525084 for more details
-#	- Fix a bug in the table `log_lambdas` Make sure the field to store lambda calls is big enough
+#OK	- Replace the code `alambda_simple` with `ut_lambda2sqs_push`. See https://github.com/unee-t/bz-database/issues/73#issuecomment-526525084 for more details
+#OK	- Fix a bug in the table `log_lambdas` Make sure the field to store lambda calls is big enough
 # 
 # - Create new tables
 #	- ``
