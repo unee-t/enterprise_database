@@ -544,10 +544,10 @@ DELIMITER ;
 
 # Create a trigger to update the table that will fire the lambda each time a new Room needs to be created
 
-	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_room`;
+	DROP TRIGGER IF EXISTS `ut_after_update_property_level_3`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_update_map_external_source_unit_add_room`
+CREATE TRIGGER `ut_after_update_property_level_3`
 AFTER INSERT ON `property_level_3_rooms`
 FOR EACH ROW
 BEGIN
