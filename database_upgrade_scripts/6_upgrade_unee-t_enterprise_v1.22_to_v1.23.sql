@@ -31,8 +31,8 @@
 #
 # What are the version of the Unee-T BZ Database schema BEFORE and AFTER this update?
 
-	SET @old_schema_version := 'v1.22.0';
-	SET @new_schema_version := 'v1.23.0_alpha_5';
+	SET @old_schema_version := 'v1.22.6';
+	SET @new_schema_version := 'v1.23.0_alpha_6';
 
 # What is the name of this script?
 
@@ -40,6 +40,24 @@
 
 # In this update
 # New functionalities
+#	- Facilitate checks, logs and controls. 
+#		- CREATE an object: Add the id `create_api_request_id` of the request to CREATE the DB object:
+#			- User: table `ut_map_external_source_users`
+#			- Unit: table `ut_map_external_source_units`
+#			- Association User/Unit: table `ut_map_user_permissions_unit_all`
+#			- Area (NEW): table `ut_map_external_source_areas`
+#		- EDIT an object: 
+#			- Add the id `create_api_request_id` of the request to CREATE the DB object:
+#				- User: table `ut_map_external_source_users`
+#				- Unit: table `ut_map_external_source_units`
+#				- Association User/Unit: table `ut_map_user_permissions_unit_all`
+#				- Area (NEW): table `ut_map_external_source_areas`
+#			- WIP - create dedicated tables to record if each change to one of the objects was done correctly:
+#				- WIP User: table `ut_map_external_source_users_edit_requests`
+#				- WIP Unit: table `ut_map_external_source_units_edit_requests`
+#				- WIP Association User/Unit: table `ut_map_user_permissions_unit_all_edit_requests`
+#				- WIP Area (NEW): table `ut_map_external_source_areas_edit_requests`
+#
 #	- Record the default Assignee for each role at each level:
 #		- Area
 #		- Level 1 (Building)
