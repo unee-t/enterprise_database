@@ -11,16 +11,16 @@
 #		- `ut_update_L3P_when_ext_L3P_is_updated`
 #		- `ut_update_uneet_when_L3P_is_updated`
 #	- triggers:
-#		- `ut_insert_external_property_level_3`
+#		- `ut_after_insert_external_property_level_3`
 #		- `ut_after_update_external_property_level_3`
 #		- `ut_after_update_property_level_3`
 
 # We create a trigger when a record is added to the `external_property_level_3_rooms` table
 
-	DROP TRIGGER IF EXISTS `ut_insert_external_property_level_3`;
+	DROP TRIGGER IF EXISTS `ut_after_insert_external_property_level_3`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_insert_external_property_level_3`
+CREATE TRIGGER `ut_after_insert_external_property_level_3`
 AFTER INSERT ON `external_property_level_3_rooms`
 FOR EACH ROW
 BEGIN

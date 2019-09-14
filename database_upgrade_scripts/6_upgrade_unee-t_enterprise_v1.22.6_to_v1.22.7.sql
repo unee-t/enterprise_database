@@ -98,51 +98,33 @@
 #
 # We Drop the legacy triggers:
 
-	DROP TRIGGER IF EXISTS `ut_update_external_property_level_1`;
-	DROP TRIGGER IF EXISTS `ut_update_external_property_level_1_creation_needed`;
 
-	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_edit_level_1`;
-	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_building_creation_needed`;
+	DROP TRIGGER IF EXISTS `ut_insert_external_property_level_1`;
 
-	DROP TRIGGER IF EXISTS `ut_update_external_property_level_2`;
-	DROP TRIGGER IF EXISTS `ut_update_external_property_level_2_creation_needed`;
-	
-	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_edit_level_2`;
-	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_unit_creation_needed`;
-	
-	DROP TRIGGER IF EXISTS `ut_update_external_property_level_3`;
-	DROP TRIGGER IF EXISTS `ut_update_external_property_level_3_creation_needed`;
+	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_building`;
 
-	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_room`;
-	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_room_creation_needed`;
 
-# Re-create all the procedures for L1P
+	DROP TRIGGER IF EXISTS `ut_insert_external_property_level_2`;
 
-#################
-#
-# This lists all the triggers we use to create 
-# a property_level_1
-# via the Unee-T Enterprise Interface
-#
-#################
+	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_unit`;
 
-# This script creates the following objects:
-#	- Triggers
-#		- `ut_insert_external_property_level_1`
-#		- `ut_update_external_property_level_1`
-#		- `ut_update_external_property_level_1_creation_needed`
-#		- `ut_update_map_external_source_unit_add_building`
-#		- `ut_update_map_external_source_unit_add_building_creation_needed`
-#		- `ut_update_map_external_source_unit_edit_level_1`
-#		- ``
-#		- ``
-#	- Procedures
-#		- ``
-#		- ``
-#		- ``
-#		- ``
 
-# Re-create all the procedures and triggers for L1P
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Re Create the objects from the script `properties_level_1_creation_update_v1_22_7`
 
 #################
 #
@@ -170,10 +152,10 @@
 
 # We create a trigger when a record is added to the `external_property_level_1_buildings` table
 
-	DROP TRIGGER IF EXISTS `ut_insert_external_property_level_1`;
+	DROP TRIGGER IF EXISTS `ut_after_insert_in_external_property_level_1`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_insert_external_property_level_1`
+CREATE TRIGGER `ut_after_insert_in_external_property_level_1`
 AFTER INSERT ON `external_property_level_1_buildings`
 FOR EACH ROW
 BEGIN
@@ -793,10 +775,10 @@ DELIMITER ;
 
 # Create a trigger to update the table that will fire the lambda each time a new building needs to be created
 
-		DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_building`;
+		DROP TRIGGER IF EXISTS `ut_after_insert_in_property_level_1`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_update_map_external_source_unit_add_building`
+CREATE TRIGGER `ut_after_insert_in_property_level_1`
 AFTER INSERT ON `property_level_1_buildings`
 FOR EACH ROW
 BEGIN
@@ -1198,7 +1180,7 @@ END;
 $$
 DELIMITER ;
 
-# Re-create all the procedures and triggers for L2P
+# Re Create the objects from the script `properties_level_2_creation_update_v1_22_7`
 
 #################
 #
@@ -1219,10 +1201,10 @@ DELIMITER ;
 
 # We create a trigger when a record is added to the `external_property_level_2_units` table
 
-	DROP TRIGGER IF EXISTS `ut_insert_external_property_level_2`;
+	DROP TRIGGER IF EXISTS `ut_after_insert_in_external_property_level_2`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_insert_external_property_level_2`
+CREATE TRIGGER `ut_after_insert_in_external_property_level_2`
 AFTER INSERT ON `external_property_level_2_units`
 FOR EACH ROW
 BEGIN
@@ -1476,7 +1458,7 @@ DELIMITER ;
 # This trigger will:
 #	- Check if several conditions are met
 #	- Capture the value we need in several variables
-#	- Call the procedure `ut_update_L2P_when_extl2P_is_updated` if needed.
+#	- Do the update.
 
 	DROP TRIGGER IF EXISTS `ut_after_update_external_property_level_2`;
 
@@ -1504,7 +1486,6 @@ BEGIN
 #		- `Manage_Units_Edit_Page`
 #		- 'Manage_Units_Import_Page'
 #		- 'Export_and_Import_Units_Import_Page'
-
 
 # Capture the variables we need to verify if conditions are met:
 
@@ -1835,10 +1816,10 @@ DELIMITER ;
 
 # Create a trigger to update the table that will fire the lambda each time a new Flat/Unit needs to be created
 
-	DROP TRIGGER IF EXISTS `ut_update_map_external_source_unit_add_unit`;
+	DROP TRIGGER IF EXISTS `ut_after_insert_in_property_level_2`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_update_map_external_source_unit_add_unit`
+CREATE TRIGGER `ut_after_insert_in_property_level_2`
 AFTER INSERT ON `property_level_2_units`
 FOR EACH ROW
 BEGIN
@@ -1993,7 +1974,7 @@ DELIMITER ;
 # This trigger will:
 #	- Check if several conditions are met
 #	- Capture the value we need in several variables
-#	- Call the procedure `ut_update_uneet_when_L2P_is_updated` if needed.
+#	- Do the Insert/update if needed
 
 	DROP TRIGGER IF EXISTS `ut_after_update_property_level_2`;
 
@@ -2066,12 +2047,13 @@ BEGIN
 	THEN 
 
 	# The conditions are met: we capture the other variables we need
+
 		SET @external_property_type_id_update_l2 = 2;
 
 		SET @mefe_unit_id_update_l2 = (SELECT `unee_t_mefe_unit_id`
 			FROM `ut_map_external_source_units`
 			WHERE `new_record_id` = @system_id_unit_update_l2
-				AND `external_property_type_id` = 2
+				AND `external_property_type_id` = @external_property_type_id_update_l2
 				AND `unee_t_mefe_unit_id` IS NOT NULL
 			);
 
@@ -2232,7 +2214,7 @@ END;
 $$
 DELIMITER ;
 
-# Re-create all procedures and triggers for L3P 
+# Re Create the objects from the script `properties_level_3_creation_update_v1_22_7`
 
 #################
 #
@@ -2247,16 +2229,16 @@ DELIMITER ;
 #		- `ut_update_L3P_when_ext_L3P_is_updated`
 #		- `ut_update_uneet_when_L3P_is_updated`
 #	- triggers:
-#		- `ut_insert_external_property_level_3`
+#		- `ut_after_insert_external_property_level_3`
 #		- `ut_after_update_external_property_level_3`
 #		- `ut_after_update_property_level_3`
 
 # We create a trigger when a record is added to the `external_property_level_3_rooms` table
 
-	DROP TRIGGER IF EXISTS `ut_insert_external_property_level_3`;
+	DROP TRIGGER IF EXISTS `ut_after_insert_external_property_level_3`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_insert_external_property_level_3`
+CREATE TRIGGER `ut_after_insert_external_property_level_3`
 AFTER INSERT ON `external_property_level_3_rooms`
 FOR EACH ROW
 BEGIN
@@ -2479,10 +2461,10 @@ DELIMITER ;
 #	- The unit DOES exist in the table `external_property_level_3_rooms`
 #	- This is a NOT a new creation request in Unee-T
 
-	DROP TRIGGER IF EXISTS `ut_after_update_property_level_3`;
+	DROP TRIGGER IF EXISTS `ut_after_update_external_property_level_3`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_after_update_property_level_3`
+CREATE TRIGGER `ut_after_update_external_property_level_3`
 AFTER UPDATE ON `external_property_level_3_rooms`
 FOR EACH ROW
 BEGIN
@@ -2780,11 +2762,10 @@ DELIMITER ;
 
 # Create a trigger to update the table that will fire the lambda each time a new Room needs to be created
 
-#OK		- Trigger `ut_after_update_property_level_3` 
-	DROP TRIGGER IF EXISTS `ut_after_update_property_level_3`;
+	DROP TRIGGER IF EXISTS `ut_after_insert_property_level_3`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_after_update_property_level_3`
+CREATE TRIGGER `ut_after_insert_property_level_3`
 AFTER INSERT ON `property_level_3_rooms`
 FOR EACH ROW
 BEGIN
@@ -3167,8 +3148,6 @@ BEGIN
 END;
 $$
 DELIMITER ;
-
-
 #
 #
 #
