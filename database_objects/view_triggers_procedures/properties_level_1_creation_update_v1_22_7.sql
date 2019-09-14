@@ -986,6 +986,12 @@ BEGIN
 						, `is_update_needed` = @is_update_needed_update_l1
 					;
 
+###################################################################
+#
+# THIS IS CREATING SUBQUERY RETURN MORE THAN 1 ROW ERRORS
+#
+###################################################################
+
 		ELSEIF @mefe_unit_id_update_l1 IS NOT NULL
 		THEN 
 			
@@ -1041,6 +1047,12 @@ BEGIN
 						, `unee_t_unit_type` = @unee_t_unit_type_update_l1
 						, `is_update_needed` = @is_update_needed_update_l1
 					;
+
+###################################################################
+#
+# END IS CREATING SUBQUERY RETURN MORE THAN 1 ROW ERRORS
+#
+###################################################################
 
 		END IF;
 
