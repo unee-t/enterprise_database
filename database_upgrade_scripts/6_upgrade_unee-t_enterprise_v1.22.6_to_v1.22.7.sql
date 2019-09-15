@@ -43,19 +43,17 @@
 #WIP	- Fix issue `sub-query returns more than one result`
 #
 #OK	- Fix bugs in the script `properties_level_3_creation_update` some triggers were incorrectly named.
-#WIP	- Improve how we record which trigger activated the lambda calls
-#		- Use NOW() instead of a variable (more accurate datetime)
-#		- L3P
-#		- L2P
-#		- L2P
-#WIP	- Add 2 columns to the table `ut_map_external_source_units` to record the latest activated trigger.
-#		- `datetime_latest_trigger`
-#		- `latest_trigger`
+#OK	- Improve how we record which trigger activated the lambda calls
+#OK		- Use NOW() instead of a variable (more accurate datetime)
+#OK		- L3P
+#OK		- L2P
+#OK		- L2P
+#OK	- Add 2 columns to the table `ut_map_external_source_units` to record the latest activated trigger.
+#OK		- `datetime_latest_trigger`
+#OK		- `latest_trigger`
 #
-#WIP	- merge the 2 AFTER UPDATE triggers into 1 for the lambda related calls.
+#OK	- merge the 2 AFTER UPDATE triggers into 1 for the lambda related calls.
 #
-#
-#WIP 	- Add fields to the table `` for better debugging
 #
 # New functionalities
 #	- Facilitate checks, logs and controls. 
@@ -70,28 +68,6 @@
 #				- Unit: table `ut_map_external_source_units`
 #				- Association User/Unit: table `ut_map_user_permissions_unit_all`
 #				- Area (NEW): table `ut_map_external_source_areas`
-#			- WIP - create dedicated tables to record if each change to one of the objects was done correctly:
-#				- WIP User: table `ut_map_external_source_users_edit_requests`
-#				- WIP Unit: table `ut_map_external_source_units_edit_requests`
-#				- WIP Association User/Unit: table `ut_map_user_permissions_unit_all_edit_requests`
-#				- WIP Area (NEW): table `ut_map_external_source_areas_edit_requests`
-#
-#	- Record the default Assignee for each role at each level:
-#		- Area
-#		- Level 1 (Building)
-#		- Level 2 (Unit)
-#		- Level 3 (Room)
-#
-#	- When the Default assignee is selected for a Level, automatically propagate to all the sub levels:
-#	  Example
-#		- Default assignee of building 1 is user A
-#		  This is automatically propagate to
-#			- Level 2
-#			- Level 3
-#
-# Housekeeping: rename the table `ut_api_keys` to `unte_api_keys`
-#	WARNING: WE HAVE TO UPDATE SOME VIEWS.
-#	MAKE SURE TO RUN THE SCRIPT `1_views_v1_23_0.sql`
 #
 # - Drop tables we do not need anymore
 #	- ``
