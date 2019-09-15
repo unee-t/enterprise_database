@@ -1,6 +1,6 @@
 #################
 #
-# This is valid for version v22.6 of the UNTE database schema
+# This is valid for version v22.7 of the UNTE database schema
 #
 # All lambda related objects
 #
@@ -91,22 +91,32 @@ BEGIN
 
 	IF (@disable_lambda != 1
 			OR @disable_lambda IS NULL)
-	/*	AND (@upstream_create_method_8_1 = 'ut_update_map_uneet_user_person_ut_account_creation_needed'
-			OR @upstream_update_method_8_1 = 'ut_update_map_uneet_user_person_ut_account_creation_needed'
-			OR @upstream_create_method_8_1 = 'ut_update_map_uneet_user_person'
-			OR @upstream_update_method_8_1 = 'ut_update_map_uneet_user_person'
-			OR @upstream_create_method_8_1 = 'retry_create_user'
-			OR @upstream_update_method_8_1 = 'retry_create_user'
-		)
-	*/
 	THEN 
+
+		# The Source table
+
+			SET @table_that_triggered_lambda = 'ut_map_external_source_users' ;
+
+		# The ID in the table source table
+
+			SET @id_in_table_that_triggered_lambda = NEW.`id_map` ; 
+
+		# The event type that triggered lambda call
+
+			SET @event_type_that_triggered_lambda = 'INSERT' ;
+
+		# The Type of MEFE API action
+
+			SET @action_type = 'CREATE_USER';
 
 		# The specifics
 
 			# What is this trigger (for log_purposes)
+
 				SET @this_trigger_8_1 = 'ut_create_user';
 
 			# What is the procedure associated with this trigger:
+
 				SET @associated_procedure = 'lambda_create_user';
 			
 			# lambda:
@@ -134,7 +144,6 @@ BEGIN
 			)
 			;
 
-		SET @action_type = 'CREATE_USER';
 		SET @creator_id = NEW.`created_by_id` ;
 		SET @email_address = (SELECT `email_address` 
 			FROM `ut_user_information_persons`
@@ -203,6 +212,11 @@ BEGIN
 					 (`created_datetime`
 					 , `creation_trigger`
 					 , `associated_call`
+					 , `action_type`
+					 , `mefeAPIRequestId`
+					 , `table_that_triggered_lambda`
+					 , `id_in_table_that_triggered_lambda`
+					 , `event_type_that_triggered_lambda`
 					 , `mefe_unit_id`
 					 , `mefe_user_id`
 					 , `unee_t_login`
@@ -212,6 +226,11 @@ BEGIN
 						(NOW()
 						, @this_trigger_8_1
 						, @associated_procedure
+						, @action_type
+						, @mefeAPIRequestId
+						, @table_that_triggered_lambda
+						, @id_in_table_that_triggered_lambda
+						, @event_type_that_triggered_lambda
 						, 'n/a'
 						, 'n/a'
 						, @email_address
@@ -293,11 +312,11 @@ BEGIN
 #	- The variable @disable_lambda != 1
 #	- We do NOT have a MEFE Unit ID for that unit
 #	- This is from a recognized creation method:
-#		- `ut_update_map_external_source_unit_add_building`
+#		- `ut_insert_map_external_source_unit_add_building`
 #		- `ut_update_map_external_source_unit_add_building_creation_needed`
-#		- `ut_update_map_external_source_unit_add_unit`
+#		- `ut_insert_map_external_source_unit_add_unit`
 #		- `ut_update_map_external_source_unit_add_unit_creation_needed`
-#		- `ut_update_map_external_source_unit_add_room`
+#		- `ut_insert_map_external_source_unit_add_room`
 #		- `ut_update_map_external_source_unit_add_room_creation_needed`
 #		- 'ut_update_map_external_source_unit_edit_level_1'
 #		- 'ut_update_map_external_source_unit_edit_level_2'
@@ -312,36 +331,31 @@ BEGIN
 	SET @upstream_update_method = NEW.`update_method` ;
 
 	IF @mefe_unit_id IS NULL
-		AND (@upstream_create_method = 'ut_update_map_external_source_unit_add_building'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_building'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_building_creation_needed'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_building_creation_needed'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_unit'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_unit'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_unit_creation_needed'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_unit_creation_needed'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_room'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_room'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_room_creation_needed'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_room_creation_needed'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_edit_level_1'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_edit_level_1'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_edit_level_2'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_edit_level_2'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_edit_level_3'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_edit_level_3'
-			)
 		AND (@disable_lambda != 1
 			OR @disable_lambda IS NULL)
 	THEN
 
+		# The Source table
+
+			SET @table_that_triggered_lambda = 'ut_map_external_source_units' ;
+
+		# The ID in the table source table
+
+			SET @id_in_table_that_triggered_lambda = NEW.`id_map` ; 
+
+		# The event type that triggered lambda call
+
+			SET @event_type_that_triggered_lambda = 'INSERT' ;
+
+		# The Type of property
+
+			SET @external_property_type_id = NEW.`external_property_type_id` ;
+
 		# The specifics
 
 			# What is this trigger (for log_purposes)
-				SET @this_trigger = 'ut_create_unit';
 
-			# What is the procedure associated with this trigger:
-				SET @associated_procedure = 'lambda_create_unit';
+				SET @this_trigger = 'ut_create_unit' ;
 			
 			# lambda:
 			# https://github.com/unee-t/lambda2sns/blob/master/tests/call-lambda-as-root.sh#L5
@@ -368,7 +382,7 @@ BEGIN
 				AND `external_property_type_id` = @external_property_type_id
 			)
 			;
-		SET @action_type = 'CREATE_UNIT';
+
 		SET @creator_id = NEW.`created_by_id`;
 		SET @uneet_name = NEW.`uneet_name`;
 		SET @unee_t_unit_type = NEW.`unee_t_unit_type`;
@@ -559,6 +573,14 @@ BEGIN
 		# Simulate what the Procedure `lambda_create_unit` does
 		# Make sure to update that if you update the procedure `lambda_create_unit`
 
+			# What is the action type?
+
+				SET @action_type = 'CREATE_UNIT';
+
+			# What is the procedure associated with this trigger:
+
+				SET @associated_procedure = 'lambda_create_unit';
+
 			# The JSON Object:
 
 				# We need a random ID as a `mefeAPIRequestId`
@@ -605,6 +627,12 @@ BEGIN
 				(`created_datetime`
 				, `creation_trigger`
 				, `associated_call`
+				, `action_type`
+				, `mefeAPIRequestId`
+				, `table_that_triggered_lambda`
+				, `id_in_table_that_triggered_lambda`
+				, `event_type_that_triggered_lambda`
+				, `external_property_type_id`
 				, `mefe_unit_id`
 				, `unit_name`
 				, `mefe_user_id`
@@ -614,6 +642,12 @@ BEGIN
 					(NOW()
 					, @this_trigger
 					, @associated_procedure
+					, @action_type
+					, @mefeAPIRequestId
+					, @table_that_triggered_lambda
+					, @id_in_table_that_triggered_lambda
+					, @event_type_that_triggered_lambda
+					, @external_property_type_id
 					, 'n/a'
 					, @uneet_name
 					, 'n/a'
@@ -726,12 +760,30 @@ BEGIN
 		OR @disable_lambda IS NULL)
 	THEN 
 
+		# The Source table
+
+			SET @table_that_triggered_lambda = 'ut_map_user_permissions_unit_all' ;
+
+		# The ID in the table source table
+
+			SET @id_in_table_that_triggered_lambda = NEW.`id_map_user_unit_permissions` ; 
+
+		# The event type that triggered lambda call
+
+			SET @event_type_that_triggered_lambda = 'INSERT' ;
+
+		# The Type of MEFE API action
+
+			SET @action_type = 'ASSIGN_ROLE' ;
+
 		# The specifics
 
 			# What is this trigger (for log_purposes)
+
 				SET @this_trigger_8_3 = 'ut_add_user_to_role_in_unit_with_visibility';
 
 			# What is the procedure associated with this trigger:
+
 				SET @associated_procedure = 'lambda_add_user_to_role_in_unit_with_visibility';
 			
 			# lambda:
@@ -748,8 +800,6 @@ BEGIN
 	# The variables that we need:
 
 		SET @id_map_user_unit_permissions = NEW.`id_map_user_unit_permissions` ;
-
-		SET @action_type = 'ASSIGN_ROLE' ;
 
 		SET @requestor_mefe_user_id = NEW.`created_by_id` ;
 		
@@ -946,6 +996,11 @@ BEGIN
 				(`created_datetime`
 				, `creation_trigger`
 				, `associated_call`
+				, `action_type`
+				, `mefeAPIRequestId`
+				, `table_that_triggered_lambda`
+				, `id_in_table_that_triggered_lambda`
+				, `event_type_that_triggered_lambda`
 				, `mefe_unit_id`
 				, `unit_name`
 				, `mefe_user_id`
@@ -956,6 +1011,11 @@ BEGIN
 					(NOW()
 					, @this_trigger_8_3
 					, @associated_procedure
+					, @action_type
+					, @mefeAPIRequestId
+					, @table_that_triggered_lambda
+					, @id_in_table_that_triggered_lambda
+					, @event_type_that_triggered_lambda
 					, @mefe_unit_id
 					, @unit_name
 					, @invited_mefe_user_id
@@ -1088,12 +1148,30 @@ BEGIN
 			OR @disable_lambda IS NULL)
 	THEN
 
+		# The Source table
+
+			SET @table_that_triggered_lambda = 'n/a - this was NOT a trigger' ;
+
+		# The ID in the table source table
+
+			SET @id_in_table_that_triggered_lambda = NULL ; 
+
+		# The event type that triggered lambda call
+
+			SET @event_type_that_triggered_lambda = 'n/a - this was NOT a trigger' ;
+
+		# The Type of MEFE API action
+
+			SET @action_type = 'EDIT_USER' ;
+
 			# The specifics
 
 				# What is this trigger (for log_purposes)
+
 					SET @this_procedure = 'ut_update_user';
 
 				# What is the procedure associated with this trigger:
+
 					SET @associated_procedure = 'lambda_update_user_profile';
 			
 			# lambda:
@@ -1105,6 +1183,7 @@ BEGIN
 					SET @lambda_key = 915001051872;
 
 				# MEFE API Key:
+
 					SET @key_this_envo = 'ABCDEFG';
 
 		# Define the variables we need:
@@ -1114,8 +1193,6 @@ BEGIN
 				WHERE `person_id` = @person_id
 				) 
 				;
-
-			SET @action_type = 'EDIT_USER' ;
 
 			SET @requestor_mefe_user_id = @requestor_id ;
 
@@ -1212,6 +1289,10 @@ BEGIN
 					(`created_datetime`
 					, `creation_trigger`
 					, `associated_call`
+					, `action_type`
+					, `mefeAPIRequestId`
+					, `table_that_triggered_lambda`
+					, `event_type_that_triggered_lambda`
 					, `mefe_unit_id`
 					, `mefe_user_id`
 					, `unee_t_login`
@@ -1221,6 +1302,10 @@ BEGIN
 						(NOW()
 						, @this_procedure
 						, @associated_procedure
+						, @action_type
+						, @mefeAPIRequestId
+						, @table_that_triggered_lambda
+						, @event_type_that_triggered_lambda
 						, 'n/a'
 						, @mefe_user_id_uu_l_1
 						, @unee_t_login
@@ -1299,10 +1384,10 @@ DELIMITER ;
 
 # Create a trigger to fire the lambda each time we need to update a unit
 
-	DROP TRIGGER IF EXISTS `ut_update_unit_creation_needed`;
+	DROP TRIGGER IF EXISTS `ut_after_update_ut_map_external_source_units`;
 
 DELIMITER $$
-CREATE TRIGGER `ut_update_unit_creation_needed`
+CREATE TRIGGER `ut_after_update_ut_map_external_source_units`
 AFTER UPDATE ON `ut_map_external_source_units`
 FOR EACH ROW
 BEGIN
@@ -1312,15 +1397,41 @@ BEGIN
 #	- We do NOT have a MEFE Unit ID
 #	- this unit is marked a `is_update_needed` = 1
 #	- This is done via an authorized update method:
-#		- `ut_update_map_external_source_unit_add_building`
-#		- `ut_update_map_external_source_unit_add_building_creation_needed`
-#		- `ut_update_map_external_source_unit_add_unit`
-#		- `ut_update_map_external_source_unit_add_unit_creation_needed`
-#		- `ut_update_map_external_source_unit_add_room`
-#		- `ut_update_map_external_source_unit_add_room_creation_needed`
+#
+
+
+#		- For L3Ps:
+
+All the possible triggers:
+`ut_insert_map_external_source_unit_add_room_insert`
+`ut_insert_map_external_source_unit_add_room_update`
+`ut_update_map_external_source_unit_add_room_creation_needed_insert`
+`ut_update_map_external_source_unit_add_room_creation_needed_update`
+`ut_update_map_external_source_unit_edit_level_3_insert`
+`ut_update_map_external_source_unit_edit_level_3_update`
+
+#			- The unit does NOT exist in Unee-T
+#			  (MEFE unit ID is NULL)
+#				- New INSERT
+#					- `ut_insert_external_property_level_3_insert`
+#					- ``
+#					- ``
+#					- ``
+#					- ``
+#					- ``
+#				- The property exists but now needs to be created
+#					- ``
+#			- Update of a unit that already exists in Unee-T
+#			  (MEFE unit ID is NOT NULL)
+#				- New INSERT
+
+
+
 #		- ''
 #		- ''
 #		- ''
+
+# Capture the variables we need to verify if conditions are met:
 
 	SET @mefe_unit_id = NEW.`unee_t_mefe_unit_id` ;
 
@@ -1328,33 +1439,35 @@ BEGIN
 
 	SET @upstream_create_method = NEW.`creation_method` ;
 	SET @upstream_update_method = NEW.`update_method` ;
+	SET @upstream_latest_trigger = NEW.`latest_trigger` ;
 
-	IF @mefe_unit_id IS NULL
-		AND @is_update_needed = 1
-		AND (@upstream_create_method = 'ut_update_map_external_source_unit_add_building'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_building'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_building_creation_needed'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_building_creation_needed'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_unit'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_unit'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_unit_creation_needed'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_unit_creation_needed'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_room'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_room'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_add_room_creation_needed'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_add_room_creation_needed'
-			)
-		AND (@disable_lambda != 1
+# We can now check if the conditions are met:
+
+	IF (@disable_lambda != 1
 			OR @disable_lambda IS NULL)
 	THEN
 
-		# The specifics
+	# The conditions are met: we capture the other variables we need
 
-			# What is this trigger (for log_purposes)
-				SET @this_trigger = 'ut_update_unit_creation_needed';
+		# The Source table
 
-			# What is the procedure associated with this trigger:
-				SET @associated_procedure = 'lambda_create_unit';
+			SET @table_that_triggered_lambda = 'ut_map_external_source_units' ;
+
+		# The ID in the table source table
+
+			SET @id_in_table_that_triggered_lambda = NEW.`id_map` ; 
+
+		# The event type that triggered lambda call
+
+			SET @event_type_that_triggered_lambda = 'UPDATE' ;
+
+		# The Type of property
+
+			SET @external_property_type_id = NEW.`external_property_type_id` ;
+
+		# What is this trigger (for log_purposes)
+
+			SET @this_trigger = 'ut_after_update_ut_map_external_source_units' ;
 			
 			# lambda:
 			# https://github.com/unee-t/lambda2sns/blob/master/tests/call-lambda-as-root.sh#L5
@@ -1374,7 +1487,7 @@ BEGIN
 		SET @mefe_api_key = @key_this_envo;
 
 		SET @new_record_id = NEW.`new_record_id`;		
-		SET @external_property_type_id = NEW.`external_property_type_id`;
+		SET @external_property_type_id = NEW.`external_property_type_id` ;
 
 		SET @unit_creation_request_id = (SELECT `id_map` 
 			FROM `ut_map_external_source_units`
@@ -1382,7 +1495,7 @@ BEGIN
 				AND `external_property_type_id` = @external_property_type_id
 			)
 			;
-		SET @action_type = 'CREATE_UNIT';
+
 		SET @creator_id = NEW.`created_by_id`;
 		SET @uneet_name = NEW.`uneet_name`;
 		SET @unee_t_unit_type = NEW.`unee_t_unit_type`;
@@ -1569,445 +1682,240 @@ BEGIN
 
 			SET @owner_id = @creator_id ;
 
-	# We insert the event in the relevant log table
+		# We need a random ID as a `mefeAPIRequestId`
 
-		# Simulate what the Procedure `lambda_create_unit` does
-		# Make sure to update that if you update the procedure `lambda_create_unit`
+			SET @mefeAPIRequestId := (SELECT UUID()) ;
 
-			# The JSON Object:
+		IF @is_creation_needed_in_unee_t = 1
+			AND @mefe_unit_id IS NULL
+			AND @do_not_insert_ = 0
+		THEN 
 
-				# We need a random ID as a `mefeAPIRequestId`
+			# This is option 1 - creation IS needed
+			#	- The unit is NOT marked as `do_not_insert`
+			#	- We do NOT have a MEFE unit ID for that unit
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+			# What is the action type?
 
-				SET @json_object := (
-					JSON_OBJECT(
-						'mefeAPIRequestId' , @mefeAPIRequestId
-						, 'unitCreationRequestId' , @unit_creation_request_id
-						, 'actionType', @action_type
-						, 'creatorId', @creator_id
-						, 'name', @uneet_name
-						, 'type', @unee_t_unit_type
-						, 'moreInfo', @more_info
-						, 'streetAddress', @street_address
-						, 'city', @city
-						, 'state', @state
-						, 'zipCode', @zip_code
-						, 'country', @country
-						, 'ownerId', @owner_id
-						)
-					)
-					;
-
-			# The specific lambda:
-
-				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
-					, @lambda_key
-					, ':function:ut_lambda2sqs_push')
-					;
-			
-			# The specific Lambda CALL:
-
-				SET @lambda_call = CONCAT('CALL mysql.lambda_async'
-					, @lambda
-					, @json_object
-					)
-					;
-
-		# Now that we have simulated what the CALL does, we record that
-
-			INSERT INTO `log_lambdas`
-				(`created_datetime`
-				, `creation_trigger`
-				, `associated_call`
-				, `mefe_unit_id`
-				, `unit_name`
-				, `mefe_user_id`
-				, `payload`
-				)
-				VALUES
-					(NOW()
-					, @this_trigger
-					, @associated_procedure
-					, 'n/a'
-					, @uneet_name
-					, 'n/a'
-					, @lambda_call
-					)
-					;
-
-	# We call the Lambda procedure to create a unit
-
-		CALL `lambda_create_unit`(@mefeAPIRequestId
-			, @unit_creation_request_id
-			, @action_type
-			, @creator_id
-			, @uneet_name
-			, @unee_t_unit_type
-			, @more_info
-			, @street_address
-			, @city
-			, @state
-			, @zip_code
-			, @country
-			, @owner_id
-			)
-			;
-
-	END IF;
-END;
-$$
-DELIMITER ;
-
-# Create a trigger to fire the lambda each time we need to update a unit
-
-	DROP TRIGGER IF EXISTS `ut_update_unit_already_exists`;
-
-DELIMITER $$
-CREATE TRIGGER `ut_update_unit_already_exists`
-AFTER UPDATE ON `ut_map_external_source_units`
-FOR EACH ROW
-BEGIN
-
-# We only do this IF:
-#	- The variable @disable_lambda != 1
-#	- We have a MEFE Unit ID
-#	- this unit is marked a `is_update_needed` = 1
-#	- This is done via an authorized update method:
-#		- 'ut_update_map_external_source_unit_edit_level_1'
-#		- 'ut_update_map_external_source_unit_edit_level_2'
-#		- 'ut_update_map_external_source_unit_edit_level_3'
-#		- ''
-#		- ''
-#		- ''
-
-	SET @mefe_unit_id = NEW.`unee_t_mefe_unit_id` ;
-
-	SET @is_update_needed = NEW.`is_update_needed` ;
-
-	SET @upstream_create_method = NEW.`creation_method` ;
-	SET @upstream_update_method = NEW.`update_method` ;
-
-	IF @mefe_unit_id IS NOT NULL
-		AND @is_update_needed = 1
-		AND (@upstream_create_method = 'ut_update_map_external_source_unit_edit_level_1'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_edit_level_1'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_edit_level_2'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_edit_level_2'
-			OR @upstream_create_method = 'ut_update_map_external_source_unit_edit_level_3'
-			OR @upstream_update_method = 'ut_update_map_external_source_unit_edit_level_3'
-			)
-		AND (@disable_lambda != 1
-			OR @disable_lambda IS NULL)
-	THEN
-
-		# The specifics
-
-			# What is this trigger (for log_purposes)
-				SET @this_trigger = 'ut_update_unit_already_exists';
+				SET @action_type = 'CREATE_UNIT';
 
 			# What is the procedure associated with this trigger:
+
+				SET @associated_procedure = 'lambda_create_unit';
+
+			# We insert the event in the relevant log table
+
+				# Simulate what the Procedure `lambda_create_unit` does
+				# Make sure to update that if you update the procedure `lambda_create_unit`
+
+					# The JSON Object:
+
+						SET @json_object := (
+							JSON_OBJECT(
+								'mefeAPIRequestId' , @mefeAPIRequestId
+								, 'unitCreationRequestId' , @unit_creation_request_id
+								, 'actionType', @action_type
+								, 'creatorId', @creator_id
+								, 'name', @uneet_name
+								, 'type', @unee_t_unit_type
+								, 'moreInfo', @more_info
+								, 'streetAddress', @street_address
+								, 'city', @city
+								, 'state', @state
+								, 'zipCode', @zip_code
+								, 'country', @country
+								, 'ownerId', @owner_id
+								)
+							)
+							;
+
+					# The specific lambda:
+
+						SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
+							, @lambda_key
+							, ':function:ut_lambda2sqs_push')
+							;
+					
+					# The specific Lambda CALL:
+
+						SET @lambda_call = CONCAT('CALL mysql.lambda_async'
+							, @lambda
+							, @json_object
+							)
+							;
+
+				# Now that we have simulated what the CALL does, we record that
+
+					INSERT INTO `log_lambdas`
+						(`created_datetime`
+						, `creation_trigger`
+						, `associated_call`
+						, `action_type`
+						, `mefeAPIRequestId`
+						, `table_that_triggered_lambda`
+						, `id_in_table_that_triggered_lambda`
+						, `event_type_that_triggered_lambda`
+						, `external_property_type_id`
+						, `mefe_unit_id`
+						, `unit_name`
+						, `mefe_user_id`
+						, `payload`
+						)
+						VALUES
+							(NOW()
+							, @this_trigger
+							, @associated_procedure
+							, @action_type
+							, @mefeAPIRequestId
+							, @table_that_triggered_lambda
+							, @id_in_table_that_triggered_lambda
+							, @event_type_that_triggered_lambda
+							, @external_property_type_id
+							, 'n/a'
+							, @uneet_name
+							, 'n/a'
+							, @lambda_call
+							)
+							;
+		
+			# We call the Lambda procedure to create a unit
+
+				CALL `lambda_create_unit`(@mefeAPIRequestId
+					, @unit_creation_request_id
+					, @action_type
+					, @creator_id
+					, @uneet_name
+					, @unee_t_unit_type
+					, @more_info
+					, @street_address
+					, @city
+					, @state
+					, @zip_code
+					, @country
+					, @owner_id
+					)
+					;
+		
+
+		ELSEIF @mefe_unit_id IS NOT NULL
+			AND @is_update_needed = 1
+		THEN 
+			
+			# This is option 2 - creation is NOT needed
+			# BUT We need to update
+
+			# What is the action type?
+
+				SET @action_type = 'EDIT_UNIT';
+
+			# What is the procedure associated with this trigger:
+			
 				SET @associated_procedure = 'lambda_update_unit';
-			
-			# lambda:
-			# https://github.com/unee-t/lambda2sns/blob/master/tests/call-lambda-as-root.sh#L5
-			#	- DEV/Staging: 812644853088
-			#	- Prod: 192458993663
-			#	- Demo: 915001051872
 
-				SET @lambda_key = 915001051872;
+			# We insert the event in the relevant log table
 
-			# MEFE API Key:
-				SET @key_this_envo = 'ABCDEFG';
+				# Simulate what the Procedure `lambda_update_unit` does
+				# Make sure to update that if you update the procedure `lambda_update_unit`
 
-	# We define the variables we need
-	# Where can we find the details about that unit?
+					# The JSON Object:
 
-		SET @new_record_id = NEW.`new_record_id`;		
-		SET @external_property_type_id = NEW.`external_property_type_id`;
-
-		SET @update_unit_request_id = (SELECT `id_map` 
-			FROM `ut_map_external_source_units`
-			WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
-			)
-			;
-		SET @action_type = 'EDIT_UNIT';
-		SET @requestor_user_id = NEW.`updated_by_id`; 
-
-		SET @creator_id = NEW.`created_by_id`;
-
-		SET @unee_t_unit_type = NEW.`unee_t_unit_type`;
-		SET @unee_t_unit_name = NEW.`uneet_name`;
-
-
-		# More info:
-
-			SET @more_info = (IF(@external_property_type_id = 1
-					, (SELECT `more_info`
-						FROM `ut_add_information_unit_level_1`
-						WHERE `unit_level_1_id` = @new_record_id
-						)
-					, IF(@external_property_type_id = 2
-						, (SELECT `more_info`
-							FROM `ut_add_information_unit_level_2`
-							WHERE `unit_level_2_id` = @new_record_id
-							)
-						, IF(@external_property_type_id = 3
-							, (SELECT `more_info`
-								FROM `ut_add_information_unit_level_3`
-								WHERE `unit_level_3_id` = @new_record_id
+						SET @json_object := (
+							JSON_OBJECT(
+								'mefeAPIRequestId' , @mefeAPIRequestId
+								, 'updateUnitRequestId' , @update_unit_request_id
+								, 'actionType', @action_type
+								, 'requestorUserId', @requestor_user_id
+								, 'unitId', @mefe_unit_id
+								, 'creatorId', @creator_id
+								, 'type', @unee_t_unit_type
+								, 'name', @unee_t_unit_name
+								, 'moreInfo', @more_info
+								, 'streetAddress', @street_address
+								, 'city', @city
+								, 'state', @state
+								, 'zipCode', @zip_code
+								, 'country', @country
 								)
-							, 'ERROR 3499'
-							) 
-						)
-					)
-				)
-				;
-			SET @more_info_not_null = (IFNULL(@more_info
-					, ''
-					)
-				)
-				;
-		# Street Address
-
-			SET @street_address = (IF(@external_property_type_id = 1
-					, (SELECT `street_address`
-						FROM `ut_add_information_unit_level_1`
-						WHERE `unit_level_1_id` = @new_record_id
-						)
-					, IF(@external_property_type_id = 2
-						, (SELECT `street_address`
-							FROM `ut_add_information_unit_level_2`
-							WHERE `unit_level_2_id` = @new_record_id
 							)
-						, IF(@external_property_type_id = 3
-							, (SELECT `street_address`
-								FROM `ut_add_information_unit_level_3`
-								WHERE `unit_level_3_id` = @new_record_id
-								)
-							, 'ERROR 3527'
-							) 
-						)
-					)
-				)
-				;
+							;
 
-			SET @street_address_not_null = (IFNULL(@street_address
-					, ''
-					)
-				)
-				;
+					# The specific lambda:
+
+						SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
+							, @lambda_key
+							, ':function:ut_lambda2sqs_push')
+							;
+					
+					# The specific Lambda CALL:
+
+						SET @lambda_call = CONCAT('CALL mysql.lambda_async'
+							, @lambda
+							, @json_object
+							)
+							;
+
+				# Now that we have simulated what the CALL does, we record that
+
+					SET @unit_name := (SELECT `uneet_name`
+						FROM `ut_map_external_source_units`
+						WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
+						);
+
+					INSERT INTO `log_lambdas`
+						(`created_datetime`
+						, `creation_trigger`
+						, `associated_call`
+						, `action_type`
+						, `mefeAPIRequestId`
+						, `table_that_triggered_lambda`
+						, `id_in_table_that_triggered_lambda`
+						, `event_type_that_triggered_lambda`
+						, `external_property_type_id`
+						, `mefe_unit_id`
+						, `unit_name`
+						, `mefe_user_id`
+						, `payload`
+						)
+						VALUES
+							(NOW()
+							, @this_trigger
+							, @associated_procedure
+							, @action_type
+							, @mefeAPIRequestId
+							, @table_that_triggered_lambda
+							, @id_in_table_that_triggered_lambda
+							, @event_type_that_triggered_lambda
+							, @external_property_type_id
+							, @mefe_unit_id
+							, @unit_name
+							, 'n/a'
+							, @lambda_call
+							)
+							;
 		
-		# City
+			# We call the Lambda procedure to update the unit
 
-			SET @city = (IF(@external_property_type_id = 1
-					, (SELECT `city`
-						FROM `ut_add_information_unit_level_1`
-						WHERE `unit_level_1_id` = @new_record_id
-						)
-					, IF(@external_property_type_id = 2
-						, (SELECT `city`
-							FROM `ut_add_information_unit_level_2`
-							WHERE `unit_level_2_id` = @new_record_id
-							)
-						, IF(@external_property_type_id = 3
-							, (SELECT `city`
-								FROM `ut_add_information_unit_level_3`
-								WHERE `unit_level_3_id` = @new_record_id
-								)
-							, 'ERROR 3557'
-							) 
-						)
-					)
-				)
-				;
-
-			SET @city_not_null = (IFNULL(@city
-					, ''
-					)
-				)
-				;
-		# State
-
-			SET @state = (IF(@external_property_type_id = 1
-					, (SELECT `state`
-						FROM `ut_add_information_unit_level_1`
-						WHERE `unit_level_1_id` = @new_record_id
-						)
-					, IF(@external_property_type_id = 2
-						, (SELECT `state`
-							FROM `ut_add_information_unit_level_2`
-							WHERE `unit_level_2_id` = @new_record_id
-							)
-						, IF(@external_property_type_id = 3
-							, (SELECT `state`
-								FROM `ut_add_information_unit_level_3`
-								WHERE `unit_level_3_id` = @new_record_id
-								)
-							, 'ERROR 3586'
-							) 
-						)
-					)
-				)
-				;
-
-			SET @state_not_null = (IFNULL(@state
-					, ''
-					)
-				)
-				;
-			
-		# Zip Code
-
-			SET @zip_code = (IF(@external_property_type_id = 1
-					, (SELECT `zip_code`
-						FROM `ut_add_information_unit_level_1`
-						WHERE `unit_level_1_id` = @new_record_id
-						)
-					, IF(@external_property_type_id = 2
-						, (SELECT `zip_code`
-							FROM `ut_add_information_unit_level_2`
-							WHERE `unit_level_2_id` = @new_record_id
-							)
-						, IF(@external_property_type_id = 3
-							, (SELECT `zip_code`
-								FROM `ut_add_information_unit_level_3`
-								WHERE `unit_level_3_id` = @new_record_id
-								)
-							, 'ERROR 3616'
-							) 
-						)
-					)
-				)
-				;
-
-			SET @zip_code_not_null = (IFNULL(@zip_code
-					, ''
-					)
-				)
-				;
-		
-		# Country
-
-			SET @country = (IF(@external_property_type_id = 1
-					, (SELECT `country`
-						FROM `ut_add_information_unit_level_1`
-						WHERE `unit_level_1_id` = @new_record_id
-						)
-					, IF(@external_property_type_id = 2
-						, (SELECT `country`
-							FROM `ut_add_information_unit_level_2`
-							WHERE `unit_level_2_id` = @new_record_id
-							)
-						, IF(@external_property_type_id = 3
-							, (SELECT `country`
-								FROM `ut_add_information_unit_level_3`
-								WHERE `unit_level_3_id` = @new_record_id
-								)
-							, 'ERROR 522'
-							) 
-						)
-					)
-				)
-				;
-
-			SET @country_not_null = (IFNULL(@country
-					, ''
-					)
-				)
-				;
-
-	# We insert the event in the relevant log table
-
-		# Simulate what the Procedure `lambda_update_unit` does
-		# Make sure to update that if you update the procedure `lambda_update_unit`
-
-			# The JSON Object:
-
-				# We need a random ID as a `mefeAPIRequestId`
-
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
-
-				SET @json_object := (
-					JSON_OBJECT(
-						'mefeAPIRequestId' , @mefeAPIRequestId
-						, 'updateUnitRequestId' , @update_unit_request_id
-						, 'actionType', @action_type
-						, 'requestorUserId', @requestor_user_id
-						, 'unitId', @mefe_unit_id
-						, 'creatorId', @creator_id
-						, 'type', @unee_t_unit_type
-						, 'name', @unee_t_unit_name
-						, 'moreInfo', @more_info
-						, 'streetAddress', @street_address
-						, 'city', @city
-						, 'state', @state
-						, 'zipCode', @zip_code
-						, 'country', @country
-						)
-					)
-					;
-
-			# The specific lambda:
-
-				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
-					, @lambda_key
-					, ':function:ut_lambda2sqs_push')
-					;
-			
-			# The specific Lambda CALL:
-
-				SET @lambda_call = CONCAT('CALL mysql.lambda_async'
-					, @lambda
-					, @json_object
-					)
-					;
-
-		# Now that we have simulated what the CALL does, we record that
-
-			SET @unit_name := (SELECT `uneet_name`
-				FROM `ut_map_external_source_units`
-				WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
-				);
-
-			INSERT INTO `log_lambdas`
-				(`created_datetime`
-				, `creation_trigger`
-				, `associated_call`
-				, `mefe_unit_id`
-				, `unit_name`
-				, `mefe_user_id`
-				, `payload`
-				)
-				VALUES
-					(NOW()
-					, @this_trigger
-					, @associated_procedure
+				CALL `lambda_update_unit`(@update_unit_request_id
+					, @update_unit_request_id
+					, @action_type
+					, @requestor_user_id
 					, @mefe_unit_id
-					, @unit_name
-					, 'n/a'
-					, @lambda_call
+					, @creator_id
+					, @unee_t_unit_type
+					, @unee_t_unit_name
+					, @more_info
+					, @street_address
+					, @city
+					, @state
+					, @zip_code
+					, @country
 					)
 					;
+		
 
-	# We call the Lambda procedure to update the unit
-
-		CALL `lambda_update_unit`(@update_unit_request_id
-			, @update_unit_request_id
-			, @action_type
-			, @requestor_user_id
-			, @mefe_unit_id
-			, @creator_id
-			, @unee_t_unit_type
-			, @unee_t_unit_name
-			, @more_info
-			, @street_address
-			, @city
-			, @state
-			, @zip_code
-			, @country
-			)
-			;
+		# The conditions are NOT met <-- we do nothing
+	
+		END IF;
 
 	END IF;
 END;
@@ -2124,12 +2032,30 @@ BEGIN
 			)
 	THEN
 
+		# The Source table
+
+			SET @table_that_triggered_lambda = 'n/a - this was NOT a trigger' ;
+
+		# The ID in the table source table
+
+			SET @id_in_table_that_triggered_lambda = NULL ; 
+
+		# The event type that triggered lambda call
+
+			SET @event_type_that_triggered_lambda = 'n/a - this was NOT a trigger' ;
+
+		# The Type of MEFE API action
+
+			SET @action_type := 'DEASSIGN_ROLE' ;
+
 			# The specifics
 
 				# What is this trigger (for log_purposes)
+
 					SET @this_procedure_8_7 := 'ut_remove_user_from_unit';
 
 				# What is the procedure associated with this trigger:
+
 					SET @associated_procedure := 'lambda_remove_user_from_unit';
 			
 			# lambda:
@@ -2150,8 +2076,6 @@ BEGIN
 				WHERE `unee_t_mefe_id` = @unee_t_mefe_id
 					AND `unee_t_unit_id` = @unee_t_unit_id
 				) ;
-
-			SET @action_type := 'DEASSIGN_ROLE' ;
 
 			SET @requestor_user_id := @updated_by_id ;
 			
@@ -2212,6 +2136,10 @@ BEGIN
 					(`created_datetime`
 					, `creation_trigger`
 					, `associated_call`
+					, `action_type`
+					, `mefeAPIRequestId`
+					, `table_that_triggered_lambda`
+					, `event_type_that_triggered_lambda`
 					, `mefe_unit_id`
 					, `unit_name`
 					, `mefe_user_id`
@@ -2222,6 +2150,10 @@ BEGIN
 						(NOW()
 						, @this_procedure_8_7
 						, @associated_procedure
+						, @action_type
+						, @mefeAPIRequestId
+						, @table_that_triggered_lambda
+						, @event_type_that_triggered_lambda
 						, @mefe_unit_id
 						, @unit_name
 						, @mefe_user_id
@@ -2356,13 +2288,35 @@ BEGIN
 		)
 	THEN 
 
+		# The Source table
+
+			SET @table_that_triggered_lambda = 'retry_create_units_list_units' ;
+
+		# The ID in the table source table
+
+			SET @id_in_table_that_triggered_lambda = NEW.`unit_creation_request_id` ; 
+
+		# The event type that triggered lambda call
+
+			SET @event_type_that_triggered_lambda = 'INSERT' ;
+
+		# The Type of property
+
+
+
+		# The Type of MEFE API action
+
+			SET @action_type := 'CREATE_UNIT' ;
+
 		# The specifics
 
 			# What is this trigger (for log_purposes)
-				SET @this_trigger := 'ut_retry_create_unit';
+
+				SET @this_trigger := 'ut_retry_create_unit' ;
 
 			# What is the procedure associated with this trigger:
-				SET @associated_procedure := 'lambda_create_unit';
+
+				SET @associated_procedure := 'lambda_create_unit' ;
 			
 			# lambda:
 			# https://github.com/unee-t/lambda2sns/blob/master/tests/call-lambda-as-root.sh#L5
@@ -2382,7 +2336,6 @@ BEGIN
 
 		SET @unit_creation_request_id := NEW.`unit_creation_request_id` ;
 
-		SET @action_type := 'CREATE_UNIT' ;
 		SET @creator_id := NEW.`created_by_id` ;
 		SET @uneet_name := NEW.`uneet_name` ;
 		SET @unee_t_unit_type := NEW.`unee_t_unit_type` ;
@@ -2446,6 +2399,11 @@ BEGIN
 				(`created_datetime`
 				, `creation_trigger`
 				, `associated_call`
+				, `action_type`
+				, `mefeAPIRequestId`
+				, `table_that_triggered_lambda`
+				, `id_in_table_that_triggered_lambda`
+				, `event_type_that_triggered_lambda`
 				, `mefe_unit_id`
 				, `unit_name`
 				, `mefe_user_id`
@@ -2455,6 +2413,11 @@ BEGIN
 					(NOW()
 					, @this_trigger
 					, @associated_procedure
+					, @action_type
+					, @mefeAPIRequestId
+					, @table_that_triggered_lambda
+					, @id_in_table_that_triggered_lambda
+					, @event_type_that_triggered_lambda
 					, 'n/a'
 					, @uneet_name
 					, 'n/a'
@@ -2513,12 +2476,30 @@ BEGIN
 		)
 	THEN 
 
+		# The Source table
+
+			SET @table_that_triggered_lambda = 'retry_assign_user_to_units_list' ;
+
+		# The ID in the table source table
+
+			SET @id_in_table_that_triggered_lambda = NEW.`id_map_user_unit_permissions` ; 
+
+		# The event type that triggered lambda call
+
+			SET @event_type_that_triggered_lambda = 'INSERT' ;
+
+		# The Type of MEFE API action
+
+			SET @action_type = 'ASSIGN_ROLE' ;
+
 		# The specifics
 
 			# What is this trigger (for log_purposes)
+
 				SET @this_trigger := 'ut_retry_assign_user_to_unit';
 
 			# What is the procedure associated with this trigger:
+
 				SET @associated_procedure := 'lambda_add_user_to_role_in_unit_with_visibility';
 			
 			# lambda:
@@ -2530,13 +2511,12 @@ BEGIN
 				SET @lambda_key := '192458993663';
 
 			# MEFE API Key:
+
 				SET @key_this_envo := 'omitted';
 
 	# The variables that we need:
 
 		SET @mefe_api_request_id = NEW.`id_map_user_unit_permissions` ;
-
-		SET @action_type = 'ASSIGN_ROLE' ;
 
 		SET @requestor_mefe_user_id = NEW.`created_by_id` ;
 		
@@ -2732,6 +2712,11 @@ BEGIN
 				(`created_datetime`
 				, `creation_trigger`
 				, `associated_call`
+				, `action_type`
+				, `mefeAPIRequestId`
+				, `table_that_triggered_lambda`
+				, `id_in_table_that_triggered_lambda`
+				, `event_type_that_triggered_lambda`
 				, `mefe_unit_id`
 				, `unit_name`
 				, `mefe_user_id`
@@ -2742,6 +2727,11 @@ BEGIN
 					(NOW()
 					, @this_trigger
 					, @associated_procedure
+					, @action_type
+					, @mefeAPIRequestId
+					, @table_that_triggered_lambda
+					, @id_in_table_that_triggered_lambda
+					, @event_type_that_triggered_lambda
 					, @mefe_unit_id
 					, @unit_name
 					, @invited_mefe_user_id
