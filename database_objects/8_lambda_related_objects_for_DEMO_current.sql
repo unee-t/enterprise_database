@@ -1399,38 +1399,6 @@ BEGIN
 #	- This is done via an authorized update method:
 #
 
-
-#		- For L3Ps:
-
-All the possible triggers:
-`ut_insert_map_external_source_unit_add_room_insert`
-`ut_insert_map_external_source_unit_add_room_update`
-`ut_update_map_external_source_unit_add_room_creation_needed_insert`
-`ut_update_map_external_source_unit_add_room_creation_needed_update`
-`ut_update_map_external_source_unit_edit_level_3_insert`
-`ut_update_map_external_source_unit_edit_level_3_update`
-
-#			- The unit does NOT exist in Unee-T
-#			  (MEFE unit ID is NULL)
-#				- New INSERT
-#					- `ut_insert_external_property_level_3_insert`
-#					- ``
-#					- ``
-#					- ``
-#					- ``
-#					- ``
-#				- The property exists but now needs to be created
-#					- ``
-#			- Update of a unit that already exists in Unee-T
-#			  (MEFE unit ID is NOT NULL)
-#				- New INSERT
-
-
-
-#		- ''
-#		- ''
-#		- ''
-
 # Capture the variables we need to verify if conditions are met:
 
 	SET @mefe_unit_id = NEW.`unee_t_mefe_unit_id` ;
