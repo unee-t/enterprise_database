@@ -1293,7 +1293,7 @@ BEGIN
 					, 'requestorUserId', requestor_mefe_user_id
 					, 'addedUserId', invited_mefe_user_id
 					, 'unitId', mefe_unit_id
-					, 'roleType', role_type)
+					, 'roleType', role_type
 					, 'isOccupant', is_occupant
 					, 'isVisible', is_visible
 					, 'isDefaultAssignee', is_default_assignee
