@@ -7,18 +7,45 @@
 
 ####################################################################
 #
-# The below Procedures are used so that we can update the database
-# after an action from a downstream system was done
-#	- `create a user`
-#	- ``
+#############
 #
-# We are creating the following procedures:
-#	- `ut_creation_unit_mefe_api_reply` (was previously `ut_creation_success_mefe_unit_id`)
-#	- `ut_creation_user_mefe_api_reply` (was previously `ut_creation_success_mefe_user_id`)
-#	- `ut_creation_user_role_association_mefe_api_reply` (was previously `ut_creation_success_add_user_to_role_in_unit_with_visibility`)
-#	- `ut_update_unit_mefe_api_reply` (was previously `ut_update_success_mefe_unit`)
-#	- `ut_update_user_mefe_api_reply` (was previously `ut_update_success_mefe_user`)
-#	- `ut_remove_user_role_association_mefe_api_reply` (was previously `ut_update_success_remove_user_from_unit`)
+# CONTEXT
+#
+#############
+#
+# The following triggers are used so that we can update the database
+# after an action from a downstream system was done
+#	- `ut_create_user`
+#	- `ut_create_unit`
+#	- `ut_add_user_to_role_in_unit_with_visibility`
+#	- `ut_after_update_ut_map_external_source_units`
+#	- `ut_retry_create_unit`
+#	- `ut_retry_assign_user_to_unit`
+#
+# These triggers are using the following procedures:
+#	- `lambda_create_user`
+#	- `lambda_create_unit`
+#	- `lambda_add_user_to_role_in_unit_with_visibility`
+#	- `ut_update_user`
+#	- `lambda_update_user_profile` <--- WHY DO WE NEED THAT?
+#	- `lambda_update_unit`
+#	- `ut_remove_user_from_unit` <--- WHY DO WE NEED THAT?
+#	- `lambda_remove_user_from_unit`
+#	- `lambda_update_unit_name_type` <--- WHY DO WE NEED THAT?
+#
+#############
+#
+# END - CONTEXT
+#
+#############
+#
+# With this script We are creating the following procedures:
+#	- `ut_creation_user_mefe_api_reply` for `lambda_create_user`
+#	- `ut_creation_unit_mefe_api_reply` for `lambda_create_unit`
+#	- `ut_creation_user_role_association_mefe_api_reply` for `lambda_add_user_to_role_in_unit_with_visibility`
+#	- `ut_update_unit_mefe_api_reply` for `lambda_update_unit`
+#	- `ut_update_user_mefe_api_reply` for `lambda_update_user_profile`
+#	- `ut_remove_user_role_association_mefe_api_reply` for `lambda_remove_user_from_unit`
 #
 #
 ####################################################################
