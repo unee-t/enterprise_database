@@ -863,7 +863,7 @@ BEGIN
 					, 'streetAddress', TO_BASE64(street_address)
 					, 'city', TO_BASE64(city)
 					, 'state', TO_BASE64(state)
-					, 'zipCode', TO_BASE64(zip_code)
+					, 'zipCode', zip_code
 					, 'country', country
 					, 'ownerId', owner_id
 					)
@@ -2315,7 +2315,7 @@ BEGIN
 					, 'streetAddress', TO_BASE64(street_address)
 					, 'city', TO_BASE64(city)
 					, 'state', TO_BASE64(state)
-					, 'zipCode', TO_BASE64(zip_code)
+					, 'zipCode', zip_code
 					, 'country', country
 					)
 				)
