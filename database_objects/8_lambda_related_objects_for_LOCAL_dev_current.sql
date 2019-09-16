@@ -207,11 +207,26 @@ BEGIN
 		# We have a problem - some key information are missing
 		# We log the problem
 
+			# We make sure we do not use a previsously used mefeAPIRequestId
+
+				SET @mefeAPIRequestId := NULL ;
+
 			# We make sure we do NOT record a payload:
 
 				SET @lambda_call := 'INVALID CALL';
 
-			SET @error_message = 'Lambda request was NOT sent - some Key information are missing' ;
+			# We prepare the error message
+
+				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+						, ' - @action_type: '
+						, @action_type
+						, ' - @user_creation_request_id: '
+						, @user_creation_request_id
+						, ' - @creator_id: '
+						, @creator_id
+						)
+					) 
+					;
 
 			INSERT INTO `log_lambdas`
 				(`created_datetime`
@@ -258,7 +273,7 @@ BEGIN
 
 					# We need a random ID as a `mefeAPIRequestId`
 
-					SET @mefeAPIRequestId := (SELECT UUID()) ;
+						SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 					SET @json_object := (
 						JSON_OBJECT(
@@ -665,11 +680,26 @@ BEGIN
 		# We have a problem - some key information are missing
 		# We log the problem
 
+			# We make sure we do not use a previsously used mefeAPIRequestId
+
+				SET @mefeAPIRequestId := NULL ;
+
 			# We make sure we do NOT record a payload:
 
 				SET @lambda_call := 'INVALID CALL';
 
-			SET @error_message = 'Lambda request was NOT sent - some Key information are missing' ;
+			# We prepare the error message
+
+				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+						, ' - @action_type: '
+						, @action_type
+						, ' - @unit_creation_request_id: '
+						, @unit_creation_request_id
+						, ' - @creator_id: '
+						, @creator_id
+						)
+					) 
+					;
 
 			INSERT INTO `log_lambdas`
 				(`created_datetime`
@@ -944,15 +974,27 @@ BEGIN
 		SET @id_map_user_unit_permissions = NEW.`id_map_user_unit_permissions` ;
 
 		SET @requestor_mefe_user_id = NEW.`created_by_id` ;
-		
-		SET @invited_mefe_user_id = NEW.`unee_t_mefe_id` ;
+
 		SET @mefe_unit_id = NEW.`unee_t_unit_id` ;
+		SET @unit_name := (SELECT `uneet_name`
+			FROM `ut_map_external_source_units`
+			WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
+			)
+			;
+
+		SET @invited_mefe_user_id = NEW.`unee_t_mefe_id` ;
+		SET @unee_t_login := (SELECT `uneet_login_name`
+			FROM `ut_map_external_source_users`
+			WHERE `unee_t_mefe_user_id` = @invited_mefe_user_id
+			)
+			;
+		
 		SET @role_type = (SELECT `role_type`
 			FROM `ut_user_role_types`
 			WHERE `id_role_type` = NEW.`unee_t_role_id` 
 			)
 			;
-		
+
 		SET @is_occupant = NEW.`is_occupant`= 1 ;
 		SET @is_occupant_not_null = (IFNULL(@is_occupant
 				, 0
@@ -1055,6 +1097,7 @@ BEGIN
 				)
 			)
 			;
+
 		SET @can_see_role_contractor_json = IF(NEW.`can_see_role_contractor`= 1
 			, 'true'
 			, 'false'
@@ -1077,8 +1120,8 @@ BEGIN
 
 		IF @action_type IS NULL
 			OR @action_type = ''
-			OR @user_creation_request_id IS NULL
-			OR @user_creation_request_id = ''
+			OR @id_map_user_unit_permissions IS NULL
+			OR @id_map_user_unit_permissions = ''
 			OR @requestor_mefe_user_id IS NULL
 			OR @requestor_mefe_user_id = ''
 		THEN
@@ -1086,11 +1129,26 @@ BEGIN
 		# We have a problem - some key information are missing
 		# We log the problem
 
+			# We make sure we do not use a previsously used mefeAPIRequestId
+
+				SET @mefeAPIRequestId := NULL ;
+
 			# We make sure we do NOT record a payload:
 
 				SET @lambda_call := 'INVALID CALL';
 
-			SET @error_message = 'Lambda request was NOT sent - some Key information are missing' ;
+			# We prepare the error message
+
+				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+						, ' - @action_type: '
+						, @action_type
+						, ' - @id_map_user_unit_permissions: '
+						, @id_map_user_unit_permissions
+						, ' - @requestor_mefe_user_id: '
+						, @requestor_mefe_user_id
+						)
+					) 
+					;
 
 			INSERT INTO `log_lambdas`
 				(`created_datetime`
@@ -1139,7 +1197,7 @@ BEGIN
 
 				# We need a random ID as a `mefeAPIRequestId`
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 						JSON_OBJECT(
@@ -1181,15 +1239,6 @@ BEGIN
 					;
 
 		# Now that we have simulated what the CALL does, we record that
-
-			SET @unit_name := (SELECT `uneet_name`
-				FROM `ut_map_external_source_units`
-				WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
-				);
-			SET @unee_t_login := (SELECT `uneet_login_name`
-				FROM `ut_map_external_source_users`
-				WHERE `unee_t_mefe_user_id` = @invited_mefe_user_id
-				);
 
 			INSERT INTO `log_lambdas`
 				(`created_datetime`
@@ -1448,11 +1497,26 @@ BEGIN
 		# We have a problem - some key information are missing
 		# We log the problem
 
+			# We make sure we do not use a previsously used mefeAPIRequestId
+
+				SET @mefeAPIRequestId := NULL ;
+
 			# We make sure we do NOT record a payload:
 
 				SET @lambda_call := 'INVALID CALL';
 
-			SET @error_message = 'Lambda request was NOT sent - some Key information are missing' ;
+			# We prepare the error message
+
+				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+						, ' - @action_type: '
+						, @action_type
+						, ' - @update_user_request_id: '
+						, @update_user_request_id
+						, ' - @requestor_mefe_user_id: '
+						, @requestor_mefe_user_id
+						)
+					) 
+					;
 
 			INSERT INTO `log_lambdas`
 				(`created_datetime`
@@ -1497,7 +1561,7 @@ BEGIN
 
 					# We need a random ID as a `mefeAPIRequestId`
 
-					SET @mefeAPIRequestId := (SELECT UUID()) ;
+						SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 					SET @json_object := (
 						JSON_OBJECT(
@@ -1928,8 +1992,8 @@ BEGIN
 
 			IF @action_type IS NULL
 				OR @action_type = ''
-				OR @user_creation_request_id IS NULL
-				OR @user_creation_request_id = ''
+				OR @unit_creation_request_id IS NULL
+				OR @unit_creation_request_id = ''
 				OR @creator_id IS NULL
 				OR @creator_id = ''
 			THEN
@@ -1937,11 +2001,26 @@ BEGIN
 			# We have a problem - some key information are missing
 			# We log the problem
 
+				# We make sure we do not use a previsously used mefeAPIRequestId
+
+					SET @mefeAPIRequestId := NULL ;
+
 				# We make sure we do NOT record a payload:
 
 					SET @lambda_call := 'INVALID CALL';
 
-				SET @error_message = 'Lambda request was NOT sent - some Key information are missing' ;
+				# We prepare the error message
+
+					SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+							, ' - @action_type: '
+							, @action_type
+							, ' - @unit_creation_request_id: '
+							, @unit_creation_request_id
+							, ' - @creator_id: '
+							, @creator_id
+							)
+						) 
+						;
 
 				INSERT INTO `log_lambdas`
 					(`created_datetime`
@@ -1987,6 +2066,10 @@ BEGIN
 				# Make sure to update that if you update the procedure `lambda_create_unit`
 
 					# The JSON Object:
+
+						# We need a random ID as a `mefeAPIRequestId`
+
+							SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 						SET @json_object := (
 							JSON_OBJECT(
@@ -2120,11 +2203,26 @@ BEGIN
 				# We have a problem - some key information are missing
 				# We log the problem
 
+					# We make sure we do not use a previsously used mefeAPIRequestId
+
+						SET @mefeAPIRequestId := NULL ;
+
 					# We make sure we do NOT record a payload:
 
 						SET @lambda_call := 'INVALID CALL';
 
-					SET @error_message = 'Lambda request was NOT sent - some Key information are missing' ;
+					# We prepare the error message
+
+						SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+								, ' - @action_type: '
+								, @action_type
+								, ' - @update_unit_request_id: '
+								, @update_unit_request_id
+								, ' - @creator_id: '
+								, @requestor_user_id
+								)
+							) 
+							;
 
 					INSERT INTO `log_lambdas`
 						(`created_datetime`
@@ -2170,6 +2268,10 @@ BEGIN
 					# Make sure to update that if you update the procedure `lambda_update_unit`
 
 						# The JSON Object:
+
+							# We need a random ID as a `mefeAPIRequestId`
+
+								SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 							SET @json_object := (
 								JSON_OBJECT(
@@ -2440,7 +2542,7 @@ BEGIN
 
 				# We need a random ID as a `mefeAPIRequestId`
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 					JSON_OBJECT(
@@ -2705,7 +2807,7 @@ BEGIN
 
 				# We need a random ID as a `mefeAPIRequestId`
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 						JSON_OBJECT(
@@ -3005,7 +3107,7 @@ BEGIN
 
 				# We need a random ID as a `mefeAPIRequestId`
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 					JSON_OBJECT(
