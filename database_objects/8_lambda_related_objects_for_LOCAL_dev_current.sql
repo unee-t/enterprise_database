@@ -371,7 +371,7 @@ BEGIN
 					, 'userCreationRequestId' , user_creation_request_id
 					, 'actionType', action_type
 					, 'creatorId', creator_id
-					, 'emailAddress', TO_BASE64(email_address)
+					, 'emailAddress', email_address
 					, 'firstName', TO_BASE64(first_name)
 					, 'lastName', TO_BASE64(last_name)
 					, 'phoneNumber', TO_BASE64(phone_number)
@@ -865,7 +865,7 @@ BEGIN
 					, 'state', TO_BASE64(state)
 					, 'zipCode', TO_BASE64(zip_code)
 					, 'country', country
-					, 'ownerId', TO_BASE64(owner_id)
+					, 'ownerId', owner_id
 					)
 				)
 				;
@@ -1627,8 +1627,8 @@ BEGIN
 					, 'firstName', TO_BASE64(first_name)
 					, 'lastName', TO_BASE64(last_name)
 					, 'phoneNumber', TO_BASE64(phone_number)
-					, 'emailAddress', TO_BASE64(mefe_email_address)
-					, 'bzfeEmailAddress', TO_BASE64(bzfe_email_address)
+					, 'emailAddress', mefe_email_address
+					, 'bzfeEmailAddress', bzfe_email_address
 					)
 				)
 				;

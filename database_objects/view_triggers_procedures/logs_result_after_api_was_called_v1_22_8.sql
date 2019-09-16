@@ -81,6 +81,7 @@ BEGIN
 #	- @creation_datetime
 #	- @is_created_by_me
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -111,6 +112,7 @@ BEGIN
 			, `update_method` := 'ut_creation_unit_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `create_api_request_id` := @mefe_api_request_id
 			WHERE `id_map` = @unit_creation_request_id
 		;
 
@@ -134,6 +136,7 @@ BEGIN
 #	- @creation_datetime
 #	- @is_created_by_me
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -165,6 +168,7 @@ BEGIN
 			, `update_method` = 'ut_creation_user_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `create_api_request_id` := @mefe_api_request_id
 			WHERE `id_map` = @user_creation_request_id
 		;
 
@@ -185,6 +189,7 @@ BEGIN
 #	- @id_map_user_unit_permissions
 #	- @creation_datetime 
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -213,6 +218,7 @@ BEGIN
 			, `unee_t_update_ts` := @creation_datetime
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `create_api_request_id` := @mefe_api_request_id
 			WHERE `id_map_user_unit_permissions` = @id_map_user_unit_permissions
 		;
 
@@ -232,6 +238,7 @@ BEGIN
 # This procedure needs the following variables:
 #	- @update_unit_request_id
 #	- @updated_datetime (a TIMESTAMP)
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -259,6 +266,7 @@ BEGIN
 			, `update_method` := 'ut_update_unit_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `edit_api_request_id` := @mefe_api_request_id
 			WHERE `id_map` = @update_unit_request_id
 		;
 
@@ -279,6 +287,7 @@ BEGIN
 #	- @update_user_request_id
 #	- @updated_datetime (a TIMESTAMP)
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 
 	# We need to capture the MEFE user ID of the updater
@@ -307,6 +316,7 @@ BEGIN
 			, `update_method` := 'ut_update_user_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `edit_api_request_id` := @mefe_api_request_id
 			WHERE `id_map` = @update_user_request_id
 		;
 
@@ -327,6 +337,7 @@ BEGIN
 #	- @remove_user_from_unit_request_id 
 #	- @updated_datetime (a TIMESTAMP)
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -355,6 +366,7 @@ BEGIN
 			, `update_method` := 'ut_remove_user_role_association_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `edit_api_request_id` := @mefe_api_request_id
 			WHERE `id_map_user_unit_permissions` = @remove_user_from_unit_request_id
 		;
 
