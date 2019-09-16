@@ -367,10 +367,10 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
-					'mefeAPIRequestId' , TO_BASE64(mefe_api_request_id)
-					, 'userCreationRequestId' , TO_BASE64(user_creation_request_id)
-					, 'actionType', TO_BASE64(action_type)
-					, 'creatorId', TO_BASE64(creator_id)
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'userCreationRequestId' , user_creation_request_id
+					, 'actionType', action_type
+					, 'creatorId', creator_id
 					, 'emailAddress', TO_BASE64(email_address)
 					, 'firstName', TO_BASE64(first_name)
 					, 'lastName', TO_BASE64(last_name)
@@ -853,18 +853,18 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
-					'mefeAPIRequestId' , TO_BASE64(mefe_api_request_id)
-					, 'unitCreationRequestId' , TO_BASE64(unit_creation_request_id)
-					, 'actionType', TO_BASE64(action_type)
-					, 'creatorId', TO_BASE64(creator_id)
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'unitCreationRequestId' , unit_creation_request_id
+					, 'actionType', action_type
+					, 'creatorId', creator_id
 					, 'name', TO_BASE64(uneet_name)
-					, 'type', TO_BASE64(unee_t_unit_type)
+					, 'type', unee_t_unit_type
 					, 'moreInfo', TO_BASE64(more_info)
 					, 'streetAddress', TO_BASE64(street_address)
 					, 'city', TO_BASE64(city)
 					, 'state', TO_BASE64(state)
 					, 'zipCode', TO_BASE64(zip_code)
-					, 'country', TO_BASE64(country)
+					, 'country', country
 					, 'ownerId', TO_BASE64(owner_id)
 					)
 				)
@@ -1287,23 +1287,23 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
-					'mefeAPIRequestId' , TO_BASE64(mefe_api_request_id)
-					, 'idMapUserUnitPermission' , TO_BASE64(id_map_user_unit_permissions)
-					, 'actionType', TO_BASE64(action_type)
-					, 'requestorUserId', TO_BASE64(requestor_mefe_user_id)
-					, 'addedUserId', TO_BASE64(invited_mefe_user_id)
-					, 'unitId', TO_BASE64(mefe_unit_id)
-					, 'roleType', TO_BASE64(role_type)
-					, 'isOccupant', TO_BASE64(is_occupant)
-					, 'isVisible', TO_BASE64(is_visible)
-					, 'isDefaultAssignee', TO_BASE64(is_default_assignee)
-					, 'isDefaultInvited', TO_BASE64(is_default_invited)
-					, 'roleVisibility' , JSON_OBJECT('Agent', TO_BASE64(can_see_role_agent)
-						, 'Tenant', TO_BASE64(can_see_role_tenant)
-						, 'Owner/Landlord', TO_BASE64(can_see_role_landlord)
-						, 'Management Company', TO_BASE64(can_see_role_mgt_cny)
-						, 'Contractor', TO_BASE64(can_see_role_contractor)
-						, 'Occupant', TO_BASE64(can_see_occupant)
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'idMapUserUnitPermission' , id_map_user_unit_permissions
+					, 'actionType', action_type
+					, 'requestorUserId', requestor_mefe_user_id
+					, 'addedUserId', invited_mefe_user_id
+					, 'unitId', mefe_unit_id
+					, 'roleType', role_type)
+					, 'isOccupant', is_occupant
+					, 'isVisible', is_visible
+					, 'isDefaultAssignee', is_default_assignee
+					, 'isDefaultInvited', is_default_invited
+					, 'roleVisibility' , JSON_OBJECT('Agent', can_see_role_agent
+						, 'Tenant', can_see_role_tenant
+						, 'Owner/Landlord', can_see_role_landlord
+						, 'Management Company', can_see_role_mgt_cny
+						, 'Contractor', can_see_role_contractor
+						, 'Occupant', can_see_occupant
 						)
 					)
 				)
@@ -1618,12 +1618,12 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
-					'mefeAPIRequestId' , TO_BASE64(mefe_api_request_id)
-					, 'updateUserRequestId' , TO_BASE64(update_user_request_id)
-					, 'actionType', TO_BASE64(action_type)
-					, 'requestorUserId', TO_BASE64(requestor_mefe_user_id)
-					, 'creatorId', TO_BASE64(creator_mefe_user_id)
-					, 'userId', TO_BASE64(mefe_user_id)
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'updateUserRequestId' , update_user_request_id
+					, 'actionType', action_type
+					, 'requestorUserId', requestor_mefe_user_id
+					, 'creatorId', creator_mefe_user_id
+					, 'userId', mefe_user_id
 					, 'firstName', TO_BASE64(first_name)
 					, 'lastName', TO_BASE64(last_name)
 					, 'phoneNumber', TO_BASE64(phone_number)
@@ -2303,20 +2303,20 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
-					'mefeAPIRequestId' , TO_BASE64(mefe_api_request_id)
-					, 'updateUnitRequestId' , TO_BASE64(update_unit_request_id)
-					, 'actionType', TO_BASE64(action_type)
-					, 'requestorUserId', TO_BASE64(requestor_user_id)
-					, 'unitId', TO_BASE64(mefe_unit_id)
-					, 'creatorId', TO_BASE64(creator_id)
-					, 'type', TO_BASE64(unee_t_unit_type)
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'updateUnitRequestId' , update_unit_request_id
+					, 'actionType', action_type
+					, 'requestorUserId', requestor_user_id
+					, 'unitId', mefe_unit_id
+					, 'creatorId', creator_id
+					, 'type', unee_t_unit_type
 					, 'name', TO_BASE64(unee_t_unit_name)
 					, 'moreInfo', TO_BASE64(more_info)
 					, 'streetAddress', TO_BASE64(street_address)
 					, 'city', TO_BASE64(city)
 					, 'state', TO_BASE64(state)
 					, 'zipCode', TO_BASE64(zip_code)
-					, 'country', TO_BASE64(country)
+					, 'country', country
 					)
 				)
 				;
@@ -2551,12 +2551,12 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
-					'mefeAPIRequestId' , TO_BASE64(mefe_api_request_id)
-					, 'removeUserFromUnitRequestId' , TO_BASE64(remove_user_from_unit_request_id)
-					, 'actionType', TO_BASE64(action_type)
-					, 'requestorUserId', TO_BASE64(requestor_user_id)
-					, 'userId', TO_BASE64(mefe_user_id)
-					, 'unitId', TO_BASE64(mefe_unit_id)
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'removeUserFromUnitRequestId' , remove_user_from_unit_request_id
+					, 'actionType', action_type
+					, 'requestorUserId', requestor_user_id
+					, 'userId', mefe_user_id
+					, 'unitId', mefe_unit_id
 					)
 				)
 				;
@@ -2591,13 +2591,13 @@ BEGIN
 
 			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
-					'mefeAPIRequestId' , TO_BASE64(mefe_api_request_id)
-					, 'updateUnitRequestId' , TO_BASE64(update_unit_request_id)
-					, 'actionType', TO_BASE64(action_type)
-					, 'requestorUserId', TO_BASE64(requestor_user_id)
-					, 'unitId', TO_BASE64(mefe_unit_id)
-					, 'creatorId', TO_BASE64(creator_id)
-					, 'type', TO_BASE64(unee_t_unit_type)
+					'mefeAPIRequestId' , mefe_api_request_id
+					, 'updateUnitRequestId' , update_unit_request_id
+					, 'actionType', action_type
+					, 'requestorUserId', requestor_user_id
+					, 'unitId', mefe_unit_id
+					, 'creatorId', creator_id
+					, 'type', unee_t_unit_type
 					, 'name', TO_BASE64(unee_t_unit_name)
 					)
 				)
