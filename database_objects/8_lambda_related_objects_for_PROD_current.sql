@@ -1,6 +1,6 @@
 #################
 #
-# This is valid for version v22.7 of the UNTE database schema
+# This is valid for version v22.8 of the UNTE database schema
 #
 # All lambda related objects
 #
@@ -46,8 +46,7 @@
 #	- `ut_create_user`
 #	- `ut_create_unit`
 #	- `ut_add_user_to_role_in_unit_with_visibility`
-#	- `ut_update_unit_creation_needed`
-#	- `ut_update_unit_already_exists`
+#	- `ut_after_update_ut_map_external_source_units`
 #	- `ut_retry_create_unit`
 #	- `ut_retry_assign_user_to_unit`
 #
@@ -65,7 +64,36 @@
 #		- `lambda_remove_user_from_unit`
 #		- `lambda_update_unit_name_type`
 #
-
+#
+###############################
+#
+# IMPORTANT INFORMATION
+#
+###############################
+#
+# The downstream system that will process the lambda call is maintained here:
+# https://github.com/unee-t/lambda2sqs/blob/master/process/main.go
+#
+# The lambda calls MUST have 4 mandatory information:
+#	- `@mefeAPIRequestId`
+#	- `@action_type`
+#	- `@creator_id` or `@requestor_mefe_user_id` or `requestor_user_id`
+#	- The id to update the table that requested the update:
+#		- `@user_creation_request_id` for `lambda_create_user`
+#		- `@unit_creation_request_id` for `lambda_create_unit`
+#		- `@id_map_user_unit_permissions` for `lambda_add_user_to_role_in_unit_with_visibility`
+#		- `@update_user_request_id` for `lambda_update_user_profile`
+#		- `@update_unit_request_id` for `lambda_update_unit`
+#		- `@remove_user_from_unit_request_id` for `lambda_remove_user_from_unit`
+# We should NEVER send lambda calls without these information.
+#
+#
+###############################
+#
+# END - IMPORTANT INFORMATION
+#
+###############################
+#
 # Create the trigger to fire the Lambda to tell the MEFE to create these user each time a user needs to be created in Unee-T
 
 	DROP TRIGGER IF EXISTS `ut_create_user`;
@@ -166,91 +194,162 @@ BEGIN
 			)
 			;
 
-	# We insert the event in the relevant log table
+	# We need to make sure that we have all the mandatory information for the downstream systems:
 
-		# Simulate what the Procedure `lambda_create_user` does
-		# Make sure to update that if you update the procedure `lambda_create_user`
+		IF @action_type IS NULL
+			OR @action_type = ''
+			OR @user_creation_request_id IS NULL
+			OR @user_creation_request_id = ''
+			OR @creator_id IS NULL
+			OR @creator_id = ''
+		THEN
 
-			# The JSON Object:
+		# We have a problem - some key information are missing
+		# We log the problem
 
-				# We need a random ID as a `mefeAPIRequestId`
+			# We make sure we do not use a previsously used mefeAPIRequestId
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+				SET @mefeAPIRequestId := NULL ;
 
-				SET @json_object := (
-					JSON_OBJECT(
-						'mefeAPIRequestId' , @mefeAPIRequestId
-						, 'userCreationRequestId' , @user_creation_request_id
-						, 'actionType', @action_type
-						, 'creatorId', @creator_id
-						, 'emailAddress', @email_address
-						, 'firstName', @first_name
-						, 'lastName', @last_name
-						, 'phoneNumber', @phone_number
-						)
-					)
-					;
+			# We make sure we do NOT record a payload:
 
-			# The specific lambda:
+				SET @lambda_call := 'INVALID CALL';
 
-				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
-					, @lambda_key
-					, ':function:ut_lambda2sqs_push')
-					;
-			
-			# The specific Lambda CALL:
+			# We prepare the error message
 
-				SET @lambda_call = CONCAT('CALL mysql.lambda_async'
-					, @lambda
-					, @json_object
-					)
-					;
-
-		# Now that we have simulated what the CALL does, we record that
-
-				INSERT INTO `log_lambdas`
-					 (`created_datetime`
-					 , `creation_trigger`
-					 , `associated_call`
-					 , `action_type`
-					 , `mefeAPIRequestId`
-					 , `table_that_triggered_lambda`
-					 , `id_in_table_that_triggered_lambda`
-					 , `event_type_that_triggered_lambda`
-					 , `mefe_unit_id`
-					 , `mefe_user_id`
-					 , `unee_t_login`
-					 , `payload`
-					 )
-					 VALUES
-						(NOW()
-						, @this_trigger_8_1
-						, @associated_procedure
+				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+						, ' - @action_type: '
 						, @action_type
-						, @mefeAPIRequestId
-						, @table_that_triggered_lambda
-						, @id_in_table_that_triggered_lambda
-						, @event_type_that_triggered_lambda
-						, 'n/a'
-						, 'n/a'
-						, @email_address
-						, @lambda_call
+						, ' - @user_creation_request_id: '
+						, @user_creation_request_id
+						, ' - @creator_id: '
+						, @creator_id
+						)
+					) 
+					;
+
+			INSERT INTO `log_lambdas`
+				(`created_datetime`
+				, `creation_trigger`
+				, `associated_call`
+				, `action_type`
+				, `mefeAPIRequestId`
+				, `table_that_triggered_lambda`
+				, `id_in_table_that_triggered_lambda`
+				, `event_type_that_triggered_lambda`
+				, `mefe_unit_id`
+				, `mefe_user_id`
+				, `unee_t_login`
+				, `payload`
+				, `error_message`
+				)
+				VALUES
+					(NOW()
+					, @this_trigger_8_1
+					, @associated_procedure
+					, @action_type
+					, @mefeAPIRequestId
+					, @table_that_triggered_lambda
+					, @id_in_table_that_triggered_lambda
+					, @event_type_that_triggered_lambda
+					, 'n/a'
+					, 'n/a'
+					, @email_address
+					, @lambda_call
+					, @error_message
+					)
+				;
+
+	# We have the mandatory information, we can proceed and trigger calls to downstream systems
+
+		ELSE
+
+		# We insert the event in the relevant log table
+
+			# Simulate what the Procedure `lambda_create_user` does
+			# Make sure to update that if you update the procedure `lambda_create_user`
+
+				# The JSON Object:
+
+					# We need a random ID as a `mefeAPIRequestId`
+
+						SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+					SET @json_object := (
+						JSON_OBJECT(
+							'mefeAPIRequestId' , @mefeAPIRequestId
+							, 'userCreationRequestId' , @user_creation_request_id
+							, 'actionType', @action_type
+							, 'creatorId', @creator_id
+							, 'emailAddress', @email_address
+							, 'firstName', @first_name
+							, 'lastName', @last_name
+							, 'phoneNumber', @phone_number
+							)
 						)
 						;
 
-	# We call the Lambda procedure to create the user
+				# The specific lambda:
 
-		CALL `lambda_create_user`(@mefeAPIRequestId
-			, @user_creation_request_id
-			, @action_type
-			, @creator_id
-			, @email_address
-			, @first_name
-			, @last_name
-			, @phone_number
-			)
-			;
-	
+					SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
+						, @lambda_key
+						, ':function:ut_lambda2sqs_push')
+						;
+				
+				# The specific Lambda CALL:
+
+					SET @lambda_call = CONCAT('CALL mysql.lambda_async'
+						, @lambda
+						, @json_object
+						)
+						;
+
+			# Now that we have simulated what the CALL does, we record that
+
+					INSERT INTO `log_lambdas`
+						(`created_datetime`
+						, `creation_trigger`
+						, `associated_call`
+						, `action_type`
+						, `mefeAPIRequestId`
+						, `table_that_triggered_lambda`
+						, `id_in_table_that_triggered_lambda`
+						, `event_type_that_triggered_lambda`
+						, `mefe_unit_id`
+						, `mefe_user_id`
+						, `unee_t_login`
+						, `payload`
+						)
+						VALUES
+							(NOW()
+							, @this_trigger_8_1
+							, @associated_procedure
+							, @action_type
+							, @mefeAPIRequestId
+							, @table_that_triggered_lambda
+							, @id_in_table_that_triggered_lambda
+							, @event_type_that_triggered_lambda
+							, 'n/a'
+							, 'n/a'
+							, @email_address
+							, @lambda_call
+							)
+							;
+		
+			# We call the Lambda procedure to create the user
+
+				CALL `lambda_create_user`(@mefeAPIRequestId
+					, @user_creation_request_id
+					, @action_type
+					, @creator_id
+					, @email_address
+					, @first_name
+					, @last_name
+					, @phone_number
+					)
+					;
+			
+		END IF;
 	END IF;
 END;
 $$
@@ -288,9 +387,9 @@ BEGIN
 					, 'actionType', action_type
 					, 'creatorId', creator_id
 					, 'emailAddress', email_address
-					, 'firstName', first_name
-					, 'lastName', last_name
-					, 'phoneNumber', phone_number
+					, 'firstName', TO_BASE64(first_name)
+					, 'lastName', TO_BASE64(last_name)
+					, 'phoneNumber', TO_BASE64(phone_number)
 					)
 				)
 				;
@@ -568,60 +667,39 @@ BEGIN
 
 			SET @owner_id = @creator_id ;
 
-	# We insert the event in the relevant log table
+	# We need to make sure that we have all the mandatory information for the downstream systems:
 
-		# Simulate what the Procedure `lambda_create_unit` does
-		# Make sure to update that if you update the procedure `lambda_create_unit`
+		IF @action_type IS NULL
+			OR @action_type = ''
+			OR @unit_creation_request_id IS NULL
+			OR @unit_creation_request_id = ''
+			OR @creator_id IS NULL
+			OR @creator_id = ''
+		THEN
 
-			# What is the action type?
+		# We have a problem - some key information are missing
+		# We log the problem
 
-				SET @action_type = 'CREATE_UNIT';
+			# We make sure we do not use a previsously used mefeAPIRequestId
 
-			# What is the procedure associated with this trigger:
+				SET @mefeAPIRequestId := NULL ;
 
-				SET @associated_procedure = 'lambda_create_unit';
+			# We make sure we do NOT record a payload:
 
-			# The JSON Object:
+				SET @lambda_call := 'INVALID CALL';
 
-				# We need a random ID as a `mefeAPIRequestId`
+			# We prepare the error message
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
-
-				SET @json_object := (
-					JSON_OBJECT(
-						'mefeAPIRequestId' , @mefeAPIRequestId
-						, 'unitCreationRequestId' , @unit_creation_request_id
-						, 'actionType', @action_type
-						, 'creatorId', @creator_id
-						, 'name', @uneet_name
-						, 'type', @unee_t_unit_type
-						, 'moreInfo', @more_info
-						, 'streetAddress', @street_address
-						, 'city', @city
-						, 'state', @state
-						, 'zipCode', @zip_code
-						, 'country', @country
-						, 'ownerId', @owner_id
+				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+						, ' - @action_type: '
+						, @action_type
+						, ' - @unit_creation_request_id: '
+						, @unit_creation_request_id
+						, ' - @creator_id: '
+						, @creator_id
 						)
-					)
+					) 
 					;
-
-			# The specific lambda:
-
-				SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
-					, @lambda_key
-					, ':function:ut_lambda2sqs_push')
-					;
-			
-			# The specific Lambda CALL:
-
-				SET @lambda_call = CONCAT('CALL mysql.lambda_async'
-					, @lambda
-					, @json_object
-					)
-					;
-
-		# Now that we have simulated what the CALL does, we record that
 
 			INSERT INTO `log_lambdas`
 				(`created_datetime`
@@ -634,9 +712,10 @@ BEGIN
 				, `event_type_that_triggered_lambda`
 				, `external_property_type_id`
 				, `mefe_unit_id`
-				, `unit_name`
 				, `mefe_user_id`
+				, `unee_t_login`
 				, `payload`
+				, `error_message`
 				)
 				VALUES
 					(NOW()
@@ -652,27 +731,120 @@ BEGIN
 					, @uneet_name
 					, 'n/a'
 					, @lambda_call
+					, @error_message
+					)
+				;
+
+	# We have the mandatory information, we can proceed and trigger calls to downstream systems
+
+		ELSE
+
+		# We insert the event in the relevant log table
+
+			# Simulate what the Procedure `lambda_create_unit` does
+			# Make sure to update that if you update the procedure `lambda_create_unit`
+
+				# What is the action type?
+
+					SET @action_type = 'CREATE_UNIT';
+
+				# What is the procedure associated with this trigger:
+
+					SET @associated_procedure = 'lambda_create_unit';
+
+				# The JSON Object:
+
+					# We need a random ID as a `mefeAPIRequestId`
+
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+					SET @json_object := (
+						JSON_OBJECT(
+							'mefeAPIRequestId' , @mefeAPIRequestId
+							, 'unitCreationRequestId' , @unit_creation_request_id
+							, 'actionType', @action_type
+							, 'creatorId', @creator_id
+							, 'name', @uneet_name
+							, 'type', @unee_t_unit_type
+							, 'moreInfo', @more_info
+							, 'streetAddress', @street_address
+							, 'city', @city
+							, 'state', @state
+							, 'zipCode', @zip_code
+							, 'country', @country
+							, 'ownerId', @owner_id
+							)
+						)
+						;
+
+				# The specific lambda:
+
+					SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
+						, @lambda_key
+						, ':function:ut_lambda2sqs_push')
+						;
+				
+				# The specific Lambda CALL:
+
+					SET @lambda_call = CONCAT('CALL mysql.lambda_async'
+						, @lambda
+						, @json_object
+						)
+						;
+
+			# Now that we have simulated what the CALL does, we record that
+
+				INSERT INTO `log_lambdas`
+					(`created_datetime`
+					, `creation_trigger`
+					, `associated_call`
+					, `action_type`
+					, `mefeAPIRequestId`
+					, `table_that_triggered_lambda`
+					, `id_in_table_that_triggered_lambda`
+					, `event_type_that_triggered_lambda`
+					, `external_property_type_id`
+					, `mefe_unit_id`
+					, `unit_name`
+					, `mefe_user_id`
+					, `payload`
+					)
+					VALUES
+						(NOW()
+						, @this_trigger
+						, @associated_procedure
+						, @action_type
+						, @mefeAPIRequestId
+						, @table_that_triggered_lambda
+						, @id_in_table_that_triggered_lambda
+						, @event_type_that_triggered_lambda
+						, @external_property_type_id
+						, 'n/a'
+						, @uneet_name
+						, 'n/a'
+						, @lambda_call
+						)
+						;
+		
+			# We call the Lambda procedure to create a unit
+
+				CALL `lambda_create_unit`(@mefeAPIRequestId
+					, @unit_creation_request_id
+					, @action_type
+					, @creator_id
+					, @uneet_name
+					, @unee_t_unit_type
+					, @more_info
+					, @street_address
+					, @city
+					, @state
+					, @zip_code
+					, @country
+					, @owner_id
 					)
 					;
-
-	# We call the Lambda procedure to create a unit
-
-		CALL `lambda_create_unit`(@mefeAPIRequestId
-			, @unit_creation_request_id
-			, @action_type
-			, @creator_id
-			, @uneet_name
-			, @unee_t_unit_type
-			, @more_info
-			, @street_address
-			, @city
-			, @state
-			, @zip_code
-			, @country
-			, @owner_id
-			)
-			;
-
+		
+		END IF;
 	END IF;
 
 END;
@@ -715,12 +887,12 @@ BEGIN
 					, 'unitCreationRequestId' , unit_creation_request_id
 					, 'actionType', action_type
 					, 'creatorId', creator_id
-					, 'name', uneet_name
+					, 'name', TO_BASE64(uneet_name)
 					, 'type', unee_t_unit_type
-					, 'moreInfo', more_info
-					, 'streetAddress', street_address
-					, 'city', city
-					, 'state', state
+					, 'moreInfo', TO_BASE64(more_info)
+					, 'streetAddress', TO_BASE64(street_address)
+					, 'city', TO_BASE64(city)
+					, 'state', TO_BASE64(state)
 					, 'zipCode', zip_code
 					, 'country', country
 					, 'ownerId', owner_id
@@ -802,15 +974,27 @@ BEGIN
 		SET @id_map_user_unit_permissions = NEW.`id_map_user_unit_permissions` ;
 
 		SET @requestor_mefe_user_id = NEW.`created_by_id` ;
-		
-		SET @invited_mefe_user_id = NEW.`unee_t_mefe_id` ;
+
 		SET @mefe_unit_id = NEW.`unee_t_unit_id` ;
+		SET @unit_name := (SELECT `uneet_name`
+			FROM `ut_map_external_source_units`
+			WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
+			)
+			;
+
+		SET @invited_mefe_user_id = NEW.`unee_t_mefe_id` ;
+		SET @unee_t_login := (SELECT `uneet_login_name`
+			FROM `ut_map_external_source_users`
+			WHERE `unee_t_mefe_user_id` = @invited_mefe_user_id
+			)
+			;
+		
 		SET @role_type = (SELECT `role_type`
 			FROM `ut_user_role_types`
 			WHERE `id_role_type` = NEW.`unee_t_role_id` 
 			)
 			;
-		
+
 		SET @is_occupant = NEW.`is_occupant`= 1 ;
 		SET @is_occupant_not_null = (IFNULL(@is_occupant
 				, 0
@@ -913,6 +1097,7 @@ BEGIN
 				)
 			)
 			;
+
 		SET @can_see_role_contractor_json = IF(NEW.`can_see_role_contractor`= 1
 			, 'true'
 			, 'false'
@@ -930,7 +1115,79 @@ BEGIN
 			, 'false'
 		 	)
 			; 
-	
+
+	# We need to make sure that we have all the mandatory information for the downstream systems:
+
+		IF @action_type IS NULL
+			OR @action_type = ''
+			OR @id_map_user_unit_permissions IS NULL
+			OR @id_map_user_unit_permissions = ''
+			OR @requestor_mefe_user_id IS NULL
+			OR @requestor_mefe_user_id = ''
+		THEN
+
+		# We have a problem - some key information are missing
+		# We log the problem
+
+			# We make sure we do not use a previsously used mefeAPIRequestId
+
+				SET @mefeAPIRequestId := NULL ;
+
+			# We make sure we do NOT record a payload:
+
+				SET @lambda_call := 'INVALID CALL';
+
+			# We prepare the error message
+
+				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+						, ' - @action_type: '
+						, @action_type
+						, ' - @id_map_user_unit_permissions: '
+						, @id_map_user_unit_permissions
+						, ' - @requestor_mefe_user_id: '
+						, @requestor_mefe_user_id
+						)
+					) 
+					;
+
+			INSERT INTO `log_lambdas`
+				(`created_datetime`
+				, `creation_trigger`
+				, `associated_call`
+				, `action_type`
+				, `mefeAPIRequestId`
+				, `table_that_triggered_lambda`
+				, `id_in_table_that_triggered_lambda`
+				, `event_type_that_triggered_lambda`
+				, `mefe_unit_id`
+				, `unit_name`
+				, `mefe_user_id`
+				, `unee_t_login`
+				, `payload`
+				, `error_message`
+				)
+				VALUES
+					(NOW()
+					, @this_trigger_8_3
+					, @associated_procedure
+					, @action_type
+					, @mefeAPIRequestId
+					, @table_that_triggered_lambda
+					, @id_in_table_that_triggered_lambda
+					, @event_type_that_triggered_lambda
+					, @mefe_unit_id
+					, @unit_name
+					, @invited_mefe_user_id
+					, @unee_t_login
+					, @lambda_call
+					, @error_message
+					)
+				;
+
+	# We have the mandatory information, we can proceed and trigger calls to downstream systems
+
+		ELSE
+
 	# We insert the event in the relevant log table
 
 		# Simulate what the Procedure `lambda_add_user_to_role_in_unit_with_visibility` does
@@ -940,7 +1197,7 @@ BEGIN
 
 				# We need a random ID as a `mefeAPIRequestId`
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 						JSON_OBJECT(
@@ -983,15 +1240,6 @@ BEGIN
 
 		# Now that we have simulated what the CALL does, we record that
 
-			SET @unit_name := (SELECT `uneet_name`
-				FROM `ut_map_external_source_units`
-				WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
-				);
-			SET @unee_t_login := (SELECT `uneet_login_name`
-				FROM `ut_map_external_source_users`
-				WHERE `unee_t_mefe_user_id` = @invited_mefe_user_id
-				);
-
 			INSERT INTO `log_lambdas`
 				(`created_datetime`
 				, `creation_trigger`
@@ -1023,29 +1271,30 @@ BEGIN
 					, @lambda_call
 					)
 					;
+		
+			# We call the Lambda procedure to add a user to a role in a unit
 
-	# We call the Lambda procedure to add a user to a role in a unit
-
-		CALL `lambda_add_user_to_role_in_unit_with_visibility`(@mefeAPIRequestId
-			, @id_map_user_unit_permissions
-			, @action_type
-			, @requestor_mefe_user_id
-			, @invited_mefe_user_id
-			, @mefe_unit_id
-			, @role_type
-			, @is_occupant
-			, @is_visible
-			, @is_default_assignee
-			, @is_default_invited
-			, @can_see_role_agent
-			, @can_see_role_tenant
-			, @can_see_role_landlord
-			, @can_see_role_mgt_cny
-			, @can_see_role_contractor
-			, @can_see_occupant
-			)
-			;
-
+				CALL `lambda_add_user_to_role_in_unit_with_visibility`(@mefeAPIRequestId
+					, @id_map_user_unit_permissions
+					, @action_type
+					, @requestor_mefe_user_id
+					, @invited_mefe_user_id
+					, @mefe_unit_id
+					, @role_type
+					, @is_occupant
+					, @is_visible
+					, @is_default_assignee
+					, @is_default_invited
+					, @can_see_role_agent
+					, @can_see_role_tenant
+					, @can_see_role_landlord
+					, @can_see_role_mgt_cny
+					, @can_see_role_contractor
+					, @can_see_occupant
+					)
+					;
+		
+		END IF;
 	END IF;
 END;
 $$
@@ -1235,100 +1484,169 @@ BEGIN
 			SET @lambda_id = @lambda_key ;
 			SET @mefe_api_key = @key_this_envo ;
 
-		# We insert the event in the relevant log table
+	# We need to make sure that we have all the mandatory information for the downstream systems:
 
-			# Simulate what the Procedure `lambda_create_user` does
-			# Make sure to update that if you update the procedure `lambda_create_user`
+		IF @action_type IS NULL
+			OR @action_type = ''
+			OR @update_user_request_id IS NULL
+			OR @update_user_request_id = ''
+			OR @requestor_mefe_user_id IS NULL
+			OR @requestor_mefe_user_id = ''
+		THEN
 
-			# The JSON Object:
+		# We have a problem - some key information are missing
+		# We log the problem
 
-				# We need a random ID as a `mefeAPIRequestId`
+			# We make sure we do not use a previsously used mefeAPIRequestId
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+				SET @mefeAPIRequestId := NULL ;
 
-				SET @json_object := (
-					JSON_OBJECT(
-						'mefeAPIRequestId' , @mefeAPIRequestId
-						, 'updateUserRequestId' , @update_user_request_id
-						, 'actionType', @action_type
-						, 'requestorUserId', @requestor_mefe_user_id
-						, 'creatorId', @creator_mefe_user_id
-						, 'userId', @mefe_user_id_uu_l_1
-						, 'firstName', @first_name
-						, 'lastName', @last_name
-						, 'phoneNumber', @phone_number
-						, 'emailAddress', @mefe_email_address
-						, 'bzfeEmailAddress', @bzfe_email_address
+			# We make sure we do NOT record a payload:
+
+				SET @lambda_call := 'INVALID CALL';
+
+			# We prepare the error message
+
+				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+						, ' - @action_type: '
+						, @action_type
+						, ' - @update_user_request_id: '
+						, @update_user_request_id
+						, ' - @requestor_mefe_user_id: '
+						, @requestor_mefe_user_id
 						)
-					)
+					) 
 					;
 
-				# The specific lambda:
-
-					SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
-						, @lambda_key
-						, ':function:ut_lambda2sqs_push')
-						;
-				
-				# The specific Lambda CALL:
-
-					SET @lambda_call = CONCAT('CALL mysql.lambda_async'
-						, @lambda
-						, @json_object
-						)
-						;
-
-			# Now that we have simulated what the CALL does, we record that
-
-			SET @unee_t_login := (SELECT `uneet_login_name`
-				FROM `ut_map_external_source_users`
-				WHERE `unee_t_mefe_user_id` = @mefe_user_id_uu_l_1
-				);
-
-				INSERT INTO `log_lambdas`
-					(`created_datetime`
-					, `creation_trigger`
-					, `associated_call`
-					, `action_type`
-					, `mefeAPIRequestId`
-					, `table_that_triggered_lambda`
-					, `event_type_that_triggered_lambda`
-					, `mefe_unit_id`
-					, `mefe_user_id`
-					, `unee_t_login`
-					, `payload`
-					)
-					VALUES
-						(NOW()
-						, @this_procedure
-						, @associated_procedure
-						, @action_type
-						, @mefeAPIRequestId
-						, @table_that_triggered_lambda
-						, @event_type_that_triggered_lambda
-						, 'n/a'
-						, @mefe_user_id_uu_l_1
-						, @unee_t_login
-						, @lambda_call
-						)
-						;
-
-		# We call the Lambda procedure to update the user
-
-			CALL `lambda_update_user_profile`(@mefeAPIRequestId
-				, @update_user_request_id
-				, @action_type
-				, @requestor_mefe_user_id
-				, @creator_mefe_user_id
-				, @mefe_user_id_uu_l_1
-				, @first_name
-				, @last_name
-				, @phone_number
-				, @mefe_email_address
-				, @bzfe_email_address
+			INSERT INTO `log_lambdas`
+				(`created_datetime`
+				, `creation_trigger`
+				, `associated_call`
+				, `action_type`
+				, `mefeAPIRequestId`
+				, `table_that_triggered_lambda`
+				, `event_type_that_triggered_lambda`
+				, `mefe_unit_id`
+				, `mefe_user_id`
+				, `unee_t_login`
+				, `payload`
+				, `error_message`
 				)
+				VALUES
+					(NOW()
+					, @this_procedure
+					, @associated_procedure
+					, @action_type
+					, @mefeAPIRequestId
+					, @table_that_triggered_lambda
+					, @event_type_that_triggered_lambda
+					, 'n/a'
+					, @mefe_user_id_uu_l_1
+					, @unee_t_login
+					, @lambda_call
+					, @error_message
+					)
 				;
 
+	# We have the mandatory information, we can proceed and trigger calls to downstream systems
+
+		ELSE
+
+			# We insert the event in the relevant log table
+
+				# Simulate what the Procedure `lambda_create_user` does
+				# Make sure to update that if you update the procedure `lambda_create_user`
+
+				# The JSON Object:
+
+					# We need a random ID as a `mefeAPIRequestId`
+
+						SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+					SET @json_object := (
+						JSON_OBJECT(
+							'mefeAPIRequestId' , @mefeAPIRequestId
+							, 'updateUserRequestId' , @update_user_request_id
+							, 'actionType', @action_type
+							, 'requestorUserId', @requestor_mefe_user_id
+							, 'creatorId', @creator_mefe_user_id
+							, 'userId', @mefe_user_id_uu_l_1
+							, 'firstName', @first_name
+							, 'lastName', @last_name
+							, 'phoneNumber', @phone_number
+							, 'emailAddress', @mefe_email_address
+							, 'bzfeEmailAddress', @bzfe_email_address
+							)
+						)
+						;
+
+					# The specific lambda:
+
+						SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
+							, @lambda_key
+							, ':function:ut_lambda2sqs_push')
+							;
+					
+					# The specific Lambda CALL:
+
+						SET @lambda_call = CONCAT('CALL mysql.lambda_async'
+							, @lambda
+							, @json_object
+							)
+							;
+
+				# Now that we have simulated what the CALL does, we record that
+
+				SET @unee_t_login := (SELECT `uneet_login_name`
+					FROM `ut_map_external_source_users`
+					WHERE `unee_t_mefe_user_id` = @mefe_user_id_uu_l_1
+					);
+
+					INSERT INTO `log_lambdas`
+						(`created_datetime`
+						, `creation_trigger`
+						, `associated_call`
+						, `action_type`
+						, `mefeAPIRequestId`
+						, `table_that_triggered_lambda`
+						, `event_type_that_triggered_lambda`
+						, `mefe_unit_id`
+						, `mefe_user_id`
+						, `unee_t_login`
+						, `payload`
+						)
+						VALUES
+							(NOW()
+							, @this_procedure
+							, @associated_procedure
+							, @action_type
+							, @mefeAPIRequestId
+							, @table_that_triggered_lambda
+							, @event_type_that_triggered_lambda
+							, 'n/a'
+							, @mefe_user_id_uu_l_1
+							, @unee_t_login
+							, @lambda_call
+							)
+							;
+		
+				# We call the Lambda procedure to update the user
+
+					CALL `lambda_update_user_profile`(@mefeAPIRequestId
+						, @update_user_request_id
+						, @action_type
+						, @requestor_mefe_user_id
+						, @creator_mefe_user_id
+						, @mefe_user_id_uu_l_1
+						, @first_name
+						, @last_name
+						, @phone_number
+						, @mefe_email_address
+						, @bzfe_email_address
+						)
+						;
+		
+		END IF;
 	END IF;
 END;
 $$
@@ -1370,9 +1688,9 @@ BEGIN
 					, 'requestorUserId', requestor_mefe_user_id
 					, 'creatorId', creator_mefe_user_id
 					, 'userId', mefe_user_id
-					, 'firstName', first_name
-					, 'lastName', last_name
-					, 'phoneNumber', phone_number
+					, 'firstName', TO_BASE64(first_name)
+					, 'lastName', TO_BASE64(last_name)
+					, 'phoneNumber', TO_BASE64(phone_number)
 					, 'emailAddress', mefe_email_address
 					, 'bzfeEmailAddress', bzfe_email_address
 					)
@@ -1457,16 +1775,15 @@ BEGIN
 		SET @new_record_id = NEW.`new_record_id`;		
 		SET @external_property_type_id = NEW.`external_property_type_id` ;
 
-		SET @unit_creation_request_id = (SELECT `id_map` 
-			FROM `ut_map_external_source_units`
-			WHERE `new_record_id` = @new_record_id
-				AND `external_property_type_id` = @external_property_type_id
-			)
-			;
+		SET @unit_creation_request_id = NEW.`id_map` ;
+
+		SET @update_unit_request_id = NEW.`id_map` ;
 
 		SET @creator_id = NEW.`created_by_id`;
 		SET @uneet_name = NEW.`uneet_name`;
 		SET @unee_t_unit_type = NEW.`unee_t_unit_type`;
+
+		SET @requestor_user_id := NEW.`updated_by_id` ;
 
 		# More info:
 
@@ -1671,12 +1988,88 @@ BEGIN
 
 				SET @associated_procedure = 'lambda_create_unit';
 
+		# We need to make sure that we have all the mandatory information for the downstream systems:
+
+			IF @action_type IS NULL
+				OR @action_type = ''
+				OR @unit_creation_request_id IS NULL
+				OR @unit_creation_request_id = ''
+				OR @creator_id IS NULL
+				OR @creator_id = ''
+			THEN
+
+			# We have a problem - some key information are missing
+			# We log the problem
+
+				# We make sure we do not use a previsously used mefeAPIRequestId
+
+					SET @mefeAPIRequestId := NULL ;
+
+				# We make sure we do NOT record a payload:
+
+					SET @lambda_call := 'INVALID CALL';
+
+				# We prepare the error message
+
+					SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+							, ' - @action_type: '
+							, @action_type
+							, ' - @unit_creation_request_id: '
+							, @unit_creation_request_id
+							, ' - @creator_id: '
+							, @creator_id
+							)
+						) 
+						;
+
+				INSERT INTO `log_lambdas`
+					(`created_datetime`
+					, `creation_trigger`
+					, `associated_call`
+					, `action_type`
+					, `mefeAPIRequestId`
+					, `table_that_triggered_lambda`
+					, `id_in_table_that_triggered_lambda`
+					, `event_type_that_triggered_lambda`
+					, `external_property_type_id`
+					, `mefe_unit_id`
+					, `unit_name`
+					, `mefe_user_id`
+					, `payload`
+					, `error_message`
+					)
+					VALUES
+						(NOW()
+						, @this_trigger
+						, @associated_procedure
+						, @action_type
+						, @mefeAPIRequestId
+						, @table_that_triggered_lambda
+						, @id_in_table_that_triggered_lambda
+						, @event_type_that_triggered_lambda
+						, @external_property_type_id
+						, 'n/a'
+						, @uneet_name
+						, 'n/a'
+						, @lambda_call
+						, @error_message
+						)
+					;
+
+		# We have the mandatory information, we can proceed and trigger calls to downstream systems
+
+			ELSE
+
 			# We insert the event in the relevant log table
 
 				# Simulate what the Procedure `lambda_create_unit` does
 				# Make sure to update that if you update the procedure `lambda_create_unit`
 
 					# The JSON Object:
+
+						# We need a random ID as a `mefeAPIRequestId`
+
+							SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 						SET @json_object := (
 							JSON_OBJECT(
@@ -1745,25 +2138,26 @@ BEGIN
 							, @lambda_call
 							)
 							;
-		
-			# We call the Lambda procedure to create a unit
+				
+				# We call the Lambda procedure to create a unit
 
-				CALL `lambda_create_unit`(@mefeAPIRequestId
-					, @unit_creation_request_id
-					, @action_type
-					, @creator_id
-					, @uneet_name
-					, @unee_t_unit_type
-					, @more_info
-					, @street_address
-					, @city
-					, @state
-					, @zip_code
-					, @country
-					, @owner_id
-					)
-					;
-		
+					CALL `lambda_create_unit`(@mefeAPIRequestId
+						, @unit_creation_request_id
+						, @action_type
+						, @creator_id
+						, @uneet_name
+						, @unee_t_unit_type
+						, @more_info
+						, @street_address
+						, @city
+						, @state
+						, @zip_code
+						, @country
+						, @owner_id
+						)
+						;
+				
+			END IF;
 
 		ELSEIF @mefe_unit_id IS NOT NULL
 			AND @is_update_needed = 1
@@ -1780,54 +2174,55 @@ BEGIN
 			
 				SET @associated_procedure = 'lambda_update_unit';
 
-			# We insert the event in the relevant log table
+			# Get the name for the unit:
 
-				# Simulate what the Procedure `lambda_update_unit` does
-				# Make sure to update that if you update the procedure `lambda_update_unit`
+				SET @unit_name := (SELECT `uneet_name`
+					FROM `ut_map_external_source_units`
+					WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
+					)
+					;
 
-					# The JSON Object:
+			# Get the id of the unit in the table:
 
-						SET @json_object := (
-							JSON_OBJECT(
-								'mefeAPIRequestId' , @mefeAPIRequestId
-								, 'updateUnitRequestId' , @update_unit_request_id
-								, 'actionType', @action_type
-								, 'requestorUserId', @requestor_user_id
-								, 'unitId', @mefe_unit_id
-								, 'creatorId', @creator_id
-								, 'type', @unee_t_unit_type
-								, 'name', @unee_t_unit_name
-								, 'moreInfo', @more_info
-								, 'streetAddress', @street_address
-								, 'city', @city
-								, 'state', @state
-								, 'zipCode', @zip_code
-								, 'country', @country
+				SET @update_unit_request_id  := (SELECT `id_map`
+					FROM `ut_map_external_source_units`
+					WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
+					)
+					;
+
+			# We need to make sure that we have all the mandatory information for the downstream systems:
+
+				IF @action_type IS NULL
+					OR @action_type = ''
+					OR @update_unit_request_id IS NULL
+					OR @update_unit_request_id = ''
+					OR @requestor_user_id IS NULL
+					OR @requestor_user_id = ''
+				THEN
+
+				# We have a problem - some key information are missing
+				# We log the problem
+
+					# We make sure we do not use a previsously used mefeAPIRequestId
+
+						SET @mefeAPIRequestId := NULL ;
+
+					# We make sure we do NOT record a payload:
+
+						SET @lambda_call := 'INVALID CALL';
+
+					# We prepare the error message
+
+						SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
+								, ' - @action_type: '
+								, @action_type
+								, ' - @update_unit_request_id: '
+								, @update_unit_request_id
+								, ' - @creator_id: '
+								, @requestor_user_id
 								)
-							)
+							) 
 							;
-
-					# The specific lambda:
-
-						SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
-							, @lambda_key
-							, ':function:ut_lambda2sqs_push')
-							;
-					
-					# The specific Lambda CALL:
-
-						SET @lambda_call = CONCAT('CALL mysql.lambda_async'
-							, @lambda
-							, @json_object
-							)
-							;
-
-				# Now that we have simulated what the CALL does, we record that
-
-					SET @unit_name := (SELECT `uneet_name`
-						FROM `ut_map_external_source_units`
-						WHERE `unee_t_mefe_unit_id` = @mefe_unit_id
-						);
 
 					INSERT INTO `log_lambdas`
 						(`created_datetime`
@@ -1843,6 +2238,7 @@ BEGIN
 						, `unit_name`
 						, `mefe_user_id`
 						, `payload`
+						, `error_message`
 						)
 						VALUES
 							(NOW()
@@ -1858,28 +2254,114 @@ BEGIN
 							, @unit_name
 							, 'n/a'
 							, @lambda_call
+							, @error_message
+							)
+						;
+
+			# We have the mandatory information, we can proceed and trigger calls to downstream systems
+
+				ELSE
+
+				# We insert the event in the relevant log table
+
+					# Simulate what the Procedure `lambda_update_unit` does
+					# Make sure to update that if you update the procedure `lambda_update_unit`
+
+						# The JSON Object:
+
+							# We need a random ID as a `mefeAPIRequestId`
+
+								SET @mefeAPIRequestId := (SELECT UUID()) ;
+
+							SET @json_object := (
+								JSON_OBJECT(
+									'mefeAPIRequestId' , @mefeAPIRequestId
+									, 'updateUnitRequestId' , @update_unit_request_id
+									, 'actionType', @action_type
+									, 'requestorUserId', @requestor_user_id
+									, 'unitId', @mefe_unit_id
+									, 'creatorId', @creator_id
+									, 'type', @unee_t_unit_type
+									, 'name', @unit_name
+									, 'moreInfo', @more_info
+									, 'streetAddress', @street_address
+									, 'city', @city
+									, 'state', @state
+									, 'zipCode', @zip_code
+									, 'country', @country
+									)
+								)
+								;
+
+						# The specific lambda:
+
+							SET @lambda = CONCAT('arn:aws:lambda:ap-southeast-1:'
+								, @lambda_key
+								, ':function:ut_lambda2sqs_push')
+								;
+						
+						# The specific Lambda CALL:
+
+							SET @lambda_call = CONCAT('CALL mysql.lambda_async'
+								, @lambda
+								, @json_object
+								)
+								;
+
+					# Now that we have simulated what the CALL does, we record that
+
+						INSERT INTO `log_lambdas`
+							(`created_datetime`
+							, `creation_trigger`
+							, `associated_call`
+							, `action_type`
+							, `mefeAPIRequestId`
+							, `table_that_triggered_lambda`
+							, `id_in_table_that_triggered_lambda`
+							, `event_type_that_triggered_lambda`
+							, `external_property_type_id`
+							, `mefe_unit_id`
+							, `unit_name`
+							, `mefe_user_id`
+							, `payload`
+							)
+							VALUES
+								(NOW()
+								, @this_trigger
+								, @associated_procedure
+								, @action_type
+								, @mefeAPIRequestId
+								, @table_that_triggered_lambda
+								, @id_in_table_that_triggered_lambda
+								, @event_type_that_triggered_lambda
+								, @external_property_type_id
+								, @mefe_unit_id
+								, @unit_name
+								, 'n/a'
+								, @lambda_call
+								)
+								;
+					
+					# We call the Lambda procedure to update the unit
+
+						CALL `lambda_update_unit`(@mefeAPIRequestId
+							, @update_unit_request_id
+							, @action_type
+							, @requestor_user_id
+							, @mefe_unit_id
+							, @creator_id
+							, @unee_t_unit_type
+							, @unit_name
+							, @more_info
+							, @street_address
+							, @city
+							, @state
+							, @zip_code
+							, @country
 							)
 							;
-		
-			# We call the Lambda procedure to update the unit
-
-				CALL `lambda_update_unit`(@update_unit_request_id
-					, @update_unit_request_id
-					, @action_type
-					, @requestor_user_id
-					, @mefe_unit_id
-					, @creator_id
-					, @unee_t_unit_type
-					, @unee_t_unit_name
-					, @more_info
-					, @street_address
-					, @city
-					, @state
-					, @zip_code
-					, @country
-					)
-					;
-		
+					
+			END IF;
 
 		# The conditions are NOT met <-- we do nothing
 	
@@ -1930,11 +2412,11 @@ BEGIN
 					, 'unitId', mefe_unit_id
 					, 'creatorId', creator_id
 					, 'type', unee_t_unit_type
-					, 'name', unee_t_unit_name
-					, 'moreInfo', more_info
-					, 'streetAddress', street_address
-					, 'city', city
-					, 'state', state
+					, 'name', TO_BASE64(unee_t_unit_name)
+					, 'moreInfo', TO_BASE64(more_info)
+					, 'streetAddress', TO_BASE64(street_address)
+					, 'city', TO_BASE64(city)
+					, 'state', TO_BASE64(state)
 					, 'zipCode', zip_code
 					, 'country', country
 					)
@@ -2060,7 +2542,7 @@ BEGIN
 
 				# We need a random ID as a `mefeAPIRequestId`
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 					JSON_OBJECT(
@@ -2218,7 +2700,7 @@ BEGIN
 					, 'unitId', mefe_unit_id
 					, 'creatorId', creator_id
 					, 'type', unee_t_unit_type
-					, 'name', unee_t_unit_name
+					, 'name', TO_BASE64(unee_t_unit_name)
 					)
 				)
 				;
@@ -2325,7 +2807,7 @@ BEGIN
 
 				# We need a random ID as a `mefeAPIRequestId`
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 						JSON_OBJECT(
@@ -2625,7 +3107,7 @@ BEGIN
 
 				# We need a random ID as a `mefeAPIRequestId`
 
-				SET @mefeAPIRequestId := (SELECT UUID()) ;
+					SET @mefeAPIRequestId := (SELECT UUID()) ;
 
 				SET @json_object := (
 					JSON_OBJECT(

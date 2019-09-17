@@ -1,3 +1,115 @@
+#
+# For any question about this script, ask Franck
+#
+####################################################################################
+#
+# We MUST use at least Aurora MySQl 5.7.22+ if you want 
+# to be able to use the Lambda function Unee-T depends on to work as intended
+#
+# Alternativey if you do NOT need to use the Lambda function, it is possible to use
+#	- MySQL 5.7.22 +
+#	- MariaDb 10.2.3 +
+#
+####################################################################################
+#
+####################################################
+#
+# Make sure to 
+#	- update the below variable(s)
+#
+# For easier readability and maintenance, we use dedicated scripts to 
+# Create or update:
+#	- Views
+#	- Procedures
+#	- Triggers
+#	- Lambda related objects for the relevant environments
+#
+# Make sure to run all these scripts too!!!
+#
+# 
+####################################################
+#
+# What are the version of the Unee-T BZ Database schema BEFORE and AFTER this update?
+
+	SET @old_schema_version := 'v1.22.7';
+	SET @new_schema_version := 'v1.22.8';
+
+# What is the name of this script?
+
+	SET @this_script := CONCAT ('upgrade_unee-t_entreprise', @old_schema_version, '_to_', @new_schema_version, '.sql');
+
+# In this update
+#
+#WIP	- Fix issue `sub-query returns more than one result`
+#
+#OK	- Update the table `log_lambdas` to make room for error message
+#OK	- Add the capability to handle the mefeAPIRequestId as an additional field in the replies from the downstream systems.
+#
+#OK - Fix bug - Missing mandatory information in the payload for `lambda_update_unit`
+#	  You need need to run the upgrade script `8_lambda_related_objects_for_[environment]_v22.8` for the relevant environment to fix that.
+#
+# - Drop tables we do not need anymore
+#	- ``
+#	- ``
+#
+# - Create new tables
+#	- ``
+#	- ``
+#
+# - Drop tables we do not need anymore
+#	- ``
+#	- ``
+#
+# - Alter a existing tables
+#	- Add indexes for improved performances 
+#		- ``
+#		- ``
+#	- Rebuild index for better performances
+#		- ``
+#		- ``
+#	- Remove unnecessary columns
+#		- ``
+#		- ``
+#	- Add a new column
+#		- ``
+#		- ``
+#
+# - Drop Views:
+#	- ``
+#	- ``
+#
+# - Drop procedures :
+#	- ``
+#	- ``
+#	- ``
+#
+# - Re-create triggers:
+#	- ``
+#	- ``
+#
+#
+###############################
+#
+# We have everything we need - Do it!
+#
+###############################
+
+# When are we doing this?
+
+	SET @the_timestamp := NOW();
+
+# Do the changes:
+
+	/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+
+	/* Alter table in target */
+	ALTER TABLE `log_lambdas` 
+		ADD COLUMN `error_message` mediumtext  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The error message if we were not able to send a lambda call for this (if applicable)' after `payload` ;
+
+	/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+
+
+
 #################
 #	
 # This is part 7
@@ -7,18 +119,45 @@
 
 ####################################################################
 #
-# The below Procedures are used so that we can update the database
-# after an action from a downstream system was done
-#	- `create a user`
-#	- ``
+#############
 #
-# We are creating the following procedures:
-#	- `ut_creation_unit_mefe_api_reply` (was previously `ut_creation_success_mefe_unit_id`)
-#	- `ut_creation_user_mefe_api_reply` (was previously `ut_creation_success_mefe_user_id`)
-#	- `ut_creation_user_role_association_mefe_api_reply` (was previously `ut_creation_success_add_user_to_role_in_unit_with_visibility`)
-#	- `ut_update_unit_mefe_api_reply` (was previously `ut_update_success_mefe_unit`)
-#	- `ut_update_user_mefe_api_reply` (was previously `ut_update_success_mefe_user`)
-#	- `ut_remove_user_role_association_mefe_api_reply` (was previously `ut_update_success_remove_user_from_unit`)
+# CONTEXT
+#
+#############
+#
+# The following triggers are used so that we can update the database
+# after an action from a downstream system was done
+#	- `ut_create_user`
+#	- `ut_create_unit`
+#	- `ut_add_user_to_role_in_unit_with_visibility`
+#	- `ut_after_update_ut_map_external_source_units`
+#	- `ut_retry_create_unit`
+#	- `ut_retry_assign_user_to_unit`
+#
+# These triggers are using the following procedures:
+#	- `lambda_create_user`
+#	- `lambda_create_unit`
+#	- `lambda_add_user_to_role_in_unit_with_visibility`
+#	- `ut_update_user`
+#	- `lambda_update_user_profile` <--- WHY DO WE NEED THAT?
+#	- `lambda_update_unit`
+#	- `ut_remove_user_from_unit` <--- WHY DO WE NEED THAT?
+#	- `lambda_remove_user_from_unit`
+#	- `lambda_update_unit_name_type` <--- WHY DO WE NEED THAT?
+#
+#############
+#
+# END - CONTEXT
+#
+#############
+#
+# With this script We are creating the following procedures:
+#	- `ut_creation_user_mefe_api_reply` for `lambda_create_user`
+#	- `ut_creation_unit_mefe_api_reply` for `lambda_create_unit`
+#	- `ut_creation_user_role_association_mefe_api_reply` for `lambda_add_user_to_role_in_unit_with_visibility`
+#	- `ut_update_unit_mefe_api_reply` for `lambda_update_unit`
+#	- `ut_update_user_mefe_api_reply` for `lambda_update_user_profile`
+#	- `ut_remove_user_role_association_mefe_api_reply` for `lambda_remove_user_from_unit`
 #
 #
 ####################################################################
@@ -54,6 +193,7 @@ BEGIN
 #	- @creation_datetime
 #	- @is_created_by_me
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -84,6 +224,7 @@ BEGIN
 			, `update_method` := 'ut_creation_unit_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `create_api_request_id` := @mefe_api_request_id
 			WHERE `id_map` = @unit_creation_request_id
 		;
 
@@ -107,6 +248,7 @@ BEGIN
 #	- @creation_datetime
 #	- @is_created_by_me
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -138,6 +280,7 @@ BEGIN
 			, `update_method` = 'ut_creation_user_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `create_api_request_id` := @mefe_api_request_id
 			WHERE `id_map` = @user_creation_request_id
 		;
 
@@ -158,6 +301,7 @@ BEGIN
 #	- @id_map_user_unit_permissions
 #	- @creation_datetime 
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -186,6 +330,7 @@ BEGIN
 			, `unee_t_update_ts` := @creation_datetime
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `create_api_request_id` := @mefe_api_request_id
 			WHERE `id_map_user_unit_permissions` = @id_map_user_unit_permissions
 		;
 
@@ -205,6 +350,7 @@ BEGIN
 # This procedure needs the following variables:
 #	- @update_unit_request_id
 #	- @updated_datetime (a TIMESTAMP)
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -232,6 +378,7 @@ BEGIN
 			, `update_method` := 'ut_update_unit_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `edit_api_request_id` := @mefe_api_request_id
 			WHERE `id_map` = @update_unit_request_id
 		;
 
@@ -252,6 +399,7 @@ BEGIN
 #	- @update_user_request_id
 #	- @updated_datetime (a TIMESTAMP)
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 
 	# We need to capture the MEFE user ID of the updater
@@ -280,6 +428,7 @@ BEGIN
 			, `update_method` := 'ut_update_user_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `edit_api_request_id` := @mefe_api_request_id
 			WHERE `id_map` = @update_user_request_id
 		;
 
@@ -300,6 +449,7 @@ BEGIN
 #	- @remove_user_from_unit_request_id 
 #	- @updated_datetime (a TIMESTAMP)
 #	- @mefe_api_error_message
+#	- @mefe_api_request_id
 
 	# We need to capture the MEFE user ID of the updater
 
@@ -328,6 +478,7 @@ BEGIN
 			, `update_method` := 'ut_remove_user_role_association_mefe_api_reply'
 			, `is_mefe_api_success` := @is_mefe_api_success
 			, `mefe_api_error_message` := @mefe_api_error_message
+			, `edit_api_request_id` := @mefe_api_request_id
 			WHERE `id_map_user_unit_permissions` = @remove_user_from_unit_request_id
 		;
 
@@ -386,3 +537,60 @@ BEGIN
 
 END $$
 DELIMITER ;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+
+# We can now update the version of the database schema
+	# A comment for the update
+		SET @comment_update_schema_version := CONCAT (
+			'Database updated from '
+			, @old_schema_version
+			, ' to '
+			, @new_schema_version
+		)
+		;
+	
+	# We record that the table has been updated to the new version.
+	INSERT INTO `db_schema_version`
+		(`schema_version`
+		, `update_datetime`
+		, `update_script`
+		, `comment`
+		)
+		VALUES
+		(@new_schema_version
+		, @the_timestamp
+		, @this_script
+		, @comment_update_schema_version
+		)
+		;
