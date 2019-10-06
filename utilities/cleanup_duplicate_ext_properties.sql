@@ -35,8 +35,13 @@
 		, `created_by_id`
 	FROM
 		`unee_t_enterprise_v1.22.6`.`external_property_level_2_units`
-	GROUP BY `external_id`, `external_system_id`, `external_table`, `created_by_id`
-	HAVING (COUNT(`system_id_unit`) > 1);
+	GROUP BY 
+		`external_id`
+		, `external_system_id`
+		, `external_table`
+		, `created_by_id`
+	HAVING (COUNT(`system_id_unit`) > 1)
+	;
 
 # How many duplicates for L3P?
 # The below query should return 0 records
