@@ -60,7 +60,6 @@ BEGIN
 			OR @upstream_create_method = 'Manage_Unee_T_Users_Add_Page'
 			OR @upstream_create_method = 'Manage_Unee_T_Users_Edit_Page'
 			OR @upstream_create_method = 'Manage_Unee_T_Users_Import_Page'
-			OR @upstream_create_method = 'Super Admin - Manage MEFE Master User'
 			OR @upstream_update_method = 'imported_from_hmlet_ipi'
 			OR @upstream_update_method = 'Manage_Unee_T_Users_Add_Page'
 			OR @upstream_update_method = 'Manage_Unee_T_Users_Edit_Page'
@@ -68,6 +67,7 @@ BEGIN
 			)
 	THEN 
 
+	# We are in the main scenario, we are NOT creating a SuperAdmin for UNTE
 	# We capture the values we need for the insert/udpate to the `persons` table:
 
 		SET @this_trigger = 'ut_insert_external_person' ;
@@ -287,6 +287,183 @@ BEGIN
 							, `organization_id` = @organization_id_update
 							, `uneet_login_name` = @email
 							, `is_update_needed` = 1
+					;
+
+	ELSEIF @is_unee_t_account_needed = 1
+		AND @email IS NOT NULL
+		AND @external_id IS NOT NULL
+		AND @external_system IS NOT NULL
+		AND @external_table IS NOT NULL
+		AND (@upstream_create_method = 'trigger_ut_after_insert_new_organization'
+			)
+	THEN 
+
+	# We are NOT in the main scenario, we ARE creating a SuperAdmin for UNTE
+	# We capture the values we need for the insert/udpate to the `persons` table:
+
+		SET @this_trigger = 'ut_insert_external_person' ;
+
+		SET @syst_created_datetime = NOW();
+		SET @creation_system_id = (SELECT `id_external_sot_for_unee_t` 
+			FROM `ut_external_sot_for_unee_t_objects`
+			WHERE `organization_id` = @source_system_creator
+			)
+			;
+		SET @created_by_id = 'trigger_to_create_superadmin_for_new_organization' ;
+		SET @downstream_creation_method = @this_trigger ;
+
+		SET @organization_id_create = @source_system_creator;
+
+		SET @person_status_id = NEW.`person_status_id` ;
+		SET @dupe_id = NEW.`dupe_id` ;
+		SET @handler_id = NEW.`handler_id` ;
+
+		SET @unee_t_user_type_id = NEW.`unee_t_user_type_id` ;
+		SET @country_code = NEW.`country_code` ;
+		SET @gender = NEW.`gender` ;
+		SET @given_name = NEW.`given_name` ;
+		SET @middle_name = NEW.`middle_name` ;
+		SET @family_name = NEW.`family_name` ;
+		SET @date_of_birth = NEW.`date_of_birth` ;
+		SET @alias = NEW.`alias` ;
+		SET @job_title = NEW.`job_title` ;
+		SET @organization = NEW.`organization` ;
+		SET @email = NEW.`email` ;
+		SET @tel_1 = NEW.`tel_1` ;
+		SET @tel_2 = NEW.`tel_2` ;
+		SET @whatsapp = NEW.`whatsapp` ;
+		SET @linkedin = NEW.`linkedin` ;
+		SET @facebook = NEW.`facebook` ;
+		SET @adr1 = NEW.`adr1` ;
+		SET @adr2 = NEW.`adr2` ;
+		SET @adr3 = NEW.`adr3` ;
+		SET @City = NEW.`City` ;
+		SET @zip_postcode = NEW.`zip_postcode` ;
+		SET @region_or_state = NEW.`region_or_state` ;
+		SET @country = NEW.`country` ;
+		
+		# We insert a new record in the table `persons`
+
+			INSERT INTO `persons`
+				(`external_id`
+				, `external_system` 
+				, `external_table`
+				, `syst_created_datetime`
+				, `creation_system_id`
+				, `created_by_id`
+				, `creation_method`
+				, `organization_id`
+				, `person_status_id`
+				, `dupe_id`
+				, `handler_id`
+				, `is_unee_t_account_needed`
+				, `unee_t_user_type_id`
+				, `country_code`
+				, `gender`
+				, `given_name`
+				, `middle_name`
+				, `family_name`
+				, `date_of_birth`
+				, `alias`
+				, `job_title`
+				, `organization`
+				, `email`
+				, `tel_1`
+				, `tel_2`
+				, `whatsapp`
+				, `linkedin`
+				, `facebook`
+				, `adr1`
+				, `adr2`
+				, `adr3`
+				, `City`
+				, `zip_postcode`
+				, `region_or_state`
+				, `country`
+				)
+				VALUES
+					(@external_id
+					, @external_system
+					, @external_table
+					, @syst_created_datetime
+					, @creation_system_id
+					, @created_by_id
+					, 'person_create_method_1'
+					, @organization_id_create
+					, @person_status_id
+					, @dupe_id
+					, @handler_id
+					, @is_unee_t_account_needed
+					, @unee_t_user_type_id
+					, @country_code
+					, @gender
+					, @given_name
+					, @middle_name
+					, @family_name
+					, @date_of_birth
+					, @alias
+					, @job_title
+					, @organization
+					, @email
+					, @tel_1
+					, @tel_2
+					, @whatsapp
+					, @linkedin
+					, @facebook
+					, @adr1
+					, @adr2
+					, @adr3
+					, @City
+					, @zip_postcode
+					, @region_or_state
+					, @country
+					)
+				;
+
+		# We insert a new record in the table `ut_map_external_source_users`
+		# This is the table that triggers the lambda to create the user in Unee-T
+
+			# We get the additional variables we need:
+
+				SET @is_update_needed = NULL;
+
+				SET @person_id = (SELECT `id_person` 
+					FROM `persons`
+					WHERE `external_id` = @external_id
+						AND `external_system` = @external_system
+						AND `external_table` = @external_table
+						AND `organization_id` = @organization_id_create
+					)
+					;
+
+			# We do the insert now
+
+				INSERT INTO `ut_map_external_source_users`
+					( `syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `is_update_needed`
+					, `person_id`
+					, `uneet_login_name`
+					, `external_person_id`
+					, `external_system`
+					, `table_in_external_system`
+					)
+					VALUES
+						(@syst_created_datetime
+						, @creation_system_id
+						, @created_by_id
+						, 'person_create_method_3'
+						, @organization_id_create
+						, @is_update_needed
+						, @person_id
+						, @email
+						, @external_id
+						, @external_system
+						, @external_table
+						)
 					;
 
 	END IF;
