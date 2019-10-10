@@ -43,6 +43,7 @@
 #WIP	- Fix issue `sub-query returns more than one result`
 #
 #WIP	- make sur that we create the MEFE user when this is done with the UNTE interface as SuperAdmin
+#WIP	- Alter the table `ut_user_types` to add a new boolean `super_admin`
 #
 # - Drop tables we do not need anymore
 #	- ``
@@ -97,6 +98,42 @@
 # Do the changes:
 
 #	The change is done by running the script `person_creation_v1_22_8_1.sql`
+
+# We need to alter the table ut_user_types`
+
+	/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+
+	/* Foreign Keys must be dropped in the target to ensure that requires changes can be done*/
+
+	ALTER TABLE `ut_user_types` 
+		DROP FOREIGN KEY `user_type_created_by`  , 
+		DROP FOREIGN KEY `user_type_organization_id`  , 
+		DROP FOREIGN KEY `user_type_updated_by`  , 
+		DROP FOREIGN KEY `user_type_user_role_id`  ;
+
+
+	/* Alter table in target */
+	ALTER TABLE `ut_user_types` 
+		ADD COLUMN `is_super_admin` tinyint(4)   NULL DEFAULT 0 COMMENT '1 if this is a SuperAdmin user for that organization.' after `ut_user_role_type_id` , 
+		CHANGE `is_all_unit` `is_all_unit` tinyint(1)   NULL DEFAULT 0 COMMENT '1 if we want to assign all units in the organization to this role. All properties in all the countries and all the Areas will be automatically added.' after `is_super_admin` ; 
+
+	/* The foreign keys that were dropped are now re-created*/
+
+	ALTER TABLE `ut_user_types` 
+		ADD CONSTRAINT `user_type_created_by` 
+		FOREIGN KEY (`organization_id`) REFERENCES `uneet_enterprise_organizations` (`id_organization`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `user_type_organization_id` 
+		FOREIGN KEY (`organization_id`) REFERENCES `uneet_enterprise_organizations` (`id_organization`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `user_type_updated_by` 
+		FOREIGN KEY (`organization_id`) REFERENCES `uneet_enterprise_organizations` (`id_organization`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `user_type_user_role_id` 
+		FOREIGN KEY (`ut_user_role_type_id`) REFERENCES `ut_user_role_types` (`id_role_type`) ON UPDATE CASCADE ;
+
+	/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+
+
+
+
 
 
 
