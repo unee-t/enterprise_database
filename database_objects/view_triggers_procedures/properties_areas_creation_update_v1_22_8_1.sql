@@ -25,6 +25,7 @@ BEGIN
 #		- `Manage_Areas_Edit_Page`
 #		- 'Manage_Areas_Import_Page'
 #		- 'Export_and_Import_Areas_Import_Page'
+#		- 'trigger_ut_after_insert_new_organization'
 #		- ''
 
 	SET @is_creation_needed_in_unee_t_insert_ext_area_1 = NEW.`is_creation_needed_in_unee_t` ;
@@ -54,6 +55,7 @@ BEGIN
 			OR @upstream_create_method_insert_ext_area_1 = 'Manage_Areas_Edit_Page'
 			OR @upstream_create_method_insert_ext_area_1 = 'Manage_Areas_Import_Page'
 			OR @upstream_create_method_insert_ext_area_1 = 'Export_and_Import_Areas_Import_Page'
+			OR @upstream_create_method_insert_ext_area_1 = 'trigger_ut_after_insert_new_organization'
 			OR @upstream_update_method_insert_ext_area_1 = 'imported_from_hmlet_ipi'
 			OR @upstream_update_method_insert_ext_area_1 = 'Manage_Areas_Add_Page'
 			OR @upstream_update_method_insert_ext_area_1 = 'Manage_Areas_Edit_Page'

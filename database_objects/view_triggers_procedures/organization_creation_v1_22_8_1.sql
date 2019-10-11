@@ -26,6 +26,14 @@ BEGIN
 
 		SET @default_ut_user_role_type_id_new_organization = NEW.`default_role_type_id` ;
 
+	# The designation for the role type
+
+		SET @role_type_designation := (SELECT `role_type`
+			FROM `ut_user_role_types`
+			WHERE `id_role_type` = @default_ut_user_role_type_id_new_organization
+			)
+			;
+
 	# What is the default coutry for this organization:
 
 		SET @default_country_code_new_organization = NEW.`country_code` ;
@@ -70,6 +78,28 @@ BEGIN
 	
 		SET @last_inserted_user_type_id = LAST_INSERT_ID();
 
+# we need to generate an API key for the organization
+
+	INSERT INTO `ut_api_keys`
+		(`syst_created_datetime`
+		,`creation_system_id`
+		,`created_by_id`
+		,`creation_method`
+		,`is_obsolete`
+		,`api_key`
+		,`organization_id`
+		) 
+		VALUES
+			(NOW()
+			, 'Setup'
+			, @organization_id
+			,'trigger_ut_after_insert_new_organization'
+			, 0
+			, UUID()
+			, @organization_id
+			)
+		;
+
 # Add a new record in the table `external_persons` so we can create a MEFE user for that organization.
 # This will automatically create a new MEFE user id.
 
@@ -97,7 +127,7 @@ BEGIN
 			, 'Setup'
 			, 'Setup'
 			, NOW()
-			, 0
+			, 'Setup'
 			, @organization_id
 			, 'trigger_ut_after_insert_new_organization'
 			, 2
@@ -112,6 +142,98 @@ BEGIN
 				, '@unee-t.com'
 				)
 			)
+		;
+
+# We need to create a default Unee-T user type for this organization:
+
+	INSERT INTO `ut_user_types`
+		(`syst_created_datetime`
+		,`creation_system_id`
+		,`created_by_id`
+		,`creation_method`
+		,`organization_id`
+		,`order`
+		,`is_obsolete`
+		,`designation`
+		,`description`
+		,`ut_user_role_type_id`
+		,`is_super_admin`
+		,`is_public`
+		,`is_default_assignee`
+		,`is_default_invited`
+		, `is_dashboard_access`
+		, `can_see_role_mgt_cny`
+		, `can_see_occupant`
+		, `can_see_role_landlord`
+		, `can_see_role_agent`
+		, `can_see_role_tenant`
+		) 
+		VALUES
+			(NOW()
+			, 'Setup'
+			, @organization_id
+			, 'trigger_ut_after_insert_new_organization'
+			, @organization_id
+			, 0
+			, 0
+			, CONCAT ('Default Public User - '
+				, @role_type_designation
+				)
+			, CONCAT ('Use this for the public account for the role '
+				, @role_type_designation
+				, '. This is the user people will report issue to by default'
+				)
+			, @default_ut_user_role_type_id_new_organization
+			, 0
+			, 1
+			, 1
+			, 1
+			, 1
+			, 1
+			, 1
+			, 1
+			, 1
+			, 1
+			)
+			;
+
+# We also need to create a default Area for that organization
+
+	INSERT INTO `external_property_groups_areas`
+		(`external_id`
+		,`external_system_id`
+		,`external_table`
+		,`syst_created_datetime`
+		,`creation_system_id`
+		,`created_by_id`
+		,`creation_method`
+		,`is_creation_needed_in_unee_t`
+		,`is_obsolete`
+		,`is_default`
+		,`order`
+		,`country_code`
+		,`area_name`
+		,`area_definition`
+		) 
+		VALUES
+			(CONCAT (0
+				, '-'
+				, @organization_id
+				)
+			, 'Setup'
+			, 'Setup'
+			, NOW()
+			, 0
+			, @organization_id
+			, 'trigger_ut_after_insert_new_organization'
+			, 1
+			, 0
+			, 1
+			, 0
+			, @default_country_code_new_organization
+		, 'Default Area'
+		, 'The default area for this organization'
+		)
 		;
 
 END;
