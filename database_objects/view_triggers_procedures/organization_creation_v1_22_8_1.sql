@@ -120,11 +120,20 @@ BEGIN
 		,`email`
 		) 
 		VALUES
+			# IF YOU CHANGE THE BELOW LINE YOU NEED TO UPDATE THE
+			# PHPR EVENT Add Page >> After record added
+			# FOR THE PHPR VIEW `Super Admin - Manage Organization`
 			(CONCAT (0
 				, '-'
 				, @organization_id
 				)
+			# IF YOU CHANGE THE BELOW LINE YOU NEED TO UPDATE THE
+			# PHPR EVENT Add Page >> After record added
+			# FOR THE PHPR VIEW `Super Admin - Manage Organization
 			, 'Setup'
+			# IF YOU CHANGE THE BELOW LINE YOU NEED TO UPDATE THE
+			# PHPR EVENT Add Page >> After record added
+			# FOR THE PHPR VIEW `Super Admin - Manage Organization
 			, 'Setup'
 			, NOW()
 			, 'Setup'
@@ -143,6 +152,11 @@ BEGIN
 				)
 			)
 		;
+
+	# WIP - We need to record the id of that person so we can access the 
+	# MEFE user ID for that person
+	# This is a key information to create unee-t objects as this organization
+
 
 # We need to create a default Unee-T user type for this organization:
 
@@ -198,6 +212,8 @@ BEGIN
 			;
 
 # We also need to create a default Area for that organization
+# WIP 
+# IDEA: This should be done AFTER the first user is created for that orgnanization
 
 	INSERT INTO `external_property_groups_areas`
 		(`external_id`

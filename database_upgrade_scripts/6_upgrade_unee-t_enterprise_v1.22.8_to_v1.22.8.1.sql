@@ -32,7 +32,7 @@
 # What are the version of the Unee-T BZ Database schema BEFORE and AFTER this update?
 
 	SET @old_schema_version := 'v1.22.8';
-	SET @new_schema_version := 'v1.22.8.1';
+	SET @new_schema_version := 'v1.22.8.1_alpha_2';
 
 # What is the name of this script?
 
@@ -48,60 +48,23 @@
 #OK		- Add the country code record the default role type for that organization.
 #OK		- Add the information to find the master MEFE user for that organization
 #
-#OK 	- Add the view to facilitate selection of default users for each role
+#OK - Add the view to facilitate selection of default users for each role
 #
-#
-#WIP	- When we create a new organization, we make sure that
-#		- we automatically create 
+#OK	- When we create a new organization, we make sure that
+#		  We automatically create 
 #OK			- The MEFE user type 'super admin' for this organization
 #OK			- the MEFE user.
-#Test needed			- The Default Area
 #OK		- The Default Unee-T user type for this role type
 #OK		- The UNTE API key for that organizations
-#		  The script is `organization_creation_v1_22_8_1.sql`
 #
-# re-write the view `ut_organization_mefe_user_id` 
-# this is to make it easir to get the MEFE information for MEFE Master user
+#OK	- Re-write the view `ut_organization_mefe_user_id` 
+#	  this is to make it easier to get the MEFE information for MEFE Master user
+#	  WARNING - this new methid will need us to manually update the hmlet UNTE account
+#			We need to create the Master MEFE user for that account in UNTE.
 #
-# - Drop tables we do not need anymore
-#	- ``
-#	- ``
-#
-# - Create new tables
-#	- ``
-#	- ``
-#
-# - Drop tables we do not need anymore
-#	- ``
-#	- ``
-#
-# - Alter a existing tables
-#	- Add indexes for improved performances 
-#		- ``
-#		- ``
-#	- Rebuild index for better performances
-#		- ``
-#		- ``
-#	- Remove unnecessary columns
-#		- ``
-#		- ``
-#	- Add a new column
-#		- ``
-#		- ``
-#
-# - Drop Views:
-#	- ``
-#	- ``
-#
-# - Drop procedures :
-#	- ``
-#	- ``
-#	- ``
-#
-# - Re-create triggers:
-#	- ``
-#	- ``
-#
+#OK	- Udpdate the lambda calls: it's not necessary to have a creator to create a new user.
+#	  this WILL create a problem if we need to update one of the master user via MEFE API
+#	  this is OK as we should NEVER update one of the master user via MEFE API
 #
 ###############################
 #
@@ -234,9 +197,9 @@
 	CREATE VIEW `ut_organization_mefe_user_id`
 	AS
 	SELECT
-	    `b`.`id_organization`
+	    `b`.`id_organization` AS `organization_id`
 	    , `b`.`designation`
-	    , `a`.`unee_t_mefe_user_id`
+	    , `a`.`unee_t_mefe_user_id` AS `mefe_user_id`
 	    , `a`.`unee_t_mefe_user_api_key`
 	FROM
 	    `ut_map_external_source_users` AS `a`
@@ -246,16 +209,6 @@
 		AND (`a`.`table_in_external_system` = `b`.`mefe_master_user_external_person_table`) 
 		AND (`a`.`external_system` = `b`.`mefe_master_user_external_person_system`)
 	;
-
-
-
-
-
-
-
-
-
-
 
 #	- When we create a new organization, we make sure that
 #	  we automatically
@@ -276,11 +229,11 @@
 
 		DROP TRIGGER IF EXISTS `ut_after_insert_new_organization`;
 
-	DELIMITER $$
-	CREATE TRIGGER `ut_after_insert_new_organization`
-	AFTER INSERT ON `uneet_enterprise_organizations`
-	FOR EACH ROW
-	BEGIN
+DELIMITER $$
+CREATE TRIGGER `ut_after_insert_new_organization`
+AFTER INSERT ON `uneet_enterprise_organizations`
+FOR EACH ROW
+BEGIN
 
 	# We always do this:
 
@@ -386,11 +339,20 @@
 			,`email`
 			) 
 			VALUES
+				# IF YOU CHANGE THE BELOW LINE YOU NEED TO UPDATE THE
+				# PHPR EVENT Add Page >> After record added
+				# FOR THE PHPR VIEW `Super Admin - Manage Organization`
 				(CONCAT (0
 					, '-'
 					, @organization_id
 					)
+				# IF YOU CHANGE THE BELOW LINE YOU NEED TO UPDATE THE
+				# PHPR EVENT Add Page >> After record added
+				# FOR THE PHPR VIEW `Super Admin - Manage Organization
 				, 'Setup'
+				# IF YOU CHANGE THE BELOW LINE YOU NEED TO UPDATE THE
+				# PHPR EVENT Add Page >> After record added
+				# FOR THE PHPR VIEW `Super Admin - Manage Organization
 				, 'Setup'
 				, NOW()
 				, 'Setup'
@@ -409,6 +371,11 @@
 					)
 				)
 			;
+
+		# WIP - We need to record the id of that person so we can access the 
+		# MEFE user ID for that person
+		# This is a key information to create unee-t objects as this organization
+
 
 	# We need to create a default Unee-T user type for this organization:
 
@@ -463,48 +430,9 @@
 				)
 				;
 
-	# We also need to create a default Area for that organization
-
-		INSERT INTO `external_property_groups_areas`
-			(`external_id`
-			,`external_system_id`
-			,`external_table`
-			,`syst_created_datetime`
-			,`creation_system_id`
-			,`created_by_id`
-			,`creation_method`
-			,`is_creation_needed_in_unee_t`
-			,`is_obsolete`
-			,`is_default`
-			,`order`
-			,`country_code`
-			,`area_name`
-			,`area_definition`
-			) 
-			VALUES
-				(CONCAT (0
-					, '-'
-					, @organization_id
-					)
-				, 'Setup'
-				, 'Setup'
-				, NOW()
-				, 0
-				, @organization_id
-				, 'trigger_ut_after_insert_new_organization'
-				, 1
-				, 0
-				, 1
-				, 0
-				, @default_country_code_new_organization
-			, 'Default Area'
-			, 'The default area for this organization'
-			)
-			;
-
-	END;
-	$$
-	DELIMITER ;
+END;
+$$
+DELIMITER ;
 
 # We update the trigger to create a new person to make sure it can handle 
 # the creation of Master MEFE user for a given organization
@@ -521,11 +449,11 @@
 
 		DROP TRIGGER IF EXISTS `ut_insert_external_person`;
 
-	DELIMITER $$
-	CREATE TRIGGER `ut_insert_external_person`
-	AFTER INSERT ON `external_persons`
-	FOR EACH ROW
-	BEGIN
+DELIMITER $$
+CREATE TRIGGER `ut_insert_external_person`
+AFTER INSERT ON `external_persons`
+FOR EACH ROW
+BEGIN
 
 	# We only do this if:
 	#	- We need to create the record in Unee-T
@@ -800,9 +728,9 @@
 						;
 
 		END IF;
-	END;
-	$$
-	DELIMITER ;
+END;
+$$
+DELIMITER ;
 
 	# Once we have a reply from the MEFE API with a MEFE user ID for that user we can
 	# assign this user to all the units in the organization
@@ -812,11 +740,11 @@
 
 		DROP TRIGGER IF EXISTS `ut_after_mefe_user_id_is_created_bulk_assign_user_unit`;
 
-	DELIMITER $$
-	CREATE TRIGGER `ut_after_mefe_user_id_is_created_bulk_assign_user_unit`
-	AFTER UPDATE ON `ut_map_external_source_users`
-	FOR EACH ROW
-	BEGIN
+DELIMITER $$
+CREATE TRIGGER `ut_after_mefe_user_id_is_created_bulk_assign_user_unit`
+AFTER UPDATE ON `ut_map_external_source_users`
+FOR EACH ROW
+BEGIN
 
 	# We do this ONLY if
 	#	- We have a MEFE user ID for that user
@@ -845,9 +773,9 @@
 			CALL `ut_bulk_assign_units_to_a_user` ;
 
 		END IF;
-	END;
-	$$
-	DELIMITER ;
+END;
+$$
+DELIMITER ;
 
 # We update the trigger to create a new area to make sure it can handle 
 # the creation of the default Area for a given organization
@@ -865,11 +793,11 @@
 
 		DROP TRIGGER IF EXISTS `ut_insert_external_area`;
 
-	DELIMITER $$
-	CREATE TRIGGER `ut_insert_external_area`
-	AFTER INSERT ON `external_property_groups_areas`
-	FOR EACH ROW
-	BEGIN
+DELIMITER $$
+CREATE TRIGGER `ut_insert_external_area`
+AFTER INSERT ON `external_property_groups_areas`
+FOR EACH ROW
+BEGIN
 
 	# We only do this if 
 	#	- We need to create the area in Unee-T
@@ -1003,20 +931,20 @@
 
 		END IF;
 
-	END;
-	$$
-	DELIMITER ;
+END;
+$$
+DELIMITER ;
 
 	# We create a trigger when a record is updated in the `external_property_groups_areas` table
 	# The area DOES exist in the table `property_groups_areas`
 
 		DROP TRIGGER IF EXISTS `ut_update_external_area`;
 
-	DELIMITER $$
-	CREATE TRIGGER `ut_update_external_area`
-	AFTER UPDATE ON `external_property_groups_areas`
-	FOR EACH ROW
-	BEGIN
+DELIMITER $$
+CREATE TRIGGER `ut_update_external_area`
+AFTER UPDATE ON `external_property_groups_areas`
+FOR EACH ROW
+BEGIN
 
 	# We only do this if 
 	#	- We need to create the area in Unee-T
@@ -1119,9 +1047,9 @@
 
 		END IF;
 
-	END;
-	$$
-	DELIMITER ;
+END;
+$$
+DELIMITER ;
 
 	# We create a trigger when a record is updated in the `external_property_groups_areas` table
 	# AND the area is marked as needed to be created in Unee-T
@@ -1129,11 +1057,11 @@
 
 		DROP TRIGGER IF EXISTS `ut_created_external_area_after_insert`;
 
-	DELIMITER $$
-	CREATE TRIGGER `ut_created_external_area_after_insert`
-	AFTER UPDATE ON `external_property_groups_areas`
-	FOR EACH ROW
-	BEGIN
+DELIMITER $$
+CREATE TRIGGER `ut_created_external_area_after_insert`
+AFTER UPDATE ON `external_property_groups_areas`
+FOR EACH ROW
+BEGIN
 
 	# We only do this if:
 	#	- We need to create the area in Unee-T
@@ -1271,9 +1199,9 @@
 
 		END IF;
 
-	END;
-	$$
-	DELIMITER ;
+END;
+$$
+DELIMITER ;
 
 
 

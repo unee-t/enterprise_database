@@ -97,9 +97,9 @@
 	CREATE VIEW `ut_organization_mefe_user_id`
 	AS
 	SELECT
-	    `b`.`id_organization`
+	    `b`.`id_organization` AS `organization_id`
 	    , `b`.`designation`
-	    , `a`.`unee_t_mefe_user_id`
+	    , `a`.`unee_t_mefe_user_id` AS `mefe_user_id`
 	    , `a`.`unee_t_mefe_user_api_key`
 	FROM
 	    `ut_map_external_source_users` AS `a`
