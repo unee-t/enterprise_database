@@ -128,8 +128,12 @@ BEGIN
 				, @organization_id
 				)
 			# IF YOU CHANGE THE BELOW LINE YOU NEED TO UPDATE THE
-			# PHPR EVENT Add Page >> After record added
-			# FOR THE PHPR VIEW `Super Admin - Manage Organization
+			# FOR THE PHPR VIEW 
+			#	- `Super Admin - Manage Organization
+			#	  PHPR EVENT Add Page >> After record added
+			# FOR THE SQL VIEW
+			#	- `ut_list_possible_assignees`
+			#	  
 			, 'Setup'
 			# IF YOU CHANGE THE BELOW LINE YOU NEED TO UPDATE THE
 			# PHPR EVENT Add Page >> After record added

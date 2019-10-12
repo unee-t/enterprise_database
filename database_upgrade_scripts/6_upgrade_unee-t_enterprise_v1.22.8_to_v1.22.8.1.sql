@@ -185,7 +185,8 @@
 	    INNER JOIN `persons` AS `b`
 		ON (`a`.`person_id` = `b`.`id_person`)
 	WHERE (`a`.`is_obsolete` = 0
-		AND `a`.`unee_t_mefe_user_id` IS NOT NULL)
+		AND `a`.`unee_t_mefe_user_id` IS NOT NULL
+		AND `a`.`creation_system_id` != 'Setup')
 	;
 
 # re-write the view `ut_organization_mefe_user_id` 
