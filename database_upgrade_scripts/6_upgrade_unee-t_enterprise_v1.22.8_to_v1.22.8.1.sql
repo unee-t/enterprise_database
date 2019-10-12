@@ -46,8 +46,9 @@
 #OK	- Alter the table `uneet_enterprise_organizations` to
 #OK		- Add the default role type 
 #OK		- Add the country code record the default role type for that organization.
+#OK		- Add the information to find the master MEFE user for that organization
 #
-#WIP 	- Add the view to facilitate selection of default users for each role
+#OK 	- Add the view to facilitate selection of default users for each role
 #
 #
 #WIP	- When we create a new organization, we make sure that
@@ -56,8 +57,11 @@
 #OK			- the MEFE user.
 #Test needed			- The Default Area
 #OK		- The Default Unee-T user type for this role type
-#WIP	- The UNTE API key for that organizations
+#OK		- The UNTE API key for that organizations
 #		  The script is `organization_creation_v1_22_8_1.sql`
+#
+# re-write the view `ut_organization_mefe_user_id` 
+# this is to make it easir to get the MEFE information for MEFE Master user
 #
 # - Drop tables we do not need anymore
 #	- ``
@@ -160,15 +164,18 @@
 
 
 	/* Alter table in target */
-
 	ALTER TABLE `uneet_enterprise_organizations` 
 		ADD COLUMN `country_code` varchar(10)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The 2 letter version of the country code' after `description` , 
-		ADD COLUMN `default_role_type_id` mediumint(9) unsigned   NULL COMMENT 'A FK to the table `ut_user_role_types` - what is the default role type for this organization' after `country_code` , 
+		ADD COLUMN `mefe_master_user_external_person_id` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The external ID of the person in table `external_persons`' after `country_code` , 
+		ADD COLUMN `mefe_master_user_external_person_table` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The external table where this person record is coming from' after `mefe_master_user_external_person_id` , 
+		ADD COLUMN `mefe_master_user_external_person_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The external system this person record is coming from' after `mefe_master_user_external_person_table` , 
+		ADD COLUMN `default_role_type_id` mediumint(9) unsigned   NULL COMMENT 'A FK to the table `ut_user_role_types` - what is the default role type for this organization' after `mefe_master_user_external_person_system` , 
 		CHANGE `default_sot_system` `default_sot_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'system' COMMENT 'The Default source of truth for that organization' after `default_role_type_id` , 
 		ADD KEY `organization_default_role_type_must_exist`(`default_role_type_id`) ;
 	ALTER TABLE `uneet_enterprise_organizations`
 		ADD CONSTRAINT `organization_default_role_type_must_exist` 
 		FOREIGN KEY (`default_role_type_id`) REFERENCES `ut_user_role_types` (`id_role_type`) ON UPDATE CASCADE ;
+	
 
 	/* The foreign keys that were dropped are now re-created*/
 
@@ -217,6 +224,38 @@
 	WHERE (`a`.`is_obsolete` = 0
 		AND `a`.`unee_t_mefe_user_id` IS NOT NULL)
 	;
+
+# re-write the view `ut_organization_mefe_user_id` 
+# this is to make it easir to get the MEFE information for MEFE Master user
+# We create a view to list the ACTIVE MEFE User Id by organization
+
+	DROP VIEW IF EXISTS `ut_organization_mefe_user_id` ;
+
+	CREATE VIEW `ut_organization_mefe_user_id`
+	AS
+	SELECT
+	    `b`.`id_organization`
+	    , `b`.`designation`
+	    , `a`.`unee_t_mefe_user_id`
+	    , `a`.`unee_t_mefe_user_api_key`
+	FROM
+	    `ut_map_external_source_users` AS `a`
+	    INNER JOIN `uneet_enterprise_organizations` AS `b`
+		ON (`a`.`organization_id` = `b`.`id_organization`) 
+		AND (`a`.`external_person_id` = `b`.`mefe_master_user_external_person_id`) 
+		AND (`a`.`table_in_external_system` = `b`.`mefe_master_user_external_person_table`) 
+		AND (`a`.`external_system` = `b`.`mefe_master_user_external_person_system`)
+	;
+
+
+
+
+
+
+
+
+
+
 
 #	- When we create a new organization, we make sure that
 #	  we automatically

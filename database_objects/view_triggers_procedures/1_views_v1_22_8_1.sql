@@ -97,13 +97,17 @@
 	CREATE VIEW `ut_organization_mefe_user_id`
 	AS
 	SELECT
-		`mefe_user_id`
-		, `organization_id`
+	    `b`.`id_organization`
+	    , `b`.`designation`
+	    , `a`.`unee_t_mefe_user_id`
+	    , `a`.`unee_t_mefe_user_api_key`
 	FROM
-		`ut_api_keys`
-	WHERE `is_obsolete` = 0
-		OR `revoked_datetime` IS NOT NULL
-	GROUP BY `mefe_user_id`, `organization_id`
+	    `ut_map_external_source_users` AS `a`
+	    INNER JOIN `uneet_enterprise_organizations` AS `b`
+		ON (`a`.`organization_id` = `b`.`id_organization`) 
+		AND (`a`.`external_person_id` = `b`.`mefe_master_user_external_person_id`) 
+		AND (`a`.`table_in_external_system` = `b`.`mefe_master_user_external_person_table`) 
+		AND (`a`.`external_system` = `b`.`mefe_master_user_external_person_system`)
 	;
 
 # Create a View to get the additional information for condo/buildings
