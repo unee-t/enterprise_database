@@ -53,6 +53,8 @@
 #		- `ut_organization_default_table_level_2_properties`
 #		- `ut_organization_default_table_level_3_properties`
 #		- `ut_organization_default_table_persons`
+#		- `ut_organization_default_L1P`
+#		- `ut_organization_default_L2P`
 #		- DEPRECATED - REMOVED `ut_organization_associated_mefe_user`
 #
 # - Performance analysis
@@ -870,6 +872,62 @@
 			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
 		;
 
+# We create the view to get the details of the default L1P for a given organization
+
+	DROP VIEW IF EXISTS `ut_organization_default_L1P` ;
+
+	CREATE VIEW `ut_organization_default_L1P`
+	AS
+	SELECT
+		`a`.`organization_id`
+		, `b`.`designation` AS `organization`
+		, `a`.`unee_t_mefe_unit_id`
+		, `a`.`uneet_name`
+		, `a`.`mefe_unit_id_parent`
+		, `a`.`is_obsolete`
+		, `a`.`external_property_id`
+		, `a`.`external_system`
+		, `a`.`table_in_external_system`
+		, `a`.`tower`
+	FROM
+			`ut_map_external_source_units` AS `a`
+		INNER JOIN 	`uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`)
+	WHERE `a`.`unee_t_mefe_unit_id` IS NOT NULL
+		AND `a`.`external_property_type_id` = 1
+		;
+
+
+# We create the view to get the details of the default L2P for a given organization
+
+	DROP VIEW IF EXISTS `ut_organization_default_L2P` ;
+
+	CREATE VIEW `ut_organization_default_L2P`
+	AS
+	SELECT
+		`a`.`organization_id`
+		, `b`.`designation` AS `organization`
+		, `a`.`unee_t_mefe_unit_id`
+		, `a`.`uneet_name`
+		, `a`.`mefe_unit_id_parent`
+		, `a`.`is_obsolete`
+		, `a`.`external_property_id`
+		, `a`.`external_system`
+		, `a`.`table_in_external_system`
+		, `a`.`tower`
+	FROM
+			`ut_map_external_source_units` AS `a`
+		INNER JOIN 	`uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`)
+	WHERE `a`.`unee_t_mefe_unit_id` IS NOT NULL
+		AND `a`.`external_property_type_id` = 2
+		;
+
+
+
+
+
+
 # We create a view to list user by organization by country
 
 	DROP VIEW IF EXISTS `ut_list_users_default_permissions` ;
@@ -1297,9 +1355,11 @@
 		, `a`.`unee_t_mefe_unit_id`
 		, `a`.`uneet_name`
 		, `a`.`mefe_unit_id_parent`
+		, `a`.`is_obsolete`
 	FROM
 			`ut_map_external_source_units` AS `a`
 		INNER JOIN 	`uneet_enterprise_organizations` AS `b`
 			ON (`a`.`organization_id` = `b`.`id_organization`)
+	WHERE `a`.`unee_t_mefe_unit_id` IS NOT NULL
 		;
 
