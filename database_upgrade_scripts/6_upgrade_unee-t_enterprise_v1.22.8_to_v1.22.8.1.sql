@@ -121,7 +121,6 @@
 	/* Foreign Keys must be dropped in the target to ensure that requires changes can be done*/
 
 	ALTER TABLE `uneet_enterprise_organizations` 
-		DROP FOREIGN KEY `organization_default_area_must_exist`  , 
 		DROP FOREIGN KEY `organization_default_building_must_exist`  , 
 		DROP FOREIGN KEY `organization_default_unit_must_exist`  ;
 
@@ -134,8 +133,12 @@
 		ADD COLUMN `mefe_master_user_external_person_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The external system this person record is coming from' after `mefe_master_user_external_person_table` , 
 		ADD COLUMN `default_role_type_id` mediumint(9) unsigned   NULL COMMENT 'A FK to the table `ut_user_role_types` - what is the default role type for this organization' after `mefe_master_user_external_person_system` , 
 		CHANGE `default_sot_system` `default_sot_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'system' COMMENT 'The Default source of truth for that organization' after `default_role_type_id` , 
-		ADD KEY `organization_default_role_type_must_exist`(`default_role_type_id`) ;
+		CHANGE `default_area` `default_area` int(11)   NULL COMMENT 'The area ID in the table `external_property_groups_areas` - This is the default area for properties created by this organization' after `default_sot_properties` , 
+		ADD KEY `organization_default_role_type_must_exist`(`default_role_type_id`) , 
+		DROP FOREIGN KEY `organization_default_area_must_exist`  ;
 	ALTER TABLE `uneet_enterprise_organizations`
+		ADD CONSTRAINT `organization_default_area_must_exist` 
+		FOREIGN KEY (`default_area`) REFERENCES `external_property_groups_areas` (`id_area`) ON UPDATE CASCADE , 
 		ADD CONSTRAINT `organization_default_role_type_must_exist` 
 		FOREIGN KEY (`default_role_type_id`) REFERENCES `ut_user_role_types` (`id_role_type`) ON UPDATE CASCADE ;
 	
@@ -143,8 +146,6 @@
 	/* The foreign keys that were dropped are now re-created*/
 
 	ALTER TABLE `uneet_enterprise_organizations` 
-		ADD CONSTRAINT `organization_default_area_must_exist` 
-		FOREIGN KEY (`default_area`) REFERENCES `ut_map_external_source_units` (`unee_t_mefe_unit_id`) ON UPDATE CASCADE , 
 		ADD CONSTRAINT `organization_default_building_must_exist` 
 		FOREIGN KEY (`default_building`) REFERENCES `ut_map_external_source_units` (`unee_t_mefe_unit_id`) ON UPDATE CASCADE , 
 		ADD CONSTRAINT `organization_default_unit_must_exist` 
