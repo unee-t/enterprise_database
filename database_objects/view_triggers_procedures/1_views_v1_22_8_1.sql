@@ -54,7 +54,7 @@
 #		- `ut_organization_default_table_level_2_properties`
 #		- `ut_organization_default_table_level_3_properties`
 #		- `ut_organization_default_table_persons`
-#		- `ut_organization_associated_mefe_user`
+#		- DEPRECATED - REMOVED `ut_organization_associated_mefe_user`
 #
 # - Performance analysis
 #	- `ut_analysis_mefe_api_unit_creation_time`
@@ -762,16 +762,16 @@
 
 	CREATE VIEW `ut_organization_default_area`
 	AS
-	SELECT 
-		`id_area` AS `default_area_id`
-		, `area_name` AS `default_area_name`
-		, `created_by_id` AS `organization_id`
-	FROM `external_property_groups_areas`
-	WHERE 
-		`is_default` = 1
-		AND (`country_code` IS NULL
-			OR `country_code` = '')
-	;
+	SELECT
+	    `a`.`id_area` AS `default_area_id`
+	    , `a`.`area_name` AS `default_area_name`
+	    , `b`.`id_organization` AS `organization_id`
+	FROM
+	    `external_property_groups_areas` AS `a`
+	    INNER JOIN `uneet_enterprise_organizations` AS `b`
+		ON (`a`.`created_by_id` = `b`.`id_organization`) 
+		AND (`a`.`id_area` = `b`.`default_area`)
+		;
 
 # We create a view to get the default external system for each organization
 
@@ -779,11 +779,15 @@
 
 	CREATE VIEW `ut_organization_default_external_system`
 	AS
-	SELECT 
-		`designation`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`designation`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table for areas for each organization
 
@@ -791,11 +795,15 @@
 
 	CREATE VIEW `ut_organization_default_table_areas`
 	AS
-	SELECT 
-		`area_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`area_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table_level_1_properties for each organization
 
@@ -803,11 +811,15 @@
 
 	CREATE VIEW `ut_organization_default_table_level_1_properties`
 	AS
-	SELECT 
-		`properties_level_1_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`properties_level_1_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table_level_2_properties for each organization
 
@@ -815,11 +827,15 @@
 
 	CREATE VIEW `ut_organization_default_table_level_2_properties`
 	AS
-	SELECT 
-		`properties_level_2_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`properties_level_2_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table_level_3_properties for each organization
 
@@ -827,11 +843,15 @@
 
 	CREATE VIEW `ut_organization_default_table_level_3_properties`
 	AS
-	SELECT 
-		`properties_level_3_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`properties_level_3_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table `persons` for each organization
 
@@ -839,23 +859,15 @@
 
 	CREATE VIEW `ut_organization_default_table_persons`
 	AS
-	SELECT 
-		`person_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
-
-# We create a view to get the associated MEFE user for each organization
-
-	DROP VIEW IF EXISTS `ut_organization_associated_mefe_user` ;
-
-	CREATE VIEW `ut_organization_associated_mefe_user`
-	AS
-	SELECT 
-		`mefe_user_id` AS `associated_mefe_user`
-		, `organization_id`
-	FROM `ut_api_keys`
-	;
+	SELECT
+		`a`.`person_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to list user by organization by country
 

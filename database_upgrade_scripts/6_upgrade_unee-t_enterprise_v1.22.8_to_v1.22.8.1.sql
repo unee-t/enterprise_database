@@ -87,11 +87,11 @@
 #	  We need to use the information recorded in the table `uneet_enterprise_organizations`
 #	  and use this to find the default SoT for the organization.
 #	  We need to alter the views:
-#WIP		- `ut_organization_default_area`
-#WIP		- `ut_organization_default_external_system`
-#WIP		- `ut_organization_default_table_areas`
-#WIP		- `ut_organization_default_table_level_1_properties`
-#WIP		- `ut_organization_default_table_level_2_properties`
+#OK		- `ut_organization_default_area`
+#OK		- `ut_organization_default_external_system`
+#OK		- `ut_organization_default_table_areas`
+#OK		- `ut_organization_default_table_level_1_properties`
+#OK		- `ut_organization_default_table_level_2_properties`
 #WIP		- `ut_organization_default_table_level_3_properties`
 #
 #WIP	- DROP the view `ut_organization_associated_mefe_user`
@@ -258,26 +258,125 @@
 #	  We need to use the information recorded in the table `uneet_enterprise_organizations`
 #	  and use this to find the default SoT for the organization.
 #	  We need to alter the views:
-#WIP		- `ut_organization_default_area`
-#WIP		- `ut_organization_default_external_system`
-#WIP		- `ut_organization_default_table_areas`
-#WIP		- `ut_organization_default_table_level_1_properties`
-#WIP		- `ut_organization_default_table_level_2_properties`
+#OK		- `ut_organization_default_area`
+#OK		- `ut_organization_default_external_system`
+#OK		- `ut_organization_default_table_areas`
+#OK		- `ut_organization_default_table_level_1_properties`
+#OK		- `ut_organization_default_table_level_2_properties`
 #WIP		- `ut_organization_default_table_level_3_properties`
 
+	# We update the view to get the default area for each organization
 
+		DROP VIEW IF EXISTS `ut_organization_default_area` ;
 
+		CREATE VIEW `ut_organization_default_area`
+		AS
+		SELECT
+			`a`.`id_area` AS `default_area_id`
+			, `a`.`area_name` AS `default_area_name`
+			, `b`.`id_organization` AS `organization_id`
+		FROM
+			`external_property_groups_areas` AS `a`
+			INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`created_by_id` = `b`.`id_organization`) 
+			AND (`a`.`id_area` = `b`.`default_area`)
+			;
 
+	# We update the view to get the default external system for each organization
 
+		DROP VIEW IF EXISTS `ut_organization_default_external_system` ;
 
+		CREATE VIEW `ut_organization_default_external_system`
+		AS
+		SELECT
+			`a`.`designation`
+			, `b`.`id_organization` AS `organization_id`
+		FROM
+			`ut_external_sot_for_unee_t_objects` AS `a`
+			INNER JOIN `uneet_enterprise_organizations` AS `b`
+				ON (`a`.`organization_id` = `b`.`id_organization`) 
+				AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+				;
 
+	# We update the view to get the default table for areas for each organization
 
+		DROP VIEW IF EXISTS `ut_organization_default_table_areas` ;
 
+		CREATE VIEW `ut_organization_default_table_areas`
+		AS
+		SELECT
+			`a`.`area_table`
+			, `b`.`id_organization` AS `organization_id`
+		FROM
+			`ut_external_sot_for_unee_t_objects` AS `a`
+			INNER JOIN `uneet_enterprise_organizations` AS `b`
+				ON (`a`.`organization_id` = `b`.`id_organization`) 
+				AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+			;
 
+	# We update the view to get the default table_level_1_properties for each organization
 
+		DROP VIEW IF EXISTS `ut_organization_default_table_level_1_properties` ;
 
+		CREATE VIEW `ut_organization_default_table_level_1_properties`
+		AS
+		SELECT
+			`a`.`properties_level_1_table`
+			, `b`.`id_organization` AS `organization_id`
+		FROM
+			`ut_external_sot_for_unee_t_objects` AS `a`
+			INNER JOIN `uneet_enterprise_organizations` AS `b`
+				ON (`a`.`organization_id` = `b`.`id_organization`) 
+				AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+			;
 
+	# We update the view to get the default table_level_2_properties for each organization
 
+		DROP VIEW IF EXISTS `ut_organization_default_table_level_2_properties` ;
+
+		CREATE VIEW `ut_organization_default_table_level_2_properties`
+		AS
+		SELECT
+			`a`.`properties_level_2_table`
+			, `b`.`id_organization` AS `organization_id`
+		FROM
+			`ut_external_sot_for_unee_t_objects` AS `a`
+			INNER JOIN `uneet_enterprise_organizations` AS `b`
+				ON (`a`.`organization_id` = `b`.`id_organization`) 
+				AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+			;
+
+	# We update the view to get the default table_level_3_properties for each organization
+
+		DROP VIEW IF EXISTS `ut_organization_default_table_level_3_properties` ;
+
+		CREATE VIEW `ut_organization_default_table_level_3_properties`
+		AS
+		SELECT
+			`a`.`properties_level_3_table`
+			, `b`.`id_organization` AS `organization_id`
+		FROM
+			`ut_external_sot_for_unee_t_objects` AS `a`
+			INNER JOIN `uneet_enterprise_organizations` AS `b`
+				ON (`a`.`organization_id` = `b`.`id_organization`) 
+				AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+			;
+
+	# We update the view to get the default table `persons` for each organization
+
+		DROP VIEW IF EXISTS `ut_organization_default_table_persons` ;
+
+		CREATE VIEW `ut_organization_default_table_persons`
+		AS
+		SELECT
+			`a`.`person_table`
+			, `b`.`id_organization` AS `organization_id`
+		FROM
+			`ut_external_sot_for_unee_t_objects` AS `a`
+			INNER JOIN `uneet_enterprise_organizations` AS `b`
+				ON (`a`.`organization_id` = `b`.`id_organization`) 
+				AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+			;
 
 #	- When we create a new organization, we make sure that
 #	  we automatically
