@@ -14,11 +14,6 @@
 #		- `ut_after_update_property_level_1`
 #		- ``
 #		- ``
-#	- Procedures
-#		- ``
-#		- ``
-#		- ``
-#		- ``
 
 # We create a trigger when a record is added to the `external_property_level_1_buildings` table
 
