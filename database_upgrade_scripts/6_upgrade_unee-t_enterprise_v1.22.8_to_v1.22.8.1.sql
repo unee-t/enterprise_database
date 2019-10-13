@@ -47,6 +47,8 @@
 #OK		- Add the default role type 
 #OK		- Add the country code record the default role type for that organization.
 #OK		- Add the information to find the master MEFE user for that organization
+#OK		- Make sure the default Area ID is in the correct format (int)
+#WIP		- Add a link to the SoT table to get SoT information for a given organization.
 #
 #OK - Add the view to facilitate selection of default users for each role
 #
@@ -113,8 +115,10 @@
 	/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 
 # For an organization
-#	- Add the default role type 
-#	- Add the country code
+#	- Add the country code record the default role type for that organization.
+#	- Add the information to find the master MEFE user for that organization
+#	- Make sure the default Area ID is in the correct format (int)
+#	- Add a link to the SoT table to get SoT information for a given organization.
 
 	/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 
@@ -132,15 +136,19 @@
 		ADD COLUMN `mefe_master_user_external_person_table` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The external table where this person record is coming from' after `mefe_master_user_external_person_id` , 
 		ADD COLUMN `mefe_master_user_external_person_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The external system this person record is coming from' after `mefe_master_user_external_person_table` , 
 		ADD COLUMN `default_role_type_id` mediumint(9) unsigned   NULL COMMENT 'A FK to the table `ut_user_role_types` - what is the default role type for this organization' after `mefe_master_user_external_person_system` , 
-		CHANGE `default_sot_system` `default_sot_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'system' COMMENT 'The Default source of truth for that organization' after `default_role_type_id` , 
+		ADD COLUMN `default_sot_id` int(11)   NULL COMMENT 'A FK to the table `ut_external_sot_for_unee_t_objects`. The default Source of Truth for the organization.' after `default_role_type_id` , 
+		CHANGE `default_sot_system` `default_sot_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'system' COMMENT 'The Default source of truth for that organization' after `default_sot_id` , 
 		CHANGE `default_area` `default_area` int(11)   NULL COMMENT 'The area ID in the table `external_property_groups_areas` - This is the default area for properties created by this organization' after `default_sot_properties` , 
 		ADD KEY `organization_default_role_type_must_exist`(`default_role_type_id`) , 
+		ADD KEY `organization_default_sot_must_exist`(`default_sot_id`) , 
 		DROP FOREIGN KEY `organization_default_area_must_exist`  ;
 	ALTER TABLE `uneet_enterprise_organizations`
 		ADD CONSTRAINT `organization_default_area_must_exist` 
 		FOREIGN KEY (`default_area`) REFERENCES `external_property_groups_areas` (`id_area`) ON UPDATE CASCADE , 
 		ADD CONSTRAINT `organization_default_role_type_must_exist` 
-		FOREIGN KEY (`default_role_type_id`) REFERENCES `ut_user_role_types` (`id_role_type`) ON UPDATE CASCADE ;
+		FOREIGN KEY (`default_role_type_id`) REFERENCES `ut_user_role_types` (`id_role_type`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `organization_default_sot_must_exist` 
+		FOREIGN KEY (`default_sot_id`) REFERENCES `ut_external_sot_for_unee_t_objects` (`id_external_sot_for_unee_t`) ON UPDATE CASCADE ;
 	
 
 	/* The foreign keys that were dropped are now re-created*/
@@ -152,43 +160,6 @@
 		FOREIGN KEY (`default_unit`) REFERENCES `ut_map_external_source_units` (`unee_t_mefe_unit_id`) ON UPDATE CASCADE ;
 
 	/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-
-# Add the view to facilitate selection of default users for each role
-
-	DROP VIEW IF EXISTS `ut_list_possible_assignees` ;
-
-	CREATE VIEW `ut_list_possible_assignees`
-	AS 
-	SELECT
-	    `a`.`unee_t_mefe_user_id`
-	    , `a`.`is_obsolete`
-	    , `a`.`organization_id`
-	    , `a`.`person_id`
-	    , `b`.`given_name`
-	    , `b`.`family_name`
-	    , `b`.`alias`
-	    , `b`.`email`
-	    , CONCAT( `b`.`given_name`
-		, IF(`b`.`alias` IS NULL
-			, ' '
-			, IF(`b`.`alias` = ''
-				, ' ' 
-				, CONCAT(' ('
-					, `b`.`alias`
-					, ') '
-					)
-				)
-			)
-		, `b`.`family_name`
-		) AS `person_designation`
-	FROM
-	    `ut_map_external_source_users` AS `a`
-	    INNER JOIN `persons` AS `b`
-		ON (`a`.`person_id` = `b`.`id_person`)
-	WHERE (`a`.`is_obsolete` = 0
-		AND `a`.`unee_t_mefe_user_id` IS NOT NULL
-		AND `a`.`creation_system_id` != 'Setup')
-	;
 
 # re-write the view `ut_organization_mefe_user_id` 
 # this is to make it easir to get the MEFE information for MEFE Master user
