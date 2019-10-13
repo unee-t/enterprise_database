@@ -48,8 +48,45 @@
 #OK		- Add the country code record the default role type for that organization.
 #OK		- Add the information to find the master MEFE user for that organization
 #OK		- Make sure the default Area ID is in the correct format (int)
-#WIP		- Add a link to the SoT table to get SoT information for a given organization.
+#OK		- Add a link to the SoT table to get SoT information for a given organization.
+#OK		- DEPRECATE the foloowing fields:
+#OK			- `default_area`
+#OK			- `default_sot_system`
+#OK			- `default_sot_persons`
+#OK			- `default_sot_areas`
+#OK			- `default_sot_properties`
 #
+######################################################################################
+#
+# WARNING ! WE NEED TO MANUALLY UPDATE THE RECORD FOR THE HMLET ORGANIZATION
+# WE NEED TO MAKE SURE THAT THE HMLET ORGANIZATION HAS THE FOLLOWING INFO CONFIGURED
+#	- `country_code`
+#	- `mefe_master_user_external_person_id`
+#	- `mefe_master_user_external_person_table`
+#	- `mefe_master_user_external_person_system`
+#	- `default_role_type_id`
+#	- `default_sot_id`
+#	- `default_area`
+#	- `default_building`
+#	- `default_unit`
+#
+# To do this we need to make sure that we also have a MEFE Master User for Hmlet.
+# This user does NOT exist yet!
+#
+######################################################################################
+#
+#
+#WIP - Rewrite the views to get the default SoT information:
+#	  We need to use the information recorded in the table `uneet_enterprise_organizations`
+#	  and use this to find the default SoT for the organization.
+#	  We need to alter the views:
+#WIP		- `ut_organization_default_area`
+#WIP		- `ut_organization_default_external_system`
+#WIP		- `ut_organization_default_table_areas`
+#WIP		- `ut_organization_default_table_level_1_properties`
+#WIP		- `ut_organization_default_table_level_2_properties`
+#WIP		- `ut_organization_default_table_level_3_properties`
+
 #OK - Add the view to facilitate selection of default users for each role
 #
 #OK	- When we create a new organization, we make sure that
@@ -137,8 +174,11 @@
 		ADD COLUMN `mefe_master_user_external_person_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The external system this person record is coming from' after `mefe_master_user_external_person_table` , 
 		ADD COLUMN `default_role_type_id` mediumint(9) unsigned   NULL COMMENT 'A FK to the table `ut_user_role_types` - what is the default role type for this organization' after `mefe_master_user_external_person_system` , 
 		ADD COLUMN `default_sot_id` int(11)   NULL COMMENT 'A FK to the table `ut_external_sot_for_unee_t_objects`. The default Source of Truth for the organization.' after `default_role_type_id` , 
-		CHANGE `default_sot_system` `default_sot_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'system' COMMENT 'The Default source of truth for that organization' after `default_sot_id` , 
-		CHANGE `default_area` `default_area` int(11)   NULL COMMENT 'The area ID in the table `external_property_groups_areas` - This is the default area for properties created by this organization' after `default_sot_properties` , 
+		CHANGE `default_area` `default_area` int(11)   NULL COMMENT 'The area ID in the table `external_property_groups_areas` - This is the default area for properties created by this organization' after `default_sot_id` , 
+		CHANGE `default_sot_system` `default_sot_system` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'system' COMMENT 'DEPRECATED - The Default source of truth for that organization' after `default_unit` , 
+		CHANGE `default_sot_persons` `default_sot_persons` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'persons' COMMENT 'DEPRECATED - The Default source of truth for that organization for the person records' after `default_sot_system` , 
+		CHANGE `default_sot_areas` `default_sot_areas` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'areas' COMMENT 'DEPRECATED - The Default source of truth for that organization for the area records' after `default_sot_persons` , 
+		CHANGE `default_sot_properties` `default_sot_properties` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL DEFAULT 'properties' COMMENT 'DEPRECATED - The Default source of truth for that organization for the properties records' after `default_sot_areas` , 
 		ADD KEY `organization_default_role_type_must_exist`(`default_role_type_id`) , 
 		ADD KEY `organization_default_sot_must_exist`(`default_sot_id`) , 
 		DROP FOREIGN KEY `organization_default_area_must_exist`  ;
