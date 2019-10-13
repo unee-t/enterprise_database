@@ -32,7 +32,6 @@
 #		- `ut_verify_count_all_P_by_org_and_countries`
 #		- 
 #
-#
 #	- On persons
 #		- `ut_user_information_persons`
 #		- `ut_check_unee_t_updates_persons`
@@ -68,9 +67,11 @@
 #		- ``
 #		- ``
 #
-#	- To facilitate the selection of default assosignees
+#	- To facilitate the selection of default assignees
 #		- `ut_list_possible_assignees`
 #		
+#	- To facilitate the selection of default L1P and default L2P
+#		- `ut_list_possible_properties`
 #
 #  in the Unee-T Enterprise SQL database
 #
@@ -1282,6 +1283,23 @@
 		AND `a`.`unee_t_mefe_user_id` IS NOT NULL
 		AND `a`.`creation_system_id` != 'Setup')
 	;
+	
+# Add the view to facilitate the selection of default L1P and default L2P
 
+	DROP VIEW IF EXISTS `ut_list_possible_properties` ;
 
+	CREATE VIEW `ut_list_possible_properties`
+	AS 
+	SELECT
+		`a`.`organization_id`
+		, `b`.`designation` AS `organization`
+		, `a`.`external_property_type_id`
+		, `a`.`unee_t_mefe_unit_id`
+		, `a`.`uneet_name`
+		, `a`.`mefe_unit_id_parent`
+	FROM
+			`ut_map_external_source_units` AS `a`
+		INNER JOIN 	`uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`)
+		;
 

@@ -83,7 +83,7 @@
 ######################################################################################
 #
 #
-#WIP - Rewrite the views to get the default SoT information:
+#OK - Rewrite the views to get the default SoT information:
 #	  We need to use the information recorded in the table `uneet_enterprise_organizations`
 #	  and use this to find the default SoT for the organization.
 #	  We need to alter the views:
@@ -92,13 +92,18 @@
 #OK		- `ut_organization_default_table_areas`
 #OK		- `ut_organization_default_table_level_1_properties`
 #OK		- `ut_organization_default_table_level_2_properties`
-#WIP		- `ut_organization_default_table_level_3_properties`
+#OK		- `ut_organization_default_table_level_3_properties`
+#OK		- `ut_organization_default_table_persons`
 #
-#WIP	- DROP the view `ut_organization_associated_mefe_user`
+#OK	- DROP the view `ut_organization_associated_mefe_user`
 #	  This view is similar to the view `ut_organization_mefe_user_id`
 #	  We are standardizing and want to use the view `ut_organization_mefe_user_id` everywhere.
 #
 #OK - Add the view to facilitate selection of default users for each role
+#OK		- `ut_list_possible_assignees`
+#
+#OK Add the view to facilitate the selection of default L1P and default L2P
+#OK		- `ut_list_possible_properties`
 #
 #OK	- When we create a new organization, we make sure that
 #		  We automatically create 
@@ -112,9 +117,15 @@
 #	  WARNING - this new methid will need us to manually update the hmlet UNTE account
 #			We need to create the Master MEFE user for that account in UNTE.
 #
-#OK	- Udpdate the lambda calls: it's not necessary to have a creator to create a new user.
+#OK	- Update the lambda calls: it's not necessary to have a creator to create a new user.
 #	  this WILL create a problem if we need to update one of the master user via MEFE API
 #	  this is OK as we should NEVER update one of the master user via MEFE API
+#
+#OK	- Update the routine to create new L1P. 
+#		The script is `properties_level_1_creation_update_v1_22_8_1`
+#OK		- Make sure we log the error message correctly if lambda is not sent
+#		- 
+#
 #
 ###############################
 #
@@ -263,7 +274,8 @@
 #OK		- `ut_organization_default_table_areas`
 #OK		- `ut_organization_default_table_level_1_properties`
 #OK		- `ut_organization_default_table_level_2_properties`
-#WIP		- `ut_organization_default_table_level_3_properties`
+#OK		- `ut_organization_default_table_level_3_properties`
+#OK		- `ut_organization_default_table_persons`
 
 	# We update the view to get the default area for each organization
 
@@ -377,6 +389,62 @@
 				ON (`a`.`organization_id` = `b`.`id_organization`) 
 				AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
 			;
+
+# Add the view to facilitate selection of default users for each role
+
+	DROP VIEW IF EXISTS `ut_list_possible_assignees` ;
+
+	CREATE VIEW `ut_list_possible_assignees`
+	AS 
+	SELECT
+	    `a`.`unee_t_mefe_user_id`
+	    , `a`.`is_obsolete`
+	    , `a`.`organization_id`
+	    , `a`.`person_id`
+	    , `b`.`given_name`
+	    , `b`.`family_name`
+	    , `b`.`alias`
+	    , `b`.`email`
+	    , CONCAT( `b`.`given_name`
+		, IF(`b`.`alias` IS NULL
+			, ' '
+			, IF(`b`.`alias` = ''
+				, ' ' 
+				, CONCAT(' ('
+					, `b`.`alias`
+					, ') '
+					)
+				)
+			)
+		, `b`.`family_name`
+		) AS `person_designation`
+	FROM
+	    `ut_map_external_source_users` AS `a`
+	    INNER JOIN `persons` AS `b`
+		ON (`a`.`person_id` = `b`.`id_person`)
+	WHERE (`a`.`is_obsolete` = 0
+		AND `a`.`unee_t_mefe_user_id` IS NOT NULL
+		AND `a`.`creation_system_id` != 'Setup')
+	;
+	
+# Add the view to facilitate the selection of default L1P and default L2P
+
+	DROP VIEW IF EXISTS `ut_list_possible_properties` ;
+
+	CREATE VIEW `ut_list_possible_properties`
+	AS 
+	SELECT
+		`a`.`organization_id`
+		, `b`.`designation` AS `organization`
+		, `a`.`external_property_type_id`
+		, `a`.`unee_t_mefe_unit_id`
+		, `a`.`uneet_name`
+		, `a`.`mefe_unit_id_parent`
+	FROM
+			`ut_map_external_source_units` AS `a`
+		INNER JOIN 	`uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`)
+		;
 
 #	- When we create a new organization, we make sure that
 #	  we automatically
@@ -1370,6 +1438,42 @@ BEGIN
 END;
 $$
 DELIMITER ;
+
+########################################################################################
+#
+# This is a copy of the script `properties_level_1_creation_update_v1_22_8_1`
+#
+########################################################################################
+
+
+
+
+
+
+
+
+
+
+########################################################################################
+#
+# END - This is a copy of the script `properties_level_1_creation_update_v1_22_8_1`
+#
+########################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
