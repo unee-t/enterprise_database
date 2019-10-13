@@ -75,6 +75,13 @@
 #
 ######################################################################################
 #
+# WARNING 2:
+# 	We need to look at the code and make sure that 
+#	the view `ut_organization_associated_mefe_user` is NOT used anywhere
+#
+#
+######################################################################################
+#
 #
 #WIP - Rewrite the views to get the default SoT information:
 #	  We need to use the information recorded in the table `uneet_enterprise_organizations`
@@ -86,7 +93,11 @@
 #WIP		- `ut_organization_default_table_level_1_properties`
 #WIP		- `ut_organization_default_table_level_2_properties`
 #WIP		- `ut_organization_default_table_level_3_properties`
-
+#
+#WIP	- DROP the view `ut_organization_associated_mefe_user`
+#	  This view is similar to the view `ut_organization_mefe_user_id`
+#	  We are standardizing and want to use the view `ut_organization_mefe_user_id` everywhere.
+#
 #OK - Add the view to facilitate selection of default users for each role
 #
 #OK	- When we create a new organization, we make sure that
@@ -222,6 +233,51 @@
 		AND (`a`.`table_in_external_system` = `b`.`mefe_master_user_external_person_table`) 
 		AND (`a`.`external_system` = `b`.`mefe_master_user_external_person_system`)
 	;
+
+
+# DROP the view `ut_organization_associated_mefe_user`
+#	  This view is similar to the view `ut_organization_mefe_user_id`
+#	  We are standardizing and want to use the view `ut_organization_mefe_user_id` everywhere.
+
+	DROP VIEW IF EXISTS `ut_organization_associated_mefe_user` ;
+
+	# We create a view to get the associated MEFE user for each organization
+	/*
+		DROP VIEW IF EXISTS `ut_organization_associated_mefe_user` ;
+
+		CREATE VIEW `ut_organization_associated_mefe_user`
+		AS
+		SELECT 
+			`mefe_user_id` AS `associated_mefe_user`
+			, `organization_id`
+		FROM `ut_api_keys`
+		;
+	*/
+
+# Rewrite the views to get the default SoT information:
+#	  We need to use the information recorded in the table `uneet_enterprise_organizations`
+#	  and use this to find the default SoT for the organization.
+#	  We need to alter the views:
+#WIP		- `ut_organization_default_area`
+#WIP		- `ut_organization_default_external_system`
+#WIP		- `ut_organization_default_table_areas`
+#WIP		- `ut_organization_default_table_level_1_properties`
+#WIP		- `ut_organization_default_table_level_2_properties`
+#WIP		- `ut_organization_default_table_level_3_properties`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #	- When we create a new organization, we make sure that
 #	  we automatically
