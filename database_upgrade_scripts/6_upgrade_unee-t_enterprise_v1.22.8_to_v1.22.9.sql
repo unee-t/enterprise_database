@@ -133,31 +133,35 @@
 #WIP		- Make sure that we propagate:
 #WIP			- Default assignees
 #
-
+#
 #WIP	- Update the routine to create new L1P. 
 #		The script is `properties_level_1_creation_update_v1_22_8_1`
-#OK		- Make sure we log the error message correctly if lambda is not sent
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #WIP		- Make sure that we propagate:
 #WIP			- Default assignees
 #WIP			- MEFE parent ID if applicable
 #
-#WIP	- Update the routine to create new L1P. 
+#WIP	- Update the routine to create new L2P. 
 #		The script is `properties_level_2_creation_update_v1_22_8_1`
-#WIP		- Make sure we log the error message correctly if lambda is not sent
-#WIP		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
+#OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #WIP		- Make sure that we propagate:
 #WIP			- Default assignees
 #WIP			- MEFE parent ID if applicable
 #
-#WIP	- Update the routine to create new L1P. 
+#WIP	- Update the routine to create new L3P. 
 #		The script is `properties_level_3_creation_update_v1_22_8_1`
-#WIP		- Make sure we log the error message correctly if lambda is not sent
 #WIP		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #WIP		- Make sure that we propagate:
 #WIP			- Default assignees
 #WIP			- MEFE parent ID if applicable
 #
+#OK - Update the lambda triggers to 
+#OK		- Make sure we log the error message correctly if lambda is not sent
+#WIP	- When we create a property make sure that we use the correct MEFE user id for the default assignee
+#
+#WIP - Update the trigger after the property is created to
+#WIP	- Make sure we create the default assignees if we have the information
+#	  We should create AT LEAST ONE default assignee for the property so we can create cases
 #
 ###############################
 #

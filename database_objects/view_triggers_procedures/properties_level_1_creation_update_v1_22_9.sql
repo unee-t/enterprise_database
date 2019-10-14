@@ -641,9 +641,11 @@ BEGIN
 #	- The record has NOT been explicitly been marked as `do_not_insert`
 #	- This is done via an authorized Insert Method:
 #		- 'ut_after_insert_in_external_property_level_1_insert'
-#		- 'ut_update_external_property_level_1'
-#		- 'ut_update_external_property_level_1_creation_needed'
-#		- ''
+#		- 'ut_after_insert_in_external_property_level_1_update'
+#		- 'ut_after_update_external_property_level_1_insert_creation_needed'
+#		- 'ut_after_update_external_property_level_1_update_creation_needed'
+#		- 'ut_after_update_external_property_level_1_insert_update_needed'
+#		- 'ut_after_update_external_property_level_1_update_update_needed'
 #
 
 	SET @is_creation_needed_in_unee_t_insert_l1 = NEW.`is_creation_needed_in_unee_t` ;
@@ -818,6 +820,11 @@ BEGIN
 #	- This is done via an authorized update Method:
 #		- `ut_after_insert_in_external_property_level_1_insert`
 #		- 'ut_after_insert_in_external_property_level_1_update'
+#		- 'ut_after_update_external_property_level_1_insert_creation_needed'
+#		- 'ut_after_update_external_property_level_1_update_creation_needed'
+#		- 'ut_after_update_external_property_level_1_insert_update_needed'
+#		- 'ut_after_update_external_property_level_1_update_update_needed'
+#
 
 # Capture the variables we need to verify if conditions are met:
 
@@ -840,7 +847,6 @@ BEGIN
 # We can now check if the conditions are met:
 
 	IF (@upstream_create_method_update_l1 = 'ut_after_insert_in_external_property_level_1_insert'
-			OR @upstream_update_method_update_l1 = 'ut_after_insert_in_external_property_level_1_insert'
 			OR @upstream_create_method_update_l1 = 'ut_after_insert_in_external_property_level_1_update'
 			OR @upstream_update_method_update_l1 = 'ut_after_insert_in_external_property_level_1_update'
 			OR @upstream_create_method_update_l1 = 'ut_after_update_external_property_level_1_insert_creation_needed'
