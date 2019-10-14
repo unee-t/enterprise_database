@@ -67,6 +67,7 @@
 #		- `landlord_default_assignee`
 #		- `tenant_default_assignee`
 #		- `agent_default_assignee`
+#		- `area_id`
 #
 ######################################################################################
 #
@@ -353,17 +354,32 @@
 
 	/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 
+	/* Foreign Keys must be dropped in the target to ensure that requires changes can be done*/
+
+	ALTER TABLE `ut_map_external_source_units` 
+		DROP FOREIGN KEY `mefe_unit_organization_id`  , 
+		DROP FOREIGN KEY `property_property_type`  , 
+		DROP FOREIGN KEY `unee_t_valid_unit_type_map_units`  , 
+		DROP FOREIGN KEY `unit_mefe_area_id_must_exist`  , 
+		DROP FOREIGN KEY `unit_mefe_unit_id_parent_must_exist`  ;
+
+
 	/* Alter table in target */
 	ALTER TABLE `ut_map_external_source_units` 
+		ADD COLUMN `area_id` int(11)   NULL COMMENT 'The Area ID. This is a FK to the the table `property_groups_areas`' after `is_update_needed` , 
+		CHANGE `mefe_area_id` `mefe_area_id` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'The MEFE ID of the area - This is a FK to the table `ut_map_external_source_areas`' after `area_id` , 
 		ADD COLUMN `mgt_cny_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'Management Company\' - A FK to the table `ut_map_external_source_users`' after `tower` , 
 		ADD COLUMN `landlord_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'landlord\' - A FK to the table `ut_map_external_source_users`' after `mgt_cny_default_assignee` , 
 		ADD COLUMN `tenant_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'tenant\' - A FK to the table `ut_map_external_source_users`' after `landlord_default_assignee` , 
 		ADD COLUMN `agent_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'Agent\' - A FK to the table `ut_map_external_source_users`' after `tenant_default_assignee` , 
+		ADD KEY `prop_area_id_must_exist`(`area_id`) , 
 		ADD KEY `prop_mefe_user_id_for_default_assignee_for_agent_must_exist`(`agent_default_assignee`) , 
 		ADD KEY `prop_mefe_user_id_for_default_assignee_for_landlord_must_exist`(`landlord_default_assignee`) , 
 		ADD KEY `prop_mefe_user_id_for_default_assignee_for_mgt_cny_must_exist`(`mgt_cny_default_assignee`) , 
 		ADD KEY `prop_mefe_user_id_for_default_assignee_for_tenant_must_exist`(`tenant_default_assignee`) ;
 	ALTER TABLE `ut_map_external_source_units`
+		ADD CONSTRAINT `prop_area_id_must_exist` 
+		FOREIGN KEY (`area_id`) REFERENCES `property_groups_areas` (`id_area`) , 
 		ADD CONSTRAINT `prop_mefe_user_id_for_default_assignee_for_agent_must_exist` 
 		FOREIGN KEY (`agent_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
 		ADD CONSTRAINT `prop_mefe_user_id_for_default_assignee_for_landlord_must_exist` 
@@ -372,6 +388,20 @@
 		FOREIGN KEY (`mgt_cny_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
 		ADD CONSTRAINT `prop_mefe_user_id_for_default_assignee_for_tenant_must_exist` 
 		FOREIGN KEY (`tenant_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE ;
+	
+	/* The foreign keys that were dropped are now re-created*/
+
+	ALTER TABLE `ut_map_external_source_units` 
+		ADD CONSTRAINT `mefe_unit_organization_id` 
+		FOREIGN KEY (`organization_id`) REFERENCES `uneet_enterprise_organizations` (`id_organization`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `property_property_type` 
+		FOREIGN KEY (`external_property_type_id`) REFERENCES `ut_property_types` (`id_property_type`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `unee_t_valid_unit_type_map_units` 
+		FOREIGN KEY (`unee_t_unit_type`) REFERENCES `ut_unit_types` (`designation`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `unit_mefe_area_id_must_exist` 
+		FOREIGN KEY (`mefe_area_id`) REFERENCES `ut_map_external_source_areas` (`mefe_area_id`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `unit_mefe_unit_id_parent_must_exist` 
+		FOREIGN KEY (`mefe_unit_id_parent`) REFERENCES `ut_map_external_source_units` (`unee_t_mefe_unit_id`) ON UPDATE CASCADE ;
 
 	/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 
