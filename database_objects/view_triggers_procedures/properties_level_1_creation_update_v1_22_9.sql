@@ -847,7 +847,6 @@ BEGIN
 # We can now check if the conditions are met:
 
 	IF (@upstream_create_method_update_l1 = 'ut_after_insert_in_external_property_level_1_insert'
-			OR @upstream_create_method_update_l1 = 'ut_after_insert_in_external_property_level_1_update'
 			OR @upstream_update_method_update_l1 = 'ut_after_insert_in_external_property_level_1_update'
 			OR @upstream_create_method_update_l1 = 'ut_after_update_external_property_level_1_insert_creation_needed'
 			OR @upstream_update_method_update_l1 = 'ut_after_update_external_property_level_1_update_creation_needed'
