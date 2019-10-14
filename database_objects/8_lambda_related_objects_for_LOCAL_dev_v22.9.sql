@@ -1,6 +1,6 @@
 #################
 #
-# This is valid for version v22.8 of the UNTE database schema
+# This is valid for version v22.9 of the UNTE database schema
 #
 # All lambda related objects
 #
@@ -2071,7 +2071,7 @@ BEGIN
 						)
 					;
 
-		# We have the mandatory information, we can proceed and trigger calls to downstream systems
+		# In all other scenarios, we have the mandatory information, we can proceed and trigger calls to downstream systems
 
 			ELSE
 
