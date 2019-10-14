@@ -523,8 +523,8 @@ BEGIN
 			
 			# This is option 2 - creation is NOT needed
 
-				SET @this_trigger_update_extl2_insert = 'ut_after_update_external_property_level_2_insert_update_needed';
-				SET @this_trigger_update_extl2_update = 'ut_after_update_external_property_level_2_update_update_needed';
+				SET @this_trigger_update_extl2_insert = 'ut_after_update_external_property_level_2_insert_update_needed' ;
+				SET @this_trigger_update_extl2_update = 'ut_after_update_external_property_level_2_update_update_needed' ;
 
 			# We update the record in the table `external_property_level_2_units`
 			# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -635,9 +635,12 @@ BEGIN
 #	- We have marked the property as an object we need to create in Unee-T
 #	- The record does NOT exist in the table `ut_map_external_source_units` yet
 #	- This is done via an authorized insert method:
-#		- 'ut_insert_external_property_level_2'
-#		- 'ut_update_external_property_level_2'
-#		- 'ut_update_external_property_level_2_creation_needed'
+#		- 'ut_after_insert_in_external_property_level_2_insert'
+#		- 'ut_after_insert_in_external_property_level_2_update'
+#		- 'ut_after_update_external_property_level_2_insert_creation_needed'
+#		- 'ut_after_update_external_property_level_2_update_creation_needed'
+#		- 'ut_after_update_external_property_level_2_insert_update_needed'
+#		- 'ut_after_update_external_property_level_2_update_update_needed'
 #		- ''
 #
 	SET @is_creation_needed_in_unee_t_insert_l2 = NEW.`is_creation_needed_in_unee_t` ;
@@ -704,12 +707,12 @@ BEGIN
 
 	IF @is_creation_needed_in_unee_t_insert_l2 = 1
 		AND @do_not_insert_insert_l2 = 0
-		AND (@upstream_create_method_insert_l2 = 'ut_insert_external_property_level_2'
-			OR @upstream_update_method_insert_l2 = 'ut_insert_external_property_level_2'
-			OR @upstream_create_method_insert_l2 = 'ut_update_external_property_level_2'
-			OR @upstream_update_method_insert_l2 = 'ut_update_external_property_level_2'
-			OR @upstream_create_method_insert_l2 = 'ut_update_external_property_level_2_creation_needed'
-			OR @upstream_update_method_insert_l2 = 'ut_update_external_property_level_2_creation_needed'
+		AND (@upstream_create_method_insert_l2 = 'ut_after_insert_in_external_property_level_2_insert'
+			OR @upstream_update_method_insert_l2 = 'ut_after_insert_in_external_property_level_2_update'
+			OR @upstream_create_method_insert_l2 = 'ut_after_update_external_property_level_2_insert_creation_needed'
+			OR @upstream_update_method_insert_l2 = 'ut_after_update_external_property_level_2_update_creation_needed'			
+			OR @upstream_create_method_insert_l2 = 'ut_after_update_external_property_level_2_insert_update_needed'
+			OR @upstream_update_method_insert_l2 = 'ut_after_update_external_property_level_2_update_update_needed'
 			)
 	THEN 
 
@@ -793,8 +796,12 @@ BEGIN
 #	- The unit is NOT marked as `do_not_insert`
 #	- We do NOT have a MEFE unit ID for that unit
 #	- This is done via an authorized update method:
-#		- 'ut_insert_external_property_level_2'
-#		- 'ut_update_external_property_level_2_creation_needed'
+#		- 'ut_after_insert_in_external_property_level_2_insert'
+#		- 'ut_after_insert_in_external_property_level_2_update'
+#		- 'ut_after_update_external_property_level_2_insert_update_needed'
+#		- 'ut_after_update_external_property_level_2_update_update_needed'
+#		- 'ut_after_update_external_property_level_2_insert_creation_needed'
+#		- 'ut_after_update_external_property_level_2_update_creation_needed'
 
 # Capture the variables we need to verify if conditions are met:
 
@@ -841,10 +848,12 @@ BEGIN
 
 # We can now check if the conditions are met:
 
-	IF (@upstream_create_method_update_l2 = 'ut_insert_external_property_level_2'
-			OR @upstream_update_method_update_l2 = 'ut_insert_external_property_level_2'
-			OR @upstream_create_method_update_l2 = 'ut_update_external_property_level_2_creation_needed'
-			OR @upstream_update_method_update_l2 = 'ut_update_external_property_level_2_creation_needed'
+	IF (@upstream_create_method_update_l2 = 'ut_after_insert_in_external_property_level_2_insert'
+			OR @upstream_update_method_update_l2 = 'ut_after_insert_in_external_property_level_2_update'
+			OR @upstream_create_method_update_l2 = 'ut_after_update_external_property_level_2_insert_creation_needed'
+			OR @upstream_update_method_update_l2 = 'ut_after_update_external_property_level_2_update_creation_needed'
+			OR @upstream_create_method_update_l2 = 'ut_after_update_external_property_level_2_insert_update_needed'
+			OR @upstream_update_method_update_l2 = 'ut_after_update_external_property_level_2_update_update_needed'
 			)
 	THEN 
 
