@@ -62,7 +62,7 @@
 #		- `tenant_default_assignee`
 #		- `agent_default_assignee`
 
-#WIP - Alter table `ut_map_external_source_units`: add information about the default assignee for the property
+#OK - Alter table `ut_map_external_source_units`: add information about the default assignee for the property
 #		- `mgt_cny_default_assignee`
 #		- `landlord_default_assignee`
 #		- `tenant_default_assignee`
@@ -330,28 +330,50 @@
 		ADD COLUMN `landlord_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'landlord\' - A FK to the table `ut_map_external_source_users`' after `mgt_cny_default_assignee` , 
 		ADD COLUMN `tenant_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'tenant\' - A FK to the table `ut_map_external_source_users`' after `landlord_default_assignee` , 
 		ADD COLUMN `agent_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'Agent\' - A FK to the table `ut_map_external_source_users`' after `tenant_default_assignee` , 
-		ADD KEY `mefe_user_id_for_default_assignee_for_agent_must_exist`(`agent_default_assignee`) , 
-		ADD KEY `mefe_user_id_for_default_assignee_for_landlord_must_exist`(`landlord_default_assignee`) , 
-		ADD KEY `mefe_user_id_for_default_assignee_for_mgt_cny_must_exist`(`mgt_cny_default_assignee`) , 
-		ADD KEY `mefe_user_id_for_default_assignee_for_tenant_must_exist`(`tenant_default_assignee`) ;
+		ADD KEY `area_mefe_user_id_for_default_assignee_for_agent_must_exist`(`agent_default_assignee`) , 
+		ADD KEY `area_mefe_user_id_for_default_assignee_for_landlord_must_exist`(`landlord_default_assignee`) , 
+		ADD KEY `area_mefe_user_id_for_default_assignee_for_mgt_cny_must_exist`(`mgt_cny_default_assignee`) , 
+		ADD KEY `area_mefe_user_id_for_default_assignee_for_tenant_must_exist`(`tenant_default_assignee`) ;
 	ALTER TABLE `ut_map_external_source_areas`
-		ADD CONSTRAINT `mefe_user_id_for_default_assignee_for_agent_must_exist` 
+		ADD CONSTRAINT `area_mefe_user_id_for_default_assignee_for_agent_must_exist` 
 		FOREIGN KEY (`agent_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
-		ADD CONSTRAINT `mefe_user_id_for_default_assignee_for_landlord_must_exist` 
+		ADD CONSTRAINT `area_mefe_user_id_for_default_assignee_for_landlord_must_exist` 
 		FOREIGN KEY (`landlord_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
-		ADD CONSTRAINT `mefe_user_id_for_default_assignee_for_mgt_cny_must_exist` 
+		ADD CONSTRAINT `area_mefe_user_id_for_default_assignee_for_mgt_cny_must_exist` 
 		FOREIGN KEY (`mgt_cny_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
-		ADD CONSTRAINT `mefe_user_id_for_default_assignee_for_tenant_must_exist` 
+		ADD CONSTRAINT `area_mefe_user_id_for_default_assignee_for_tenant_must_exist` 
 		FOREIGN KEY (`tenant_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE ;
 		/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 
-#WIP - Alter table `ut_map_external_source_units`: add information about the default assignee for the property
+#OK - Alter table `ut_map_external_source_units`: add information about the default assignee for the property
 #		- `mgt_cny_default_assignee`
 #		- `landlord_default_assignee`
 #		- `tenant_default_assignee`
 #		- `agent_default_assignee`
 
+	/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 
+	/* Alter table in target */
+	ALTER TABLE `ut_map_external_source_units` 
+		ADD COLUMN `mgt_cny_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'Management Company\' - A FK to the table `ut_map_external_source_users`' after `tower` , 
+		ADD COLUMN `landlord_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'landlord\' - A FK to the table `ut_map_external_source_users`' after `mgt_cny_default_assignee` , 
+		ADD COLUMN `tenant_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'tenant\' - A FK to the table `ut_map_external_source_users`' after `landlord_default_assignee` , 
+		ADD COLUMN `agent_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'Agent\' - A FK to the table `ut_map_external_source_users`' after `tenant_default_assignee` , 
+		ADD KEY `prop_mefe_user_id_for_default_assignee_for_agent_must_exist`(`agent_default_assignee`) , 
+		ADD KEY `prop_mefe_user_id_for_default_assignee_for_landlord_must_exist`(`landlord_default_assignee`) , 
+		ADD KEY `prop_mefe_user_id_for_default_assignee_for_mgt_cny_must_exist`(`mgt_cny_default_assignee`) , 
+		ADD KEY `prop_mefe_user_id_for_default_assignee_for_tenant_must_exist`(`tenant_default_assignee`) ;
+	ALTER TABLE `ut_map_external_source_units`
+		ADD CONSTRAINT `prop_mefe_user_id_for_default_assignee_for_agent_must_exist` 
+		FOREIGN KEY (`agent_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `prop_mefe_user_id_for_default_assignee_for_landlord_must_exist` 
+		FOREIGN KEY (`landlord_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `prop_mefe_user_id_for_default_assignee_for_mgt_cny_must_exist` 
+		FOREIGN KEY (`mgt_cny_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `prop_mefe_user_id_for_default_assignee_for_tenant_must_exist` 
+		FOREIGN KEY (`tenant_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE ;
+
+	/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 
 
 # re-write the view `ut_organization_mefe_user_id` 
