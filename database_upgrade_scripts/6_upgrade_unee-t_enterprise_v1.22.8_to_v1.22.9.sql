@@ -188,26 +188,26 @@
 #OK			- Make sure that we propagate Default assignees
 #WIP		- Make sure that we propagate to the table `ut_map_external_source_areas`
 #
-#WIP	- Update the routine to create new L1P. 
+#WIP - Update the routine to create new L1P. 
 #		The script is `properties_level_1_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #OK		- Make sure that we propagate the Default assignees
-#WIP			- IF we do NOT have a default assignee, 
-#				  THEN we use the default assignee for the Area
+#WIP	- IF we do NOT have a default assignee, 
+#		  THEN we use the default assignee for the Area
 #
-#WIP	- Update the routine to create new L2P. 
+#WIP - Update the routine to create new L2P. 
 #		The script is `properties_level_2_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #OK		- Make sure that we propagate the Default assignees
 #WIP			- IF we do NOT have a default assignee, 
 #				  THEN we use the default assignee for the L1P
 #
-#WIP	- Update the routine to create new L3P. 
+#WIP - Update the routine to create new L3P. 
 #		The script is `properties_level_3_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
-#WIP		- Make sure that we propagate the Default assignees
-#WIP			- IF we do NOT have a default assignee, 
-#				  THEN we use the default assignee for the L2P
+#WIP	- Make sure that we propagate the Default assignees
+#WIP	- IF we do NOT have a default assignee, 
+#		  THEN we use the default assignee for the L2P
 #
 #OK - Update the lambda triggers to 
 #OK		- Make sure we log the error message correctly if lambda is not sent
