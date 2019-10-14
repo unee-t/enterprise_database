@@ -286,66 +286,66 @@ BEGIN
 			# We update the record in the table `property_groups_areas`
 			# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
 
-			INSERT INTO `property_groups_areas`
-				(`external_id`
-				, `external_system_id` 
-				, `external_table`
-				, `syst_created_datetime`
-				, `creation_system_id`
-				, `created_by_id`
-				, `creation_method`
-				, `is_creation_needed_in_unee_t`
-				, `organization_id`
-				, `country_code`
-				, `is_obsolete`
-				, `is_default`
-				, `order`
-				, `area_name`
-				, `area_definition`
-				, `mgt_cny_default_assignee`
-				, `landlord_default_assignee`
-				, `tenant_default_assignee`
-				, `agent_default_assignee`
-				)
-				VALUES
-					(@external_id_update_ext_area
-					, @external_system_id_update_ext_area
-					, @external_table_update_ext_area
-					, NOW()
-					, @creation_system_id_update_ext_area
-					, @created_by_id_update_ext_area
-					, @this_trigger_update_area_insert
-					, @is_creation_needed_in_unee_t_update_ext_area
-					, @organization_id_create_update_ext_area
-					, @country_code_update_ext_area
-					, @is_obsolete_update_ext_area
-					, @is_default_update_ext_area
-					, @order_update_ext_area
-					, @area_name_update_ext_area
-					, @area_definition_update_ext_area
-					, @area_default_assignee_mgt_cny
-					, @area_default_assignee_landlord
-					, @area_default_assignee_tenant
-					, @area_default_assignee_agent
+				INSERT INTO `property_groups_areas`
+					(`external_id`
+					, `external_system_id` 
+					, `external_table`
+					, `syst_created_datetime`
+					, `creation_system_id`
+					, `created_by_id`
+					, `creation_method`
+					, `is_creation_needed_in_unee_t`
+					, `organization_id`
+					, `country_code`
+					, `is_obsolete`
+					, `is_default`
+					, `order`
+					, `area_name`
+					, `area_definition`
+					, `mgt_cny_default_assignee`
+					, `landlord_default_assignee`
+					, `tenant_default_assignee`
+					, `agent_default_assignee`
 					)
-				ON DUPLICATE KEY UPDATE
-					`syst_updated_datetime` = NOW()
-					, `update_system_id` = @update_system_id_update_ext_area
-					, `updated_by_id` = @updated_by_id_update_ext_area
-					, `update_method` = @this_trigger_update_area_update
-					, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_area
-					, `organization_id` = @organization_id_update_update_ext_area
-					, `country_code` = @country_code_update_ext_area
-					, `is_obsolete` = @is_obsolete_update_ext_area
-					, `is_default` = @is_default_update_ext_area
-					, `order` = @order_update_ext_area
-					, `area_name` = @area_name_update_ext_area
-					, `area_definition` = @area_definition_update_ext_area
-					, `mgt_cny_default_assignee` = @area_default_assignee_mgt_cny
-					, `landlord_default_assignee` = @area_default_assignee_landlord
-					, `tenant_default_assignee` = @area_default_assignee_tenant
-					, `agent_default_assignee` = @area_default_assignee_agent
-				;
+					VALUES
+						(@external_id_update_ext_area
+						, @external_system_id_update_ext_area
+						, @external_table_update_ext_area
+						, NOW()
+						, @creation_system_id_update_ext_area
+						, @created_by_id_update_ext_area
+						, @this_trigger_update_area_insert
+						, @is_creation_needed_in_unee_t_update_ext_area
+						, @organization_id_create_update_ext_area
+						, @country_code_update_ext_area
+						, @is_obsolete_update_ext_area
+						, @is_default_update_ext_area
+						, @order_update_ext_area
+						, @area_name_update_ext_area
+						, @area_definition_update_ext_area
+						, @area_default_assignee_mgt_cny
+						, @area_default_assignee_landlord
+						, @area_default_assignee_tenant
+						, @area_default_assignee_agent
+						)
+					ON DUPLICATE KEY UPDATE
+						`syst_updated_datetime` = NOW()
+						, `update_system_id` = @update_system_id_update_ext_area
+						, `updated_by_id` = @updated_by_id_update_ext_area
+						, `update_method` = @this_trigger_update_area_update
+						, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_update_ext_area
+						, `organization_id` = @organization_id_update_update_ext_area
+						, `country_code` = @country_code_update_ext_area
+						, `is_obsolete` = @is_obsolete_update_ext_area
+						, `is_default` = @is_default_update_ext_area
+						, `order` = @order_update_ext_area
+						, `area_name` = @area_name_update_ext_area
+						, `area_definition` = @area_definition_update_ext_area
+						, `mgt_cny_default_assignee` = @area_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @area_default_assignee_landlord
+						, `tenant_default_assignee` = @area_default_assignee_tenant
+						, `agent_default_assignee` = @area_default_assignee_agent
+					;
 
 		ELSEIF @new_is_creation_needed_in_unee_t_update_ext_area = @old_is_creation_needed_in_unee_t_update_ext_area
 		THEN 
@@ -428,3 +428,5 @@ BEGIN
 END;
 $$
 DELIMITER ;
+
+# WIP - Propagate to the table `ut_map_external_source_areas` 
