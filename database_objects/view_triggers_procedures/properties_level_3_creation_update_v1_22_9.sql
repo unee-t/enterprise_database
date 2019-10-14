@@ -551,9 +551,10 @@ BEGIN
 #	- This is done via an authorized insert method:
 #		- 'ut_insert_external_property_level_3_insert'
 #		- 'ut_insert_external_property_level_3_update'
-#		- 'ut_update_external_property_level_3'
-#		- 'ut_update_external_property_level_3_creation_needed'
-#		- ''
+#		- 'ut_update_external_property_level_3_creation_needed_insert'
+#		- 'ut_update_external_property_level_3_creation_needed_update'
+#		- 'ut_update_external_property_level_3_insert'
+#		- 'ut_update_external_property_level_3_update'
 #
 	SET @is_creation_needed_in_unee_t_insert_l3 = NEW.`is_creation_needed_in_unee_t` ;
 
@@ -599,10 +600,10 @@ BEGIN
 		AND @do_not_insert_insert_l3 = 0
 		AND (@upstream_create_method_insert_l3 = 'ut_insert_external_property_level_3_insert'
 			OR @upstream_update_method_insert_l3 = 'ut_insert_external_property_level_3_update'
-			OR @upstream_create_method_insert_l3 = 'ut_update_external_property_level_3'
-			OR @upstream_update_method_insert_l3 = 'ut_update_external_property_level_3'
-			OR @upstream_create_method_insert_l3 = 'ut_update_external_property_level_3_creation_needed'
-			OR @upstream_update_method_insert_l3 = 'ut_update_external_property_level_3_creation_needed'
+			OR @upstream_create_method_insert_l3 = 'ut_update_external_property_level_3_creation_needed_insert'
+			OR @upstream_update_method_insert_l3 = 'ut_update_external_property_level_3_creation_needed_update'
+			OR @upstream_create_method_insert_l3 = 'ut_update_external_property_level_3_insert'
+			OR @upstream_update_method_insert_l3 = 'ut_update_external_property_level_3_update'
 			)
 	THEN 
 
@@ -702,8 +703,11 @@ BEGIN
 #	- This is done via an authorized insert or update method:
 #		- 'ut_insert_external_property_level_3_insert'
 #		- 'ut_insert_external_property_level_3_update'
-#		- 'ut_update_map_external_source_unit_add_room_creation_needed'
-#		- 'ut_update_map_external_source_unit_edit_level_3'
+#		- 'ut_update_external_property_level_3_creation_needed_insert'
+#		- 'ut_update_external_property_level_3_creation_needed_update'
+#		- 'ut_update_external_property_level_3_insert'
+#		- 'ut_update_external_property_level_3_update'
+#
 
 # Capture the variables we need to verify if conditions are met:
 
@@ -714,10 +718,10 @@ BEGIN
 
 	IF (@upstream_create_method_update_l3 = 'ut_insert_external_property_level_3_insert'
 			OR @upstream_update_method_update_l3 = 'ut_insert_external_property_level_3_update'
-			OR @upstream_create_method_update_l3 = 'ut_update_map_external_source_unit_add_room_creation_needed'
-			OR @upstream_update_method_update_l3 = 'ut_update_map_external_source_unit_add_room_creation_needed'
-			OR @upstream_create_method_update_l3 = 'ut_update_map_external_source_unit_edit_level_3'
-			OR @upstream_update_method_update_l3 = 'ut_update_map_external_source_unit_edit_level_3'
+			OR @upstream_create_method_update_l3 = 'ut_update_external_property_level_3_creation_needed_insert'
+			OR @upstream_update_method_update_l3 = 'ut_update_external_property_level_3_creation_needed_update'
+			OR @upstream_create_method_update_l3 = 'ut_update_external_property_level_3_insert'
+			OR @upstream_update_method_update_l3 = 'ut_update_external_property_level_3_update'
 			)
 	THEN 
 
