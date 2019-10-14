@@ -56,9 +56,24 @@
 #OK			- `default_sot_areas`
 #OK			- `default_sot_properties`
 #
+#OK - Alter table `ut_map_external_source_areas`: add information about the default assignee for the property
+#		- `mgt_cny_default_assignee`
+#		- `landlord_default_assignee`
+#		- `tenant_default_assignee`
+#		- `agent_default_assignee`
+
+#WIP - Alter table `ut_map_external_source_units`: add information about the default assignee for the property
+#		- `mgt_cny_default_assignee`
+#		- `landlord_default_assignee`
+#		- `tenant_default_assignee`
+#		- `agent_default_assignee`
+#
 ######################################################################################
 #
-# WARNING ! WE NEED TO MANUALLY UPDATE THE RECORD FOR THE HMLET ORGANIZATION
+# WARNING 1
+#
+#
+# WE NEED TO MANUALLY UPDATE THE RECORD FOR THE HMLET ORGANIZATION
 # WE NEED TO MAKE SURE THAT THE HMLET ORGANIZATION HAS THE FOLLOWING INFO CONFIGURED
 #	- `country_code`
 #	- `mefe_master_user_external_person_id`
@@ -76,6 +91,38 @@
 ######################################################################################
 #
 # WARNING 2:
+#
+#
+# WE NEED TO MANUALLY UPDATE THE RECORD FOR THE HMLET ORGANIZATION
+# WE NEED TO MAKE SURE THAT THE HMLET ORGANIZATION HAS THE FOLLOWING INFO CONFIGURED
+#	- Areas: 
+#		- `mgt_cny_default_assignee`
+#		- `landlord_default_assignee`
+#		- `tenant_default_assignee`
+#		- `agent_default_assignee`
+#	- L1P:
+#		- `mgt_cny_default_assignee`
+#		- `landlord_default_assignee`
+#		- `tenant_default_assignee`
+#		- `agent_default_assignee`
+#	- L2P:
+#		- `mgt_cny_default_assignee`
+#		- `landlord_default_assignee`
+#		- `tenant_default_assignee`
+#		- `agent_default_assignee`
+#	- L3P:
+#		- `mgt_cny_default_assignee`
+#		- `landlord_default_assignee`
+#		- `tenant_default_assignee`
+#		- `agent_default_assignee`
+#
+######################################################################################
+#
+######################################################################################
+#
+# WARNING 3:
+#
+#
 # 	We need to look at the code and make sure that 
 #	the view `ut_organization_associated_mefe_user` is NOT used anywhere
 #
@@ -134,31 +181,35 @@
 #WIP			- MEFE parent ID if applicable
 
 #
-#OK	- Update the routing to create new areas
+#WIP	- Update the routine to create new areas
 #OK			- Merge the 2 update triggers into one
 #OK			- Drop uncessary triggers
 #OK			- Make sure that we propagate Default assignees
+#WIP		- Make sure that we propagate the the table `ut_map_external_source_areas`
 #
 #WIP	- Update the routine to create new L1P. 
 #		The script is `properties_level_1_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #WIP		- Make sure that we propagate:
 #WIP			- Default assignees
-#WIP			- MEFE parent ID if applicable
+#WIP			- IF we do NOT have a default assignee, 
+#				  THEN we use the default assignee for the Area
 #
 #WIP	- Update the routine to create new L2P. 
 #		The script is `properties_level_2_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #WIP		- Make sure that we propagate:
 #WIP			- Default assignees
-#WIP			- MEFE parent ID if applicable
+#WIP			- IF we do NOT have a default assignee, 
+#				  THEN we use the default assignee for the L1P
 #
 #WIP	- Update the routine to create new L3P. 
 #		The script is `properties_level_3_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #WIP		- Make sure that we propagate:
 #WIP			- Default assignees
-#WIP			- MEFE parent ID if applicable
+#WIP			- IF we do NOT have a default assignee, 
+#				  THEN we use the default assignee for the L2P
 #
 #OK - Update the lambda triggers to 
 #OK		- Make sure we log the error message correctly if lambda is not sent
@@ -263,6 +314,45 @@
 		FOREIGN KEY (`default_unit`) REFERENCES `ut_map_external_source_units` (`unee_t_mefe_unit_id`) ON UPDATE CASCADE ;
 
 	/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+
+
+#OK - Alter table `ut_map_external_source_areas`: add information about the default assignee for the property
+#		- `mgt_cny_default_assignee`
+#		- `landlord_default_assignee`
+#		- `tenant_default_assignee`
+#		- `agent_default_assignee`
+
+	/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+
+	/* Alter table in target */
+	ALTER TABLE `ut_map_external_source_areas` 
+		ADD COLUMN `mgt_cny_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'Management Company\' - A FK to the table `ut_map_external_source_users`' after `table_in_external_system` , 
+		ADD COLUMN `landlord_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'landlord\' - A FK to the table `ut_map_external_source_users`' after `mgt_cny_default_assignee` , 
+		ADD COLUMN `tenant_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'tenant\' - A FK to the table `ut_map_external_source_users`' after `landlord_default_assignee` , 
+		ADD COLUMN `agent_default_assignee` varchar(255)  COLLATE utf8mb4_unicode_520_ci NULL COMMENT 'Default Assignee for the role \'Agent\' - A FK to the table `ut_map_external_source_users`' after `tenant_default_assignee` , 
+		ADD KEY `mefe_user_id_for_default_assignee_for_agent_must_exist`(`agent_default_assignee`) , 
+		ADD KEY `mefe_user_id_for_default_assignee_for_landlord_must_exist`(`landlord_default_assignee`) , 
+		ADD KEY `mefe_user_id_for_default_assignee_for_mgt_cny_must_exist`(`mgt_cny_default_assignee`) , 
+		ADD KEY `mefe_user_id_for_default_assignee_for_tenant_must_exist`(`tenant_default_assignee`) ;
+	ALTER TABLE `ut_map_external_source_areas`
+		ADD CONSTRAINT `mefe_user_id_for_default_assignee_for_agent_must_exist` 
+		FOREIGN KEY (`agent_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `mefe_user_id_for_default_assignee_for_landlord_must_exist` 
+		FOREIGN KEY (`landlord_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `mefe_user_id_for_default_assignee_for_mgt_cny_must_exist` 
+		FOREIGN KEY (`mgt_cny_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE , 
+		ADD CONSTRAINT `mefe_user_id_for_default_assignee_for_tenant_must_exist` 
+		FOREIGN KEY (`tenant_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE ;
+		/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+
+#WIP - Alter table `ut_map_external_source_units`: add information about the default assignee for the property
+#		- `mgt_cny_default_assignee`
+#		- `landlord_default_assignee`
+#		- `tenant_default_assignee`
+#		- `agent_default_assignee`
+
+
+
 
 # re-write the view `ut_organization_mefe_user_id` 
 # this is to make it easir to get the MEFE information for MEFE Master user
@@ -1590,7 +1680,6 @@ DELIMITER ;
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #WIP		- Make sure that we propagate:
 #WIP			- Default assignees
-#WIP			- MEFE parent ID if applicable
 
 ########################################################################################
 #
