@@ -174,6 +174,11 @@ BEGIN
 
 		SET @description_insert_extl1 = NEW.`description` ;
 
+		SET @ext_l1_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @ext_l1_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @ext_l1_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @ext_l1_default_assignee_agent := NEW.`agent_default_assignee` ;
+
 	# We insert the record in the table `property_level_1_buildings`
 
 		INSERT INTO `property_level_1_buildings`
@@ -200,6 +205,10 @@ BEGIN
 			, `city`
 			, `country_code`
 			, `description`
+			, `mgt_cny_default_assignee`
+			, `landlord_default_assignee`
+			, `tenant_default_assignee`
+			, `agent_default_assignee`
 			)
 			VALUES
 				(@external_id_insert_extl1
@@ -225,6 +234,10 @@ BEGIN
 				, @city_insert_extl1
 				, @country_code_insert_extl1
 				, @description_insert_extl1
+				, @ext_l1_default_assignee_mgt_cny
+				, @ext_l1_default_assignee_landlord
+				, @ext_l1_default_assignee_tenant
+				, @ext_l1_default_assignee_agent
 				)
 			ON DUPLICATE KEY UPDATE
 				`syst_updated_datetime` = NOW()
@@ -247,6 +260,10 @@ BEGIN
 				, `city` = @city_insert_extl1
 				, `country_code` = @country_code_insert_extl1
 				, `description` = @description_insert_extl1
+				, `mgt_cny_default_assignee` = @ext_l1_default_assignee_mgt_cny
+				, `landlord_default_assignee` = @ext_l1_default_assignee_landlord
+				, `tenant_default_assignee` = @ext_l1_default_assignee_tenant
+				, `agent_default_assignee` = @ext_l1_default_assignee_agent
 			;
 
 	END IF;
@@ -298,7 +315,6 @@ BEGIN
 #		- ''
 
 # Capture the variables we need to verify if conditions are met:
-
 
 	SET @is_creation_needed_in_unee_t_update_extl1 = NEW.`is_creation_needed_in_unee_t` ;
 
@@ -370,7 +386,6 @@ BEGIN
 
 # We can now check if the conditions are met:
 
-
 	IF @is_creation_needed_in_unee_t_update_extl1 = 1
 		AND @external_id_update_extl1 IS NOT NULL
 		AND @external_system_id_update_extl1 IS NOT NULL
@@ -405,6 +420,7 @@ BEGIN
 			WHERE `organization_id` = @source_system_updater_update_extl1
 			)
 			;
+
 		SET @updated_by_id_update_extl1 = @creator_mefe_user_id_update_extl1 ;
 
 		SET @organization_id_create_update_extl1 = @source_system_creator_update_extl1 ;
@@ -426,6 +442,11 @@ BEGIN
 		SET @description_update_extl1 = NEW.`description` ;
 
 		SET @building_system_id_update_extl1 = NEW.`id_building` ;
+
+		SET @ext_l1_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @ext_l1_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @ext_l1_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @ext_l1_default_assignee_agent := NEW.`agent_default_assignee` ;
 
 		IF @new_is_creation_needed_in_unee_t_update_extl1 != @old_is_creation_needed_in_unee_t_update_extl1
 		THEN 
@@ -462,6 +483,10 @@ BEGIN
 					, `city`
 					, `country_code`
 					, `description`
+					, `mgt_cny_default_assignee`
+					, `landlord_default_assignee`
+					, `tenant_default_assignee`
+					, `agent_default_assignee`
 					)
 					VALUES
 						(@external_id_update_extl1
@@ -487,6 +512,10 @@ BEGIN
 						, @city_update_extl1
 						, @country_code_update_extl1
 						, @description_update_extl1
+						, @ext_l1_default_assignee_mgt_cny
+						, @ext_l1_default_assignee_landlord
+						, @ext_l1_default_assignee_tenant
+						, @ext_l1_default_assignee_agent
 						)
 					ON DUPLICATE KEY UPDATE
 						`syst_updated_datetime` = NOW()
@@ -509,6 +538,10 @@ BEGIN
 						, `city` = @city_update_extl1
 						, `country_code` = @country_code_update_extl1
 						, `description` = @description_update_extl1
+						, `mgt_cny_default_assignee` = @ext_l1_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @ext_l1_default_assignee_landlord
+						, `tenant_default_assignee` = @ext_l1_default_assignee_tenant
+						, `agent_default_assignee` = @ext_l1_default_assignee_agent
 					;
 
 			# Housekeeping - we make sure that if a building is obsolete - all units in that building are obsolete too
@@ -556,6 +589,10 @@ BEGIN
 					, `city`
 					, `country_code`
 					, `description`
+					, `mgt_cny_default_assignee`
+					, `landlord_default_assignee`
+					, `tenant_default_assignee`
+					, `agent_default_assignee`
 					)
 					VALUES
 						(@external_id_update_extl1
@@ -581,6 +618,10 @@ BEGIN
 						, @city_update_extl1
 						, @country_code_update_extl1
 						, @description_update_extl1
+						, @ext_l1_default_assignee_mgt_cny
+						, @ext_l1_default_assignee_landlord
+						, @ext_l1_default_assignee_tenant
+						, @ext_l1_default_assignee_agent
 						)
 					ON DUPLICATE KEY UPDATE
 						`syst_updated_datetime` = NOW()
@@ -603,6 +644,10 @@ BEGIN
 						, `city` = @city_update_extl1
 						, `country_code` = @country_code_update_extl1
 						, `description` = @description_update_extl1
+						, `mgt_cny_default_assignee` = @ext_l1_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @ext_l1_default_assignee_landlord
+						, `tenant_default_assignee` = @ext_l1_default_assignee_tenant
+						, `agent_default_assignee` = @ext_l1_default_assignee_agent
 					;
 
 			# Housekeeping - we make sure that if a building is obsolete - all units in that building are obsolete too
@@ -740,6 +785,11 @@ BEGIN
 			;
 			
 		SET @new_record_id_insert_l1 = NEW.`id_building` ;
+
+		SET @l1_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @l1_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @l1_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @l1_default_assignee_agent := NEW.`agent_default_assignee` ;
 		
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -761,6 +811,10 @@ BEGIN
 				, `external_system`
 				, `table_in_external_system`
 				, `tower`
+				, `mgt_cny_default_assignee`
+				, `landlord_default_assignee`
+				, `tenant_default_assignee`
+				, `agent_default_assignee`
 				)
 				VALUES
 					(NOW()
@@ -780,6 +834,10 @@ BEGIN
 					, @external_system_insert_l1
 					, @table_in_external_system_insert_l1
 					, @tower_insert_l1
+					, @l1_default_assignee_mgt_cny
+					, @l1_default_assignee_landlord
+					, @l1_default_assignee_tenant
+					, @l1_default_assignee_agent
 					)
 				ON DUPLICATE KEY UPDATE 
 					`syst_updated_datetime` = NOW()
@@ -792,6 +850,10 @@ BEGIN
 					, `uneet_name` = @uneet_name_insert_l1
 					, `unee_t_unit_type` = @unee_t_unit_type_insert_l1
 					, `is_update_needed` = 1
+					, `mgt_cny_default_assignee` = @l1_default_assignee_mgt_cny
+					, `landlord_default_assignee` = @l1_default_assignee_landlord
+					, `tenant_default_assignee` = @l1_default_assignee_tenant
+					, `agent_default_assignee` = @l1_default_assignee_agent
 				;
 
 	END IF;
@@ -896,6 +958,11 @@ BEGIN
 				AND `organization_id` = @organization_id_update_l1
 				AND `tower` = @tower_update_l1
 			);
+
+		SET @l1_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @l1_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @l1_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @l1_default_assignee_agent := NEW.`agent_default_assignee` ;
 		
 		# If the record does NOT exist, we create the record
 		# unless 
@@ -950,6 +1017,10 @@ BEGIN
 					, `external_system`
 					, `table_in_external_system`
 					, `tower`
+					, `mgt_cny_default_assignee`
+					, `landlord_default_assignee`
+					, `tenant_default_assignee`
+					, `agent_default_assignee`
 					)
 					VALUES
 						(NOW()
@@ -969,6 +1040,10 @@ BEGIN
 						, @external_system_update_l1
 						, @table_in_external_system_update_l1
 						, @tower_update_l1
+						, @l1_default_assignee_mgt_cny
+						, @l1_default_assignee_landlord
+						, @l1_default_assignee_tenant
+						, @l1_default_assignee_agent
 						)
 					ON DUPLICATE KEY UPDATE
 						`syst_updated_datetime` = NOW()
@@ -981,6 +1056,10 @@ BEGIN
 						, `uneet_name` = @uneet_name_update_l1
 						, `unee_t_unit_type` = @unee_t_unit_type_update_l1
 						, `is_update_needed` = 1
+						, `mgt_cny_default_assignee` = @l1_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @l1_default_assignee_landlord
+						, `tenant_default_assignee` = @l1_default_assignee_tenant
+						, `agent_default_assignee` = @l1_default_assignee_agent
 					;
 
 ###################################################################
@@ -1012,6 +1091,10 @@ BEGIN
 						, `uneet_name` = @uneet_name_update_l1
 						, `unee_t_unit_type` = @unee_t_unit_type_update_l1
 						, `is_update_needed` = 1
+						, `mgt_cny_default_assignee` = @l1_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @l1_default_assignee_landlord
+						, `tenant_default_assignee` = @l1_default_assignee_tenant
+						, `agent_default_assignee` = @l1_default_assignee_agent
 					WHERE `unee_t_mefe_unit_id` = @mefe_unit_id_update_l1
 					;
 
