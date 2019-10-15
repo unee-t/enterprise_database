@@ -26,11 +26,29 @@ BEGIN
 
 		SET @default_ut_user_role_type_id_new_organization = NEW.`default_role_type_id` ;
 
-	# The designation for the role type
+	# The designations for the different role types
 
-		SET @role_type_designation := (SELECT `role_type`
+		SET @role_type_designation_tenant := (SELECT `role_type`
 			FROM `ut_user_role_types`
-			WHERE `id_role_type` = @default_ut_user_role_type_id_new_organization
+			WHERE `id_role_type` = 1
+			)
+			;
+
+		SET @role_type_designation_landlord := (SELECT `role_type`
+			FROM `ut_user_role_types`
+			WHERE `id_role_type` = 2
+			)
+			;
+
+		SET @role_type_designation_mgt_cny := (SELECT `role_type`
+			FROM `ut_user_role_types`
+			WHERE `id_role_type` = 4
+			)
+			;
+
+		SET @role_type_designation_agent := (SELECT `role_type`
+			FROM `ut_user_role_types`
+			WHERE `id_role_type` = 5
 			)
 			;
 
@@ -157,12 +175,12 @@ BEGIN
 			)
 		;
 
-	# WIP - We need to record the id of that person so we can access the 
-	# MEFE user ID for that person
-	# This is a key information to create unee-t objects as this organization
-
-
-# We need to create a default Unee-T user type for this organization:
+# We need to create the default Unee-T user type for this organization:
+#		- Tenant (1)
+#		- Owner/Landlord (2)
+#		- We have NO default user for the user type contractor (3)
+#		- management company (4)
+#		- Agent (5)	
 
 	INSERT INTO `ut_user_types`
 		(`syst_created_datetime`
@@ -187,74 +205,139 @@ BEGIN
 		, `can_see_role_tenant`
 		) 
 		VALUES
+			# Tenant (1)
 			(NOW()
-			, 'Setup'
-			, @organization_id
-			, 'trigger_ut_after_insert_new_organization'
-			, @organization_id
-			, 0
-			, 0
-			, CONCAT ('Default Public User - '
-				, @role_type_designation
-				)
-			, CONCAT ('Use this for the public account for the role '
-				, @role_type_designation
-				, '. This is the user people will report issue to by default'
-				)
-			, @default_ut_user_role_type_id_new_organization
-			, 0
-			, 1
-			, 1
-			, 1
-			, 1
-			, 1
-			, 1
-			, 1
-			, 1
-			, 1
-			)
-			;
-
-# We also need to create a default Area for that organization
-# WIP 
-# IDEA: This should be done AFTER the first user is created for that orgnanization
-
-	INSERT INTO `external_property_groups_areas`
-		(`external_id`
-		,`external_system_id`
-		,`external_table`
-		,`syst_created_datetime`
-		,`creation_system_id`
-		,`created_by_id`
-		,`creation_method`
-		,`is_creation_needed_in_unee_t`
-		,`is_obsolete`
-		,`is_default`
-		,`order`
-		,`country_code`
-		,`area_name`
-		,`area_definition`
-		) 
-		VALUES
-			(CONCAT (0
-				, '-'
+				, 'Setup'
 				, @organization_id
+				, 'trigger_ut_after_insert_new_organization'
+				, @organization_id
+				, 0
+				, 0
+				, CONCAT ('Default Public User - '
+					, @role_type_designation_tenant
+					)
+				, CONCAT ('Use this for the public account for the role '
+					, @role_type_designation_tenant
+					, '. This is the user people will report issue to by default'
+					)
+				# What is the `ut_user_role_type_id`
+				#		- Tenant (1)
+				#		- Owner/Landlord (2)
+				#		- We have NO default user for the user type contractor (3)
+				#		- management company (4)
+				#		- Agent (5)
+				, 1
+				, 0
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
 				)
-			, 'Setup'
-			, 'Setup'
-			, NOW()
-			, 0
-			, @organization_id
-			, 'trigger_ut_after_insert_new_organization'
-			, 1
-			, 0
-			, 1
-			, 0
-			, @default_country_code_new_organization
-		, 'Default Area'
-		, 'The default area for this organization'
-		)
-		;
+			# Owner/Landlord (2)
+			, (NOW()
+				, 'Setup'
+				, @organization_id
+				, 'trigger_ut_after_insert_new_organization'
+				, @organization_id
+				, 0
+				, 0
+				, CONCAT ('Default Public User - '
+					, @role_type_designation_landlord
+					)
+				, CONCAT ('Use this for the public account for the role '
+					, @role_type_designation_landlord
+					, '. This is the user people will report issue to by default'
+					)
+				# What is the `ut_user_role_type_id`
+				#		- Tenant (1)
+				#		- Owner/Landlord (2)
+				#		- We have NO default user for the user type contractor (3)
+				#		- management company (4)
+				#		- Agent (5)
+				, 2
+				, 0
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				) 
+			# management company (4)
+			, (NOW()
+				, 'Setup'
+				, @organization_id
+				, 'trigger_ut_after_insert_new_organization'
+				, @organization_id
+				, 0
+				, 0
+				, CONCAT ('Default Public User - '
+					, @role_type_designation_mgt_cny
+					)
+				, CONCAT ('Use this for the public account for the role '
+					, @role_type_designation_mgt_cny
+					, '. This is the user people will report issue to by default'
+					)
+				# What is the `ut_user_role_type_id`
+				#		- Tenant (1)
+				#		- Owner/Landlord (2)
+				#		- We have NO default user for the user type contractor (3)
+				#		- management company (4)
+				#		- Agent (5)
+				, 4
+				, 0
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				) 
+			# Agent (5)
+			, (NOW()
+				, 'Setup'
+				, @organization_id
+				, 'trigger_ut_after_insert_new_organization'
+				, @organization_id
+				, 0
+				, 0
+				, CONCAT ('Default Public User - '
+					, @role_type_designation_agent
+					)
+				, CONCAT ('Use this for the public account for the role '
+					, @role_type_designation_agent
+					, '. This is the user people will report issue to by default'
+					)
+				# What is the `ut_user_role_type_id`
+				#		- Tenant (1)
+				#		- Owner/Landlord (2)
+				#		- We have NO default user for the user type contractor (3)
+				#		- management company (4)
+				#		- Agent (5)
+				, 5
+				, 0
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				, 1
+				) 
+			;
 
 END;
 $$
