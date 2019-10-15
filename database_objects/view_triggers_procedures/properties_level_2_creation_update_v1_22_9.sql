@@ -865,21 +865,20 @@ BEGIN
 
 # Capture the variables we need to verify if conditions are met:
 
-	SET @system_id_unit_update_l2 = NEW.`system_id_unit` ;
-
-	SET @mefe_unit_id_update_l2 = NULL ;
-
 	SET @upstream_create_method_update_l2 = NEW.`creation_method` ;
 	SET @upstream_update_method_update_l2 = NEW.`update_method` ;
+			
+	SET @new_record_id_update_l2 = NEW.`system_id_unit`;
 
-		SET @is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
-
-		SET @new_is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
-		SET @old_is_creation_needed_in_unee_t_update_l2 = OLD.`is_creation_needed_in_unee_t`;
-
-		SET @do_not_insert_update_l2_raw = NEW.`do_not_insert` ;
-
-		SET @is_obsolete_update_l2 = NEW.`is_obsolete`;
+	SET @check_new_record_id_update_l2 = (IF(@new_record_id_update_l2 IS NULL
+			, 0
+			, IF(@new_record_id_update_l2 = ''
+				, 0
+				, 1
+				)
+			)
+		)
+		;
 
 # We can now check if the conditions are met:
 
@@ -890,9 +889,19 @@ BEGIN
 			OR @upstream_create_method_update_l2 = 'ut_after_update_external_property_level_2_insert_update_needed'
 			OR @upstream_update_method_update_l2 = 'ut_after_update_external_property_level_2_update_update_needed'
 			)
+		AND @check_new_record_id_update_l2 = 1
 	THEN 
 
+	# Clean Slate - Make sure we don't use a legacy MEFE id
+
+		SET @mefe_unit_id_update_l2 = NULL ;
+
 	# The conditions are met: we capture the other variables we need
+
+		SET @is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
+
+		SET @new_is_creation_needed_in_unee_t_update_l2 = NEW.`is_creation_needed_in_unee_t`;
+		SET @old_is_creation_needed_in_unee_t_update_l2 = OLD.`is_creation_needed_in_unee_t`;
 
 		SET @creation_system_id_update_l2 = NEW.`update_system_id`;
 		SET @created_by_id_update_l2 = NEW.`updated_by_id`;
@@ -913,8 +922,6 @@ BEGIN
 				)
 			)
 			;
-			
-		SET @new_record_id_update_l2 = NEW.`system_id_unit`;
 
 		SET @external_property_id_update_l2 = NEW.`external_id`;
 		SET @external_system_update_l2 = NEW.`external_system_id`;
@@ -924,7 +931,7 @@ BEGIN
 
 		SET @mefe_unit_id_update_l2 = (SELECT `unee_t_mefe_unit_id`
 			FROM `ut_map_external_source_units`
-			WHERE `new_record_id` = @system_id_unit_update_l2
+			WHERE `new_record_id` = @new_record_id_update_l2
 				AND `external_property_type_id` = @external_property_type_id_update_l2
 				AND `unee_t_mefe_unit_id` IS NOT NULL
 			);
@@ -939,17 +946,21 @@ BEGIN
 		#	- it is specifically specified that we do NOT need to create the record.
 		#	- the record is marked as obsolete
 
-		SET @do_not_insert_update_l2 = (IF (@do_not_insert_update_l2_raw IS NULL
-				, IF (@is_obsolete_update_l2 != 0
-					, 1
-					, 0
+			SET @do_not_insert_update_l2_raw = NEW.`do_not_insert` ;
+
+			SET @is_obsolete_update_l2 = NEW.`is_obsolete`;
+
+			SET @do_not_insert_update_l2 = (IF (@do_not_insert_update_l2_raw IS NULL
+					, IF (@is_obsolete_update_l2 != 0
+						, 1
+						, 0
+						)
+					, IF (@is_obsolete_update_l2 != 0
+						, 1
+						, @do_not_insert_update_l2_raw
+						)
 					)
-				, IF (@is_obsolete_update_l2 != 0
-					, 1
-					, @do_not_insert_update_l2_raw
-					)
-				)
-			);
+				);
 
 		IF @is_creation_needed_in_unee_t_update_l2 = 1
 			AND (@mefe_unit_id_update_l2 IS NULL

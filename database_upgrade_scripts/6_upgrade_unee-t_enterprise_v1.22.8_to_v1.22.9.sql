@@ -158,6 +158,8 @@
 #OK			- `ut_organization_default_L1P`
 #OK			- `ut_organization_default_L2P`
 #
+#OK - Add a view to get the necessary information to assign the default users
+#	  `ut_user_person_details`
 #
 #OK	- When we create a new organization, we make sure that
 #		  We automatically create 
@@ -203,15 +205,15 @@
 #		The script is `properties_level_2_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #OK		- Make sure that we propagate the Default assignees
-#WIP		- Add a check to make sure we can get the MEFE unit ID if we need to update
+#OK		- Add a check to make sure we can get the MEFE unit ID if we need to update
 #WIP			- IF we do NOT have a default assignee, 
 #				  THEN we use the default assignee for the L1P
 #
 #WIP - Update the routine to create new L3P. 
 #		The script is `properties_level_3_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
-#WIP	- Make sure that we propagate the Default assignees
-#WIP		- Add a check to make sure we can get the MEFE unit ID if we need to update
+#OK	- Make sure that we propagate the Default assignees
+#OK		- Add a check to make sure we can get the MEFE unit ID if we need to update
 #WIP	- IF we do NOT have a default assignee, 
 #		  THEN we use the default assignee for the L2P
 #
@@ -222,7 +224,8 @@
 #
 #WIP - Update the trigger after the property is created to
 #WIP	- Make sure we create the default assignees if we have the information
-#	  We should create AT LEAST ONE default assignee for the property so we can create cases
+#	COMMENT: We should create AT LEAST ONE default assignee for the property so we can create cases.
+#  The script is `add_user_to_property_trigger_bulk_assign_to_new_unit_v1_29_0.sql`
 #
 ###############################
 #
@@ -685,6 +688,36 @@
 			ON (`a`.`organization_id` = `b`.`id_organization`)
 	WHERE `a`.`unee_t_mefe_unit_id` IS NOT NULL
 		AND `a`.`external_property_type_id` = 2
+		;
+
+#
+#OK - Add a view to get the necessary information to assign the default users
+#	  `ut_user_person_details`
+
+	DROP VIEW IF EXISTS `ut_user_person_details` ;
+
+	CREATE VIEW `ut_user_person_details`
+	AS
+	SELECT
+		`a`.`unee_t_mefe_user_id`
+		, `b`.`country_code`
+		, `b`.`email`
+		, `b`.`organization_id`
+		, `b`.`person_status_id`
+		, `b`.`gender`
+		, `b`.`salutation_id`
+		, `b`.`given_name`
+		, `b`.`middle_name`
+		, `b`.`family_name`
+		, `b`.`alias`
+		, `b`.`job_title`
+		, `b`.`organization`
+		, `b`.`tel_1`
+	FROM
+		`ut_map_external_source_users` AS `a`
+		INNER JOIN `persons` AS `b`
+			ON (`a`.`person_id` = `b`.`id_person`)
+		WHERE  `a`.`unee_t_mefe_user_id` IS NOT NULL
 		;
 
 #	- When we create a new organization, we make sure that
@@ -1278,6 +1311,11 @@ DELIMITER ;
 #
 ########################################################################################
 
+########################################################################################
+#
+# This is a copy of the script `properties_areas_creation_update_v1_22_9`
+#
+########################################################################################
 
 # We update the trigger to create a new area to make sure it can handle 
 # the creation of the default Area for a given organization
@@ -1290,12 +1328,6 @@ DELIMITER ;
 		DROP TRIGGER IF EXISTS `ut_update_external_area`;
 
 		DROP TRIGGER IF EXISTS `ut_created_external_area_after_insert`;
-
-########################################################################################
-#
-# This is a copy of the script `properties_areas_creation_update_v1_22_9`
-#
-########################################################################################
 
 
 
@@ -1317,6 +1349,9 @@ DELIMITER ;
 #		The script is `properties_level_1_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #OK		- Make sure that we propagate the Default assignees
+#OK		- Change how we fetch record when we need to update a record in the table
+#		  `ut_map_external_source_units`
+#OK		- Add a check to make sure we can get the MEFE unit ID if we need to update
 #WIP			- IF we do NOT have a default assignee, 
 #				  THEN we use the default assignee for the L1P
 
@@ -1341,6 +1376,7 @@ DELIMITER ;
 #		The script is `properties_level_2_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #OK		- Make sure that we propagate the Default assignees
+#OK		- Add a check to make sure we can get the MEFE unit ID if we need to update
 #WIP			- IF we do NOT have a default assignee, 
 #				  THEN we use the default assignee for the L1P
 
@@ -1371,7 +1407,8 @@ DELIMITER ;
 #WIP	- Update the routine to create new L3P. 
 #		The script is `properties_level_3_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
-#WIP		- Make sure that we propagate the Default assignees
+#OK		- Make sure that we propagate the Default assignees
+#OK		- Add a check to make sure we can get the MEFE unit ID if we need to update
 #WIP			- IF we do NOT have a default assignee, 
 #				  THEN we use the default assignee for the L2P
 
@@ -1389,6 +1426,26 @@ DELIMITER ;
 #
 ########################################################################################
 
+########################################################################################
+#
+# This is a copy of the script `add_user_to_property_trigger_bulk_assign_to_new_unit_v1_29_0`
+#
+########################################################################################
+
+
+
+
+
+
+
+
+
+
+########################################################################################
+#
+# END - This is a copy of the script `add_user_to_property_trigger_bulk_assign_to_new_unit_v1_29_0`
+#
+########################################################################################
 
 
 

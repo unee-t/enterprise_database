@@ -904,6 +904,7 @@ BEGIN
 			)
 		)
 		;
+
 # We can now check if the conditions are met:
 
 	IF (@upstream_create_method_update_l1 = 'ut_after_insert_in_external_property_level_1_insert'
@@ -915,6 +916,10 @@ BEGIN
 			)
 		AND @check_new_record_id_update_l1 = 1
 	THEN 
+
+	# Clean Slate - Make sure we don't use a legacy MEFE id
+
+		SET @mefe_unit_id_update_l1 = NULL ;
 
 	# The conditions are met: we capture the other variables we need
 

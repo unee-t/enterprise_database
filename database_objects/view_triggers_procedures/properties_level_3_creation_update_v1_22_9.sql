@@ -136,8 +136,8 @@ BEGIN
 
 	# We capture the values we need for the insert/udpate to the `external_property_level_2_units` table:
 
-		SET @this_trigger_insert_extl3_1_insert = 'ut_insert_external_property_level_3_insert' ;
-		SET @this_trigger_insert_extl3_1_update = 'ut_insert_external_property_level_3_update' ;
+		SET @this_trigger_insert_extl3_1_insert = 'ut_after_insert_external_property_level_3_insert' ;
+		SET @this_trigger_insert_extl3_1_update = 'ut_after_insert_external_property_level_3_update' ;
 
 		SET @creation_system_id_insert_extl3_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
@@ -145,7 +145,6 @@ BEGIN
 			)
 			;
 		SET @created_by_id_insert_extl3_1 = @creator_mefe_user_id_insert_extl3_1 ;
-		SET @downstream_creation_method_insert_extl3_1 = @this_trigger_insert_extl3_1_insert ;
 
 		SET @update_system_id_insert_extl3_1 = (SELECT `id_external_sot_for_unee_t` 
 			FROM `ut_external_sot_for_unee_t_objects`
@@ -153,22 +152,26 @@ BEGIN
 			)
 			;
 		SET @updated_by_id_insert_extl3_1 = @creator_mefe_user_id_insert_extl3_1 ;
-		SET @downstream_update_method_insert_extl3_1 = @this_trigger_insert_extl3_1_update ;
 
 		SET @organization_id_create_insert_extl3_1 = @source_system_creator_insert_extl3_1 ;
 		SET @organization_id_update_insert_extl3_1 = @source_system_updater_insert_extl3_1 ;
 		
 		SET @is_obsolete_insert_extl3_1 = NEW.`is_obsolete` ;
-		SET @is_creation_needed_in_unee_t_insert_extl3_1 = NEW.`is_creation_needed_in_unee_t` ;
 
 		SET @unee_t_unit_type_insert_extl3_1 = NEW.`unee_t_unit_type` ;
+		SET @room_designation_insert_extl3_1 = NEW.`room_designation`;
 			
 		SET @room_type_id_insert_extl3_1 = NEW.`room_type_id` ;
 		SET @number_of_beds_insert_extl3_1 = NEW.`number_of_beds` ;
 		SET @surface_insert_extl3_1 = NEW.`surface` ;
 		SET @surface_measurment_unit_insert_extl3_1 = NEW.`surface_measurment_unit` ;
-		SET @room_designation_insert_extl3_1 = NEW.`room_designation`;
+
 		SET @room_description_insert_extl3_1 = NEW.`room_description` ;
+
+		SET @ext_l3_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @ext_l3_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @ext_l3_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @ext_l3_default_assignee_agent := NEW.`agent_default_assignee` ;
 
 	# We insert the record in the table `property_level_3_rooms`
 	# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -192,6 +195,10 @@ BEGIN
 			, `surface_measurment_unit`
 			, `room_designation`
 			, `room_description`
+			, `mgt_cny_default_assignee`
+			, `landlord_default_assignee`
+			, `tenant_default_assignee`
+			, `agent_default_assignee`
 			)
 			VALUES
  				(@external_id_insert_extl3_1
@@ -200,7 +207,7 @@ BEGIN
 				, NOW()
 				, @creation_system_id_insert_extl3_1
 				, @created_by_id_insert_extl3_1
-				, @downstream_creation_method_insert_extl3_1
+				, @this_trigger_insert_extl3_1_insert
 				, @organization_id_create_insert_extl3_1
 				, @is_obsolete_insert_extl3_1
 				, @is_creation_needed_in_unee_t_insert_extl3_1
@@ -212,12 +219,16 @@ BEGIN
 				, @surface_measurment_unit_insert_extl3_1
 				, @room_designation_insert_extl3_1
 				, @room_description_insert_extl3_1
+				, @ext_l3_default_assignee_mgt_cny
+				, @ext_l3_default_assignee_landlord
+				, @ext_l3_default_assignee_tenant
+				, @ext_l3_default_assignee_agent
  			)
 			ON DUPLICATE KEY UPDATE
  				`syst_updated_datetime` = NOW()
  				, `update_system_id` = @update_system_id_insert_extl3_1
  				, `updated_by_id` = @updated_by_id_insert_extl3_1
-				, `update_method` = @downstream_update_method_insert_extl3_1
+				, `update_method` = @this_trigger_insert_extl3_1_update
 				, `organization_id` = @organization_id_update_insert_extl3_1
 				, `is_obsolete` = @is_obsolete_insert_extl3_1
 				, `is_creation_needed_in_unee_t` = @is_creation_needed_in_unee_t_insert_extl3_1
@@ -229,6 +240,10 @@ BEGIN
 				, `surface_measurment_unit` = @surface_measurment_unit_insert_extl3_1
 				, `room_designation` = @room_designation_insert_extl3_1
 				, `room_description` = @room_description_insert_extl3_1
+				, `mgt_cny_default_assignee` = @ext_l3_default_assignee_mgt_cny
+				, `landlord_default_assignee` = @ext_l3_default_assignee_landlord
+				, `tenant_default_assignee` = @ext_l3_default_assignee_tenant
+				, `agent_default_assignee` = @ext_l3_default_assignee_agent
 			;
 
 	END IF;
@@ -376,24 +391,28 @@ BEGIN
 		SET @organization_id_update_update_extl3 = @source_system_updater_update_extl3 ;
 
 		SET @is_obsolete_update_extl3 = NEW.`is_obsolete` ;
-		SET @is_creation_needed_in_unee_t_update_extl3 = NEW.`is_creation_needed_in_unee_t` ;
 
 		SET @unee_t_unit_type_update_extl3 = NEW.`unee_t_unit_type` ;
+		SET @room_designation_update_extl3 = NEW.`room_designation`;
 			
 		SET @room_type_id_update_extl3 = NEW.`room_type_id` ;
 		SET @number_of_beds_update_extl3 = NEW.`number_of_beds` ;
 		SET @surface_update_extl3 = NEW.`surface` ;
 		SET @surface_measurment_unit_update_extl3 = NEW.`surface_measurment_unit` ;
-		SET @room_designation_update_extl3 = NEW.`room_designation`;
 		SET @room_description_update_extl3 = NEW.`room_description` ;
+
+		SET @ext_l3_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @ext_l3_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @ext_l3_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @ext_l3_default_assignee_agent := NEW.`agent_default_assignee` ;
 
 		IF @new_is_creation_needed_in_unee_t_update_extl3 != @old_is_creation_needed_in_unee_t_update_extl3
 		THEN 
 
 			# This is option 1 - creation IS needed
 
-				SET @this_trigger_update_ext_l3_insert = 'ut_update_external_property_level_3_creation_needed_insert';
-				SET @this_trigger_update_ext_l3_update = 'ut_update_external_property_level_3_creation_needed_update';
+				SET @this_trigger_update_ext_l3_insert = 'ut_after_update_external_property_level_3_creation_needed_insert';
+				SET @this_trigger_update_ext_l3_update = 'ut_after_update_external_property_level_3_creation_needed_update';
 
 				# We insert the record in the table `property_level_3_rooms`
 				# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -417,6 +436,10 @@ BEGIN
 						, `surface_measurment_unit`
 						, `room_designation`
 						, `room_description`
+						, `mgt_cny_default_assignee`
+						, `landlord_default_assignee`
+						, `tenant_default_assignee`
+						, `agent_default_assignee`
 						)
 						VALUES
 							(@external_id_update_extl3
@@ -437,6 +460,10 @@ BEGIN
 							, @surface_measurment_unit_update_extl3
 							, @room_designation_update_extl3
 							, @room_description_update_extl3
+							, @ext_l3_default_assignee_mgt_cny
+							, @ext_l3_default_assignee_landlord
+							, @ext_l3_default_assignee_tenant
+							, @ext_l3_default_assignee_agent
 						)
 						ON DUPLICATE KEY UPDATE
 							`syst_updated_datetime` = NOW()
@@ -454,6 +481,10 @@ BEGIN
 							, `surface_measurment_unit` = @surface_measurment_unit_update_extl3
 							, `room_designation` = @room_designation_update_extl3
 							, `room_description` = @room_description_update_extl3
+							, `mgt_cny_default_assignee` = @ext_l3_default_assignee_mgt_cny
+							, `landlord_default_assignee` = @ext_l3_default_assignee_landlord
+							, `tenant_default_assignee` = @ext_l3_default_assignee_tenant
+							, `agent_default_assignee` = @ext_l3_default_assignee_agent
 						;
 
 		ELSEIF @new_is_creation_needed_in_unee_t_update_extl3 = @old_is_creation_needed_in_unee_t_update_extl3
@@ -461,8 +492,8 @@ BEGIN
 			
 			# This is option 2 creation is NOT needed
 
-				SET @this_trigger_update_ext_l3_insert = 'ut_update_external_property_level_3_insert';
-				SET @this_trigger_update_ext_l3_update = 'ut_update_external_property_level_3_update';
+				SET @this_trigger_update_ext_l3_insert = 'ut_after_update_external_property_level_3_insert';
+				SET @this_trigger_update_ext_l3_update = 'ut_after_update_external_property_level_3_update';
 
 				# We insert the record in the table `property_level_3_rooms`
 				# We do this via INSERT INTO ... ON DUPLICATE KEY UPDATE for maximum safety
@@ -486,6 +517,10 @@ BEGIN
 						, `surface_measurment_unit`
 						, `room_designation`
 						, `room_description`
+						, `mgt_cny_default_assignee`
+						, `landlord_default_assignee`
+						, `tenant_default_assignee`
+						, `agent_default_assignee`
 						)
 						VALUES
 							(@external_id_update_extl3
@@ -506,6 +541,10 @@ BEGIN
 							, @surface_measurment_unit_update_extl3
 							, @room_designation_update_extl3
 							, @room_description_update_extl3
+							, @ext_l3_default_assignee_mgt_cny
+							, @ext_l3_default_assignee_landlord
+							, @ext_l3_default_assignee_tenant
+							, @ext_l3_default_assignee_agent
 						)
 						ON DUPLICATE KEY UPDATE
 							`syst_updated_datetime` = NOW()
@@ -523,6 +562,10 @@ BEGIN
 							, `surface_measurment_unit` = @surface_measurment_unit_update_extl3
 							, `room_designation` = @room_designation_update_extl3
 							, `room_description` = @room_description_update_extl3
+							, `mgt_cny_default_assignee` = @ext_l3_default_assignee_mgt_cny
+							, `landlord_default_assignee` = @ext_l3_default_assignee_landlord
+							, `tenant_default_assignee` = @ext_l3_default_assignee_tenant
+							, `agent_default_assignee` = @ext_l3_default_assignee_agent
 						;
 
 		END IF;
@@ -549,12 +592,12 @@ BEGIN
 #	- We have marked the property as an object we need to create in Unee-T
 #	- The record does NOT exist in the table `ut_map_external_source_units` yet
 #	- This is done via an authorized insert method:
-#		- 'ut_insert_external_property_level_3_insert'
-#		- 'ut_insert_external_property_level_3_update'
-#		- 'ut_update_external_property_level_3_creation_needed_insert'
-#		- 'ut_update_external_property_level_3_creation_needed_update'
-#		- 'ut_update_external_property_level_3_insert'
-#		- 'ut_update_external_property_level_3_update'
+#		- 'ut_after_insert_external_property_level_3_insert'
+#		- 'ut_after_insert_external_property_level_3_update'
+#		- 'ut_after_update_external_property_level_3_creation_needed_insert'
+#		- 'ut_after_update_external_property_level_3_creation_needed_update'
+#		- 'ut_after_update_external_property_level_3_insert'
+#		- 'ut_after_update_external_property_level_3_update'
 #
 	SET @is_creation_needed_in_unee_t_insert_l3 = NEW.`is_creation_needed_in_unee_t` ;
 
@@ -562,6 +605,8 @@ BEGIN
 	SET @external_system_insert_l3 = NEW.`external_system_id` ;
 	SET @table_in_external_system_insert_l3 = NEW.`external_table` ;
 	SET @organization_id_insert_l3 = NEW.`organization_id`;
+
+	SET @external_property_type_id_insert_l3 = 3;	
 
 	SET @id_in_ut_map_external_source_units_insert_l3 = (SELECT `id_map`
 		FROM `ut_map_external_source_units`
@@ -598,12 +643,12 @@ BEGIN
 
 	IF @is_creation_needed_in_unee_t_insert_l3 = 1
 		AND @do_not_insert_insert_l3 = 0
-		AND (@upstream_create_method_insert_l3 = 'ut_insert_external_property_level_3_insert'
-			OR @upstream_update_method_insert_l3 = 'ut_insert_external_property_level_3_update'
-			OR @upstream_create_method_insert_l3 = 'ut_update_external_property_level_3_creation_needed_insert'
-			OR @upstream_update_method_insert_l3 = 'ut_update_external_property_level_3_creation_needed_update'
-			OR @upstream_create_method_insert_l3 = 'ut_update_external_property_level_3_insert'
-			OR @upstream_update_method_insert_l3 = 'ut_update_external_property_level_3_update'
+		AND (@upstream_create_method_insert_l3 = 'ut_after_insert_external_property_level_3_insert'
+			OR @upstream_update_method_insert_l3 = 'ut_after_insert_external_property_level_3_update'
+			OR @upstream_create_method_insert_l3 = 'ut_after_update_external_property_level_3_creation_needed_insert'
+			OR @upstream_update_method_insert_l3 = 'ut_after_update_external_property_level_3_creation_needed_update'
+			OR @upstream_create_method_insert_l3 = 'ut_after_update_external_property_level_3_insert'
+			OR @upstream_update_method_insert_l3 = 'ut_after_update_external_property_level_3_update'
 			)
 	THEN 
 
@@ -631,7 +676,11 @@ BEGIN
 			;
 		
 		SET @new_record_id_insert_l3 = NEW.`system_id_room`;
-		SET @external_property_type_id_insert_l3 = 3;	
+
+		SET @l3_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @l3_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @l3_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @l3_default_assignee_agent := NEW.`agent_default_assignee` ;
 
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -650,6 +699,10 @@ BEGIN
 				, `external_property_id`
 				, `external_system`
 				, `table_in_external_system`
+				, `mgt_cny_default_assignee`
+				, `landlord_default_assignee`
+				, `tenant_default_assignee`
+				, `agent_default_assignee`
 				)
 				VALUES
 					(NOW()
@@ -666,6 +719,10 @@ BEGIN
 					, @external_property_id_insert_l3
 					, @external_system_insert_l3
 					, @table_in_external_system_insert_l3
+					, @l3_default_assignee_mgt_cny
+					, @l3_default_assignee_landlord
+					, @l3_default_assignee_tenant
+					, @l3_default_assignee_agent
 					)
 				ON DUPLICATE KEY UPDATE 
 					`syst_updated_datetime` = NOW()
@@ -676,6 +733,10 @@ BEGIN
 					, `uneet_name` = @uneet_name_insert_l3
 					, `unee_t_unit_type` = @unee_t_unit_type_insert_l3
 					, `is_update_needed` = 1
+					, `mgt_cny_default_assignee` = @l3_default_assignee_mgt_cny
+					, `landlord_default_assignee` = @l3_default_assignee_landlord
+					, `tenant_default_assignee` = @l3_default_assignee_tenant
+					, `agent_default_assignee` = @l3_default_assignee_agent
 				;
 
 	END IF;
@@ -701,33 +762,54 @@ BEGIN
 # 	- We need to create the unit in Unee-T
 # 	- We need to update the unit in Unee-T
 #	- This is done via an authorized insert or update method:
-#		- 'ut_insert_external_property_level_3_insert'
-#		- 'ut_insert_external_property_level_3_update'
-#		- 'ut_update_external_property_level_3_creation_needed_insert'
-#		- 'ut_update_external_property_level_3_creation_needed_update'
-#		- 'ut_update_external_property_level_3_insert'
-#		- 'ut_update_external_property_level_3_update'
+#		- 'ut_after_insert_external_property_level_3_insert'
+#		- 'ut_after_insert_external_property_level_3_update'
+#		- 'ut_after_update_external_property_level_3_creation_needed_insert'
+#		- 'ut_after_update_external_property_level_3_creation_needed_update'
+#		- 'ut_after_update_external_property_level_3_insert'
+#		- 'ut_after_update_external_property_level_3_update'
 #
 
 # Capture the variables we need to verify if conditions are met:
 
 	SET @upstream_create_method_update_l3 = NEW.`creation_method` ;
 	SET @upstream_update_method_update_l3 = NEW.`update_method` ;
+		
+	SET @new_record_id_update_l3 = NEW.`system_id_room`;
+
+	SET @check_new_record_id_update_l3 = (IF(@new_record_id_update_l3 IS NULL
+			, 0
+			, IF(@new_record_id_update_l3 = ''
+				, 0
+				, 1
+				)
+			)
+		)
+		;
+
 
 # We can now check if the conditions are met:
 
-	IF (@upstream_create_method_update_l3 = 'ut_insert_external_property_level_3_insert'
-			OR @upstream_update_method_update_l3 = 'ut_insert_external_property_level_3_update'
-			OR @upstream_create_method_update_l3 = 'ut_update_external_property_level_3_creation_needed_insert'
-			OR @upstream_update_method_update_l3 = 'ut_update_external_property_level_3_creation_needed_update'
-			OR @upstream_create_method_update_l3 = 'ut_update_external_property_level_3_insert'
-			OR @upstream_update_method_update_l3 = 'ut_update_external_property_level_3_update'
+	IF (@upstream_create_method_update_l3 = 'ut_after_insert_external_property_level_3_insert'
+			OR @upstream_update_method_update_l3 = 'ut_after_insert_external_property_level_3_update'
+			OR @upstream_create_method_update_l3 = 'ut_after_update_external_property_level_3_creation_needed_insert'
+			OR @upstream_update_method_update_l3 = 'ut_after_update_external_property_level_3_creation_needed_update'
+			OR @upstream_create_method_update_l3 = 'ut_after_update_external_property_level_3_insert'
+			OR @upstream_update_method_update_l3 = 'ut_after_update_external_property_level_3_update'
 			)
+		AND @check_new_record_id_update_l3 = 1
 	THEN 
+
+	# Clean Slate - Make sure we don't use a legacy MEFE id
+
+		SET @mefe_unit_id_update_l3 = NULL ;
 
 	# The conditions are met: we capture the other variables we need
 
-		SET @system_id_room_update_l3 = NEW.`system_id_room` ;
+		SET @is_creation_needed_in_unee_t_update_l3 = NEW.`is_creation_needed_in_unee_t`;
+
+		SET @new_is_creation_needed_in_unee_t_update_l3 = NEW.`is_creation_needed_in_unee_t`;
+		SET @old_is_creation_needed_in_unee_t_update_l3 = OLD.`is_creation_needed_in_unee_t`;
 
 		SET @creation_system_id_update_l3 = NEW.`update_system_id`;
 		SET @created_by_id_update_l3 = NEW.`updated_by_id`;
@@ -748,48 +830,45 @@ BEGIN
 				)
 			)
 			;
-			
-		SET @new_record_id_update_l3 = NEW.`system_id_room`;
-		SET @external_property_type_id_update_l3 = 3;
 
 		SET @external_property_id_update_l3 = NEW.`external_id`;
 		SET @external_system_update_l3 = NEW.`external_system_id`;
-		SET @table_in_external_system_update_l3 = NEW.`external_table`;	
+		SET @table_in_external_system_update_l3 = NEW.`external_table`;
 
-		SET @mefe_unit_id_update_l3 = NULL ;
+		SET @external_property_type_id_update_l3 = 3;
 
 		SET @mefe_unit_id_update_l3 = (SELECT `unee_t_mefe_unit_id`
 			FROM `ut_map_external_source_units`
-			WHERE `new_record_id` = @system_id_room_update_l3
-				AND `external_property_type_id` = 3
+			WHERE `new_record_id` = @new_record_id_update_l3
+				AND `external_property_type_id` = @external_property_type_id_update_l1
 				AND `unee_t_mefe_unit_id` IS NOT NULL
 			);
+
+		SET @l3_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @l3_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @l3_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @l3_default_assignee_agent := NEW.`agent_default_assignee` ;
 
 		# If the record does NOT exist, we create the record
 		# unless 
 		#	- it is specifically specified that we do NOT need to create the record.
 		#	- the record is marked as obsolete
 
-		SET @is_creation_needed_in_unee_t_update_l3 = NEW.`is_creation_needed_in_unee_t`;
+			SET @do_not_insert_update_l3_raw = NEW.`do_not_insert` ;
 
-		SET @new_is_creation_needed_in_unee_t_update_l3 = NEW.`is_creation_needed_in_unee_t`;
-		SET @old_is_creation_needed_in_unee_t_update_l3 = OLD.`is_creation_needed_in_unee_t`;
+			SET @is_obsolete_update_l3 = NEW.`is_obsolete`;
 
-		SET @do_not_insert_update_l3_raw = NEW.`do_not_insert` ;
-
-		SET @is_obsolete_update_l3 = NEW.`is_obsolete`;
-
-		SET @do_not_insert_update_l3 = (IF (@do_not_insert_update_l3_raw IS NULL
-				, IF (@is_obsolete_update_l3 != 0
-					, 1
-					, 0
+			SET @do_not_insert_update_l3 = (IF (@do_not_insert_update_l3_raw IS NULL
+					, IF (@is_obsolete_update_l3 != 0
+						, 1
+						, 0
+						)
+					, IF (@is_obsolete_update_l3 != 0
+						, 1
+						, @do_not_insert_update_l3_raw
+						)
 					)
-				, IF (@is_obsolete_update_l3 != 0
-					, 1
-					, @do_not_insert_update_l3_raw
-					)
-				)
-			);
+				);
 
 		IF @is_creation_needed_in_unee_t_update_l3 = 1
 			AND (@mefe_unit_id_update_l3 IS NULL
@@ -802,8 +881,8 @@ BEGIN
 			#	- The unit is NOT marked as `do_not_insert`
 			#	- We do NOT have a MEFE unit ID for that unit
 
-				SET @this_trigger_update_l3_insert = 'ut_update_map_external_source_unit_add_room_creation_needed_insert' ;
-				SET @this_trigger_update_l3_update = 'ut_update_map_external_source_unit_add_room_creation_needed_update' ;
+				SET @this_trigger_update_l3_insert = 'ut_after_update_property_level_3_insert_creation_needed' ;
+				SET @this_trigger_update_l3_update = 'ut_after_update_property_level_3_update_creation_needed' ;
 
 			# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -824,6 +903,10 @@ BEGIN
 					, `external_property_id`
 					, `external_system`
 					, `table_in_external_system`
+					, `mgt_cny_default_assignee`
+					, `landlord_default_assignee`
+					, `tenant_default_assignee`
+					, `agent_default_assignee`
 					)
 					VALUES
 						(NOW()
@@ -842,6 +925,10 @@ BEGIN
 						, @external_property_id_update_l3
 						, @external_system_update_l3
 						, @table_in_external_system_update_l3
+						, @l3_default_assignee_mgt_cny
+						, @l3_default_assignee_landlord
+						, @l3_default_assignee_tenant
+						, @l3_default_assignee_agent
 						)
 					ON DUPLICATE KEY UPDATE 
 						`syst_updated_datetime` = NOW()
@@ -854,6 +941,10 @@ BEGIN
 						, `uneet_name` = @uneet_name_update_l3
 						, `unee_t_unit_type` = @unee_t_unit_type_update_l3
 						, `is_update_needed` = 1
+						, `mgt_cny_default_assignee` = @l3_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @l3_default_assignee_landlord
+						, `tenant_default_assignee` = @l3_default_assignee_tenant
+						, `agent_default_assignee` = @l3_default_assignee_agent
 					;
 ###################################################################
 #
@@ -883,6 +974,10 @@ BEGIN
 						, `uneet_name` = @uneet_name_update_l3
 						, `unee_t_unit_type` = @unee_t_unit_type_update_l3
 						, `is_update_needed` = 1
+						, `mgt_cny_default_assignee` = @l3_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @l3_default_assignee_landlord
+						, `tenant_default_assignee` = @l3_default_assignee_tenant
+						, `agent_default_assignee` = @l3_default_assignee_agent
 					WHERE `unee_t_mefe_unit_id` = @mefe_unit_id_update_l3
 						;
 

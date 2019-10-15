@@ -38,6 +38,7 @@
 #		- `ut_info_external_persons`
 #		- `ut_info_persons`
 #		- `ut_info_mefe_users`
+#		- `ut_user_person_details`
 #
 #	- On association user/units
 #		- `ut_check_unee_t_update_add_user_to_unit_level_1`
@@ -681,6 +682,35 @@
 		`ut_map_external_source_users`
 		INNER JOIN `persons` 
 			ON (`ut_map_external_source_users`.`person_id` = `persons`.`id_person`)
+		;
+
+# Create the view to get the necessary information to assign the default users
+#	  `ut_user_person_details`
+
+	DROP VIEW IF EXISTS `ut_user_person_details` ;
+
+	CREATE VIEW `ut_user_person_details`
+	AS
+	SELECT
+		`a`.`unee_t_mefe_user_id`
+		, `b`.`country_code`
+		, `b`.`email`
+		, `b`.`organization_id`
+		, `b`.`person_status_id`
+		, `b`.`gender`
+		, `b`.`salutation_id`
+		, `b`.`given_name`
+		, `b`.`middle_name`
+		, `b`.`family_name`
+		, `b`.`alias`
+		, `b`.`job_title`
+		, `b`.`organization`
+		, `b`.`tel_1`
+	FROM
+		`ut_map_external_source_users` AS `a`
+		INNER JOIN `persons` AS `b`
+			ON (`a`.`person_id` = `b`.`id_person`)
+		WHERE  `a`.`unee_t_mefe_user_id` IS NOT NULL
 		;
 
 # We create a view to get check the creation time for units
