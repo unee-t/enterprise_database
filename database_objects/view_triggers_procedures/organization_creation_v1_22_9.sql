@@ -203,6 +203,7 @@ BEGIN
 		, `can_see_role_landlord`
 		, `can_see_role_agent`
 		, `can_see_role_tenant`
+		, `can_see_role_contractor`
 		) 
 		VALUES
 			# Tenant (1)
@@ -228,6 +229,7 @@ BEGIN
 				#		- Agent (5)
 				, 1
 				, 0
+				, 1
 				, 1
 				, 1
 				, 1
@@ -270,6 +272,7 @@ BEGIN
 				, 1
 				, 1
 				, 1
+				, 1
 				) 
 			# management company (4)
 			, (NOW()
@@ -303,6 +306,7 @@ BEGIN
 				, 1
 				, 1
 				, 1
+				, 1
 				) 
 			# Agent (5)
 			, (NOW()
@@ -327,6 +331,7 @@ BEGIN
 				#		- Agent (5)
 				, 5
 				, 0
+				, 1
 				, 1
 				, 1
 				, 1
