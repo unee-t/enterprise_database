@@ -49,7 +49,7 @@
 #OK		- Add the information to find the master MEFE user for that organization
 #OK		- Make sure the default Area ID is in the correct format (int)
 #OK		- Add a link to the SoT table to get SoT information for a given organization.
-#OK		- DEPRECATE the foloowing fields:
+#OK		- DEPRECATE the following fields:
 #OK			- `default_area`
 #OK			- `default_sot_system`
 #OK			- `default_sot_persons`
@@ -63,11 +63,12 @@
 #		- `agent_default_assignee`
 
 #OK - Alter table `ut_map_external_source_units`: add information about the default assignee for the property
-#		- `mgt_cny_default_assignee`
-#		- `landlord_default_assignee`
-#		- `tenant_default_assignee`
-#		- `agent_default_assignee`
-#		- `area_id`
+#OK		- `mgt_cny_default_assignee`
+#OK		- `landlord_default_assignee`
+#OK		- `tenant_default_assignee`
+#OK		- `agent_default_assignee`
+#OK		- `area_id`
+#OK		- Make sure the the key building id/property type is unique!
 #
 ######################################################################################
 #
@@ -192,6 +193,9 @@
 #		The script is `properties_level_1_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #OK		- Make sure that we propagate the Default assignees
+#OK		- Change how we fetch record when we need to update a record in the table
+#		  `ut_map_external_source_units`
+#OK		- Add a check to make sure we can get the MEFE unit ID if we need to update
 #WIP	- IF we do NOT have a default assignee, 
 #		  THEN we use the default assignee for the Area
 #
@@ -199,6 +203,7 @@
 #		The script is `properties_level_2_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #OK		- Make sure that we propagate the Default assignees
+#WIP		- Add a check to make sure we can get the MEFE unit ID if we need to update
 #WIP			- IF we do NOT have a default assignee, 
 #				  THEN we use the default assignee for the L1P
 #
@@ -206,12 +211,14 @@
 #		The script is `properties_level_3_creation_update_v1_22_9`
 #OK		- Make sure we use the correct trigger names to create the properties in the table `ut_map_external_source_units`
 #WIP	- Make sure that we propagate the Default assignees
+#WIP		- Add a check to make sure we can get the MEFE unit ID if we need to update
 #WIP	- IF we do NOT have a default assignee, 
 #		  THEN we use the default assignee for the L2P
 #
 #OK - Update the lambda triggers to 
 #OK		- Make sure we log the error message correctly if lambda is not sent
-#WIP	- When we create a property make sure that we use the correct MEFE user id for the default assignee
+#WIP	- When we create a property make sure that we use the new 'default assignee' information
+#		  when we assign the unit to the default user for a given role.
 #
 #WIP - Update the trigger after the property is created to
 #WIP	- Make sure we create the default assignees if we have the information
@@ -344,10 +351,12 @@
 		/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 
 #OK - Alter table `ut_map_external_source_units`: add information about the default assignee for the property
-#		- `mgt_cny_default_assignee`
-#		- `landlord_default_assignee`
-#		- `tenant_default_assignee`
-#		- `agent_default_assignee`
+#OK		- `mgt_cny_default_assignee`
+#OK		- `landlord_default_assignee`
+#OK		- `tenant_default_assignee`
+#OK		- `agent_default_assignee`
+#OK		- `area_id`
+#OK		- Make sure the the key building id/property type is unique!
 
 	/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 
@@ -359,7 +368,6 @@
 		DROP FOREIGN KEY `unee_t_valid_unit_type_map_units`  , 
 		DROP FOREIGN KEY `unit_mefe_area_id_must_exist`  , 
 		DROP FOREIGN KEY `unit_mefe_unit_id_parent_must_exist`  ;
-
 
 	/* Alter table in target */
 	ALTER TABLE `ut_map_external_source_units` 
@@ -373,7 +381,8 @@
 		ADD KEY `prop_mefe_user_id_for_default_assignee_for_agent_must_exist`(`agent_default_assignee`) , 
 		ADD KEY `prop_mefe_user_id_for_default_assignee_for_landlord_must_exist`(`landlord_default_assignee`) , 
 		ADD KEY `prop_mefe_user_id_for_default_assignee_for_mgt_cny_must_exist`(`mgt_cny_default_assignee`) , 
-		ADD KEY `prop_mefe_user_id_for_default_assignee_for_tenant_must_exist`(`tenant_default_assignee`) ;
+		ADD KEY `prop_mefe_user_id_for_default_assignee_for_tenant_must_exist`(`tenant_default_assignee`) , 
+		ADD UNIQUE KEY `unique_id_by_type_of_property`(`new_record_id`,`external_property_type_id`) ;
 	ALTER TABLE `ut_map_external_source_units`
 		ADD CONSTRAINT `prop_area_id_must_exist` 
 		FOREIGN KEY (`area_id`) REFERENCES `property_groups_areas` (`id_area`) , 
@@ -386,6 +395,7 @@
 		ADD CONSTRAINT `prop_mefe_user_id_for_default_assignee_for_tenant_must_exist` 
 		FOREIGN KEY (`tenant_default_assignee`) REFERENCES `ut_map_external_source_users` (`unee_t_mefe_user_id`) ON UPDATE CASCADE ;
 	
+
 	/* The foreign keys that were dropped are now re-created*/
 
 	ALTER TABLE `ut_map_external_source_units` 
@@ -401,7 +411,6 @@
 		FOREIGN KEY (`mefe_unit_id_parent`) REFERENCES `ut_map_external_source_units` (`unee_t_mefe_unit_id`) ON UPDATE CASCADE ;
 
 	/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-
 
 # re-write the view `ut_organization_mefe_user_id` 
 # this is to make it easir to get the MEFE information for MEFE Master user
