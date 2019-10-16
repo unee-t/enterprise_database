@@ -18,7 +18,6 @@ BEGIN
 
 # We only do this if:
 #	- We need to create the record in Unee-T
-#	- We havea valid MEFE user ID for the system that created this record
 # 	- We have an email address
 #	- We have an external id
 #	- We have an external table
@@ -28,7 +27,7 @@ BEGIN
 #		- 'Manage_Unee_T_Users_Add_Page'
 #		- 'Manage_Unee_T_Users_Edit_Page'
 #		- 'Manage_Unee_T_Users_Import_Page'
-#		- ''
+#		- 'Super Admin - Manage MEFE Master User'
 #		- ''
 
 	SET @is_unee_t_account_needed = NEW.`is_unee_t_account_needed` ;
@@ -51,7 +50,6 @@ BEGIN
 	SET @external_table = NEW.`external_table` ;
 
 	IF @is_unee_t_account_needed = 1
-		AND @creator_mefe_user_id IS NOT NULL
 		AND @email IS NOT NULL
 		AND @external_id IS NOT NULL
 		AND @external_system IS NOT NULL
@@ -60,6 +58,7 @@ BEGIN
 			OR @upstream_create_method = 'Manage_Unee_T_Users_Add_Page'
 			OR @upstream_create_method = 'Manage_Unee_T_Users_Edit_Page'
 			OR @upstream_create_method = 'Manage_Unee_T_Users_Import_Page'
+			OR @upstream_create_method = 'trigger_ut_after_insert_new_organization'
 			OR @upstream_update_method = 'imported_from_hmlet_ipi'
 			OR @upstream_update_method = 'Manage_Unee_T_Users_Add_Page'
 			OR @upstream_update_method = 'Manage_Unee_T_Users_Edit_Page'
@@ -67,6 +66,7 @@ BEGIN
 			)
 	THEN 
 
+	# We are in the main scenario, we are NOT creating a SuperAdmin for UNTE
 	# We capture the values we need for the insert/udpate to the `persons` table:
 
 		SET @this_trigger = 'ut_insert_external_person' ;

@@ -9,8 +9,9 @@
 #################
 
 
-# After we have received a MEFE unit Id from the API, we need to assign that property 
-# to the users who need access to that property:
+# After we have received a MEFE unit Id from the API, we need to assign that property to:
+#	- The default assignee for each role if we have that information
+#	- The users who need access to that property:
 
 	DROP TRIGGER IF EXISTS `ut_update_mefe_unit_id_assign_users_to_property`;
 
@@ -31,7 +32,7 @@ BEGIN
 	SET @requestor_id_trig_auto_assign_1 := NEW.`updated_by_id` ;
 
 	SET @created_by_id_trig_auto_assign_1 := (SELECT `organization_id`
-		FROM `ut_api_keys`
+		FROM `ut_organization_mefe_user_id`
 		WHERE `mefe_user_id` = @requestor_id_trig_auto_assign_1
 		);
 
@@ -322,6 +323,414 @@ BEGIN
 						AND `a`.`country_code` = @property_country_code_trig_auto_assign_1
 						AND `a`.`is_all_units_in_country` = 1
 				;
+
+	# We can now check and assign the default assignees for the newly created property:
+
+		# The Management Company (4)
+
+			SET @default_user_mgt_cny = NEW.`mgt_cny_default_assignee`;
+
+			SET @check_default_user_mgt_cny = (IF(@default_user_mgt_cny IS NULL
+					, 0
+					, IF(@default_user_mgt_cny = ''
+						, 0
+						, 1
+						)
+					)
+
+				)
+				;
+
+			IF @check_default_user_mgt_cny = 1
+			THEN
+
+			# We Prepare the variables we need
+				
+				SET @country_code_default_assignee = (SELECT `country_code`
+					FROM `ut_user_person_details`
+					WHERE `unee_t_mefe_user_id` = @default_user_mgt_cny
+					)
+					;
+
+				
+				SET @email_default_assignee = (SELECT `email`
+					FROM `ut_user_person_details`
+					WHERE `unee_t_mefe_user_id` = @default_user_mgt_cny
+					)
+					;
+
+				SET @unee_t_user_role_type = 4 ;
+
+				SET @unee_t_user_type_id_default_assignee = (SELECT `id_unee_t_user_type`
+					FROM `ut_user_types`
+					WHERE `organization_id` = @organization_id_trig_auto_assign_1
+						AND `creation_system_id` = 'Setup'
+						AND `creation_method` = 'trigger_ut_after_insert_new_organization'
+						AND `ut_user_role_type_id` = @unee_t_user_role_type
+						AND `is_super_admin` = 0
+					)
+					;
+
+			# We insert the record in the "prepare" table
+
+				INSERT INTO `temp_list_users_auto_assign_new_property`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `requestor_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `country_code`
+					, `mefe_user_id`
+					, `email`
+					, `unee_t_user_type_id`
+					, `mefe_unit_id`
+					, `unee_t_role_id`
+					, `is_occupant`
+					, `is_default_assignee`
+					, `is_default_invited`
+					, `is_unit_owner`
+					, `is_public`
+					, `can_see_role_landlord`
+					, `can_see_role_tenant`
+					, `can_see_role_mgt_cny`
+					, `can_see_role_agent`
+					, `can_see_role_contractor`
+					, `can_see_occupant`
+					)
+					SELECT 
+						NOW()
+						, @creation_system_id_trig_auto_assign_1
+						, @requestor_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @country_code_default_assignee
+						, @default_user_mgt_cny
+						, @email_default_assignee
+						, @unee_t_user_type_id_default_assignee
+						, @unee_t_mefe_unit_id_trig_auto_assign_1
+						, @unee_t_user_role_type
+						, `a`.`is_occupant`
+						, `a`.`is_default_assignee`
+						, `a`.`is_default_invited`
+						, `a`.`is_unit_owner`
+						, `a`.`is_public`
+						, `a`.`can_see_role_landlord`
+						, `a`.`can_see_role_tenant`
+						, `a`.`can_see_role_mgt_cny`
+						, `a`.`can_see_role_agent`
+						, `a`.`can_see_role_contractor`
+						, `a`.`can_see_occupant`
+						FROM `ut_user_types` AS `a`
+							WHERE `id_unee_t_user_type` = @unee_t_user_type_id_default_assignee
+						;
+
+			END IF;
+
+		# The Lanlord (2)
+
+			SET @default_user_landlord = NEW.`landlord_default_assignee`;
+
+			SET @check_default_user_landlord = (IF(@default_user_landlord IS NULL
+					, 0
+					, IF(@default_user_landlord = ''
+						, 0
+						, 1
+						)
+					)
+
+				)
+				;
+
+			IF @check_default_user_landlord = 1
+			THEN
+
+			# We Prepare the variables we need
+				
+				SET @country_code_default_assignee = (SELECT `country_code`
+					FROM `ut_user_person_details`
+					WHERE `unee_t_mefe_user_id` = @default_user_landlord
+					)
+					;
+
+				
+				SET @email_default_assignee = (SELECT `email`
+					FROM `ut_user_person_details`
+					WHERE `unee_t_mefe_user_id` = @default_user_landlord
+					)
+					;
+
+				SET @unee_t_user_role_type = 2 ;
+
+				SET @unee_t_user_type_id_default_assignee = (SELECT `id_unee_t_user_type`
+					FROM `ut_user_types`
+					WHERE `organization_id` = @organization_id_trig_auto_assign_1
+						AND `creation_system_id` = 'Setup'
+						AND `creation_method` = 'trigger_ut_after_insert_new_organization'
+						AND `ut_user_role_type_id` = @unee_t_user_role_type
+						AND `is_super_admin` = 0
+					)
+					;
+
+			# We insert the record in the "prepare" table
+
+				INSERT INTO `temp_list_users_auto_assign_new_property`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `requestor_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `country_code`
+					, `mefe_user_id`
+					, `email`
+					, `unee_t_user_type_id`
+					, `mefe_unit_id`
+					, `unee_t_role_id`
+					, `is_occupant`
+					, `is_default_assignee`
+					, `is_default_invited`
+					, `is_unit_owner`
+					, `is_public`
+					, `can_see_role_landlord`
+					, `can_see_role_tenant`
+					, `can_see_role_mgt_cny`
+					, `can_see_role_agent`
+					, `can_see_role_contractor`
+					, `can_see_occupant`
+					)
+					SELECT 
+						NOW()
+						, @creation_system_id_trig_auto_assign_1
+						, @requestor_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @country_code_default_assignee
+						, @default_user_landlord
+						, @email_default_assignee
+						, @unee_t_user_type_id_default_assignee
+						, @unee_t_mefe_unit_id_trig_auto_assign_1
+						, @unee_t_user_role_type
+						, `a`.`is_occupant`
+						, `a`.`is_default_assignee`
+						, `a`.`is_default_invited`
+						, `a`.`is_unit_owner`
+						, `a`.`is_public`
+						, `a`.`can_see_role_landlord`
+						, `a`.`can_see_role_tenant`
+						, `a`.`can_see_role_mgt_cny`
+						, `a`.`can_see_role_agent`
+						, `a`.`can_see_role_contractor`
+						, `a`.`can_see_occupant`
+						FROM `ut_user_types` AS `a`
+							WHERE `id_unee_t_user_type` = @unee_t_user_type_id_default_assignee
+						;
+
+			END IF;
+
+		# The Agent (5)
+
+			SET @default_user_agent = NEW.`agent_default_assignee`;
+
+			SET @check_default_user_agent = (IF(@default_user_agent IS NULL
+					, 0
+					, IF(@default_user_agent = ''
+						, 0
+						, 1
+						)
+					)
+
+				)
+				;
+
+			IF @check_default_user_agent = 1
+			THEN
+
+			# We Prepare the variables we need
+				
+				SET @country_code_default_assignee = (SELECT `country_code`
+					FROM `ut_user_person_details`
+					WHERE `unee_t_mefe_user_id` = @default_user_agent
+					)
+					;
+
+				
+				SET @email_default_assignee = (SELECT `email`
+					FROM `ut_user_person_details`
+					WHERE `unee_t_mefe_user_id` = @default_user_agent
+					)
+					;
+
+				SET @unee_t_user_role_type = 1 ;
+
+				SET @unee_t_user_type_id_default_assignee = (SELECT `id_unee_t_user_type`
+					FROM `ut_user_types`
+					WHERE `organization_id` = @organization_id_trig_auto_assign_1
+						AND `creation_system_id` = 'Setup'
+						AND `creation_method` = 'trigger_ut_after_insert_new_organization'
+						AND `ut_user_role_type_id` = @unee_t_user_role_type
+						AND `is_super_admin` = 0
+					)
+					;
+			# We insert the record in the "prepare" table
+
+				INSERT INTO `temp_list_users_auto_assign_new_property`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `requestor_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `country_code`
+					, `mefe_user_id`
+					, `email`
+					, `unee_t_user_type_id`
+					, `mefe_unit_id`
+					, `unee_t_role_id`
+					, `is_occupant`
+					, `is_default_assignee`
+					, `is_default_invited`
+					, `is_unit_owner`
+					, `is_public`
+					, `can_see_role_landlord`
+					, `can_see_role_tenant`
+					, `can_see_role_mgt_cny`
+					, `can_see_role_agent`
+					, `can_see_role_contractor`
+					, `can_see_occupant`
+					)
+					SELECT 
+						NOW()
+						, @creation_system_id_trig_auto_assign_1
+						, @requestor_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @country_code_default_assignee
+						, @default_user_agent
+						, @email_default_assignee
+						, @unee_t_user_type_id_default_assignee
+						, @unee_t_mefe_unit_id_trig_auto_assign_1
+						, @unee_t_user_role_type
+						, `a`.`is_occupant`
+						, `a`.`is_default_assignee`
+						, `a`.`is_default_invited`
+						, `a`.`is_unit_owner`
+						, `a`.`is_public`
+						, `a`.`can_see_role_landlord`
+						, `a`.`can_see_role_tenant`
+						, `a`.`can_see_role_mgt_cny`
+						, `a`.`can_see_role_agent`
+						, `a`.`can_see_role_contractor`
+						, `a`.`can_see_occupant`
+						FROM `ut_user_types` AS `a`
+							WHERE `id_unee_t_user_type` = @unee_t_user_type_id_default_assignee
+						;
+			END IF;
+
+		# The Tenant (1)
+
+			SET @default_user_tenant = NEW.`tenant_default_assignee`;
+
+			SET @check_default_user_tenant = (IF(@default_user_tenant IS NULL
+					, 0
+					, IF(@default_user_tenant = ''
+						, 0
+						, 1
+						)
+					)
+
+				)
+				;
+
+			IF @check_default_user_tenant = 1
+			THEN
+
+			# We Prepare the variables we need
+				
+				SET @country_code_default_assignee = (SELECT `country_code`
+					FROM `ut_user_person_details`
+					WHERE `unee_t_mefe_user_id` = @default_user_tenant
+					)
+					;
+
+				
+				SET @email_default_assignee = (SELECT `email`
+					FROM `ut_user_person_details`
+					WHERE `unee_t_mefe_user_id` = @default_user_tenant
+					)
+					;
+
+				SET @unee_t_user_role_type = 5 ;
+
+				SET @unee_t_user_type_id_default_assignee = (SELECT `id_unee_t_user_type`
+					FROM `ut_user_types`
+					WHERE `organization_id` = @organization_id_trig_auto_assign_1
+						AND `creation_system_id` = 'Setup'
+						AND `creation_method` = 'trigger_ut_after_insert_new_organization'
+						AND `ut_user_role_type_id` = @unee_t_user_role_type
+						AND `is_super_admin` = 0
+					)
+					;
+
+			# We insert the record in the "prepare" table
+
+				INSERT INTO `temp_list_users_auto_assign_new_property`
+					(`syst_created_datetime`
+					, `creation_system_id`
+					, `requestor_id`
+					, `created_by_id`
+					, `creation_method`
+					, `organization_id`
+					, `country_code`
+					, `mefe_user_id`
+					, `email`
+					, `unee_t_user_type_id`
+					, `mefe_unit_id`
+					, `unee_t_role_id`
+					, `is_occupant`
+					, `is_default_assignee`
+					, `is_default_invited`
+					, `is_unit_owner`
+					, `is_public`
+					, `can_see_role_landlord`
+					, `can_see_role_tenant`
+					, `can_see_role_mgt_cny`
+					, `can_see_role_agent`
+					, `can_see_role_contractor`
+					, `can_see_occupant`
+					)
+					SELECT 
+						NOW()
+						, @creation_system_id_trig_auto_assign_1
+						, @requestor_id_trig_auto_assign_1
+						, @created_by_id_trig_auto_assign_1
+						, @creation_method_trig_auto_assign_1
+						, @organization_id_trig_auto_assign_1
+						, @country_code_default_assignee
+						, @default_user_tenant
+						, @email_default_assignee
+						, @unee_t_user_type_id_default_assignee
+						, @unee_t_mefe_unit_id_trig_auto_assign_1
+						, @unee_t_user_role_type
+						, `a`.`is_occupant`
+						, `a`.`is_default_assignee`
+						, `a`.`is_default_invited`
+						, `a`.`is_unit_owner`
+						, `a`.`is_public`
+						, `a`.`can_see_role_landlord`
+						, `a`.`can_see_role_tenant`
+						, `a`.`can_see_role_mgt_cny`
+						, `a`.`can_see_role_agent`
+						, `a`.`can_see_role_contractor`
+						, `a`.`can_see_occupant`
+						FROM `ut_user_types` AS `a`
+							WHERE `id_unee_t_user_type` = @unee_t_user_type_id_default_assignee
+						;
+
+			END IF;
 
 	# We assign the user to the unit
 

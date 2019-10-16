@@ -8,17 +8,10 @@
 
 # This script creates the following objects:
 #	- Triggers
-#		- `ut_insert_external_property_level_1`
-#		- `ut_update_external_property_level_1`
-#		- `ut_update_external_property_level_1_creation_needed`
-#		- `ut_update_map_external_source_unit_add_building`
-#		- `ut_update_map_external_source_unit_add_building_creation_needed`
-#		- `ut_update_map_external_source_unit_edit_level_1`
-#		- ``
-#		- ``
-#	- Procedures
-#		- ``
-#		- ``
+#		- `ut_after_insert_in_external_property_level_1`
+#		- `ut_after_update_external_property_level_1`
+#		- `ut_after_insert_in_property_level_1`
+#		- `ut_after_update_property_level_1`
 #		- ``
 #		- ``
 
@@ -181,6 +174,11 @@ BEGIN
 
 		SET @description_insert_extl1 = NEW.`description` ;
 
+		SET @ext_l1_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @ext_l1_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @ext_l1_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @ext_l1_default_assignee_agent := NEW.`agent_default_assignee` ;
+
 	# We insert the record in the table `property_level_1_buildings`
 
 		INSERT INTO `property_level_1_buildings`
@@ -207,6 +205,10 @@ BEGIN
 			, `city`
 			, `country_code`
 			, `description`
+			, `mgt_cny_default_assignee`
+			, `landlord_default_assignee`
+			, `tenant_default_assignee`
+			, `agent_default_assignee`
 			)
 			VALUES
 				(@external_id_insert_extl1
@@ -232,6 +234,10 @@ BEGIN
 				, @city_insert_extl1
 				, @country_code_insert_extl1
 				, @description_insert_extl1
+				, @ext_l1_default_assignee_mgt_cny
+				, @ext_l1_default_assignee_landlord
+				, @ext_l1_default_assignee_tenant
+				, @ext_l1_default_assignee_agent
 				)
 			ON DUPLICATE KEY UPDATE
 				`syst_updated_datetime` = NOW()
@@ -254,6 +260,10 @@ BEGIN
 				, `city` = @city_insert_extl1
 				, `country_code` = @country_code_insert_extl1
 				, `description` = @description_insert_extl1
+				, `mgt_cny_default_assignee` = @ext_l1_default_assignee_mgt_cny
+				, `landlord_default_assignee` = @ext_l1_default_assignee_landlord
+				, `tenant_default_assignee` = @ext_l1_default_assignee_tenant
+				, `agent_default_assignee` = @ext_l1_default_assignee_agent
 			;
 
 	END IF;
@@ -305,7 +315,6 @@ BEGIN
 #		- ''
 
 # Capture the variables we need to verify if conditions are met:
-
 
 	SET @is_creation_needed_in_unee_t_update_extl1 = NEW.`is_creation_needed_in_unee_t` ;
 
@@ -377,7 +386,6 @@ BEGIN
 
 # We can now check if the conditions are met:
 
-
 	IF @is_creation_needed_in_unee_t_update_extl1 = 1
 		AND @external_id_update_extl1 IS NOT NULL
 		AND @external_system_id_update_extl1 IS NOT NULL
@@ -412,6 +420,7 @@ BEGIN
 			WHERE `organization_id` = @source_system_updater_update_extl1
 			)
 			;
+
 		SET @updated_by_id_update_extl1 = @creator_mefe_user_id_update_extl1 ;
 
 		SET @organization_id_create_update_extl1 = @source_system_creator_update_extl1 ;
@@ -433,6 +442,11 @@ BEGIN
 		SET @description_update_extl1 = NEW.`description` ;
 
 		SET @building_system_id_update_extl1 = NEW.`id_building` ;
+
+		SET @ext_l1_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @ext_l1_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @ext_l1_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @ext_l1_default_assignee_agent := NEW.`agent_default_assignee` ;
 
 		IF @new_is_creation_needed_in_unee_t_update_extl1 != @old_is_creation_needed_in_unee_t_update_extl1
 		THEN 
@@ -469,6 +483,10 @@ BEGIN
 					, `city`
 					, `country_code`
 					, `description`
+					, `mgt_cny_default_assignee`
+					, `landlord_default_assignee`
+					, `tenant_default_assignee`
+					, `agent_default_assignee`
 					)
 					VALUES
 						(@external_id_update_extl1
@@ -494,6 +512,10 @@ BEGIN
 						, @city_update_extl1
 						, @country_code_update_extl1
 						, @description_update_extl1
+						, @ext_l1_default_assignee_mgt_cny
+						, @ext_l1_default_assignee_landlord
+						, @ext_l1_default_assignee_tenant
+						, @ext_l1_default_assignee_agent
 						)
 					ON DUPLICATE KEY UPDATE
 						`syst_updated_datetime` = NOW()
@@ -516,6 +538,10 @@ BEGIN
 						, `city` = @city_update_extl1
 						, `country_code` = @country_code_update_extl1
 						, `description` = @description_update_extl1
+						, `mgt_cny_default_assignee` = @ext_l1_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @ext_l1_default_assignee_landlord
+						, `tenant_default_assignee` = @ext_l1_default_assignee_tenant
+						, `agent_default_assignee` = @ext_l1_default_assignee_agent
 					;
 
 			# Housekeeping - we make sure that if a building is obsolete - all units in that building are obsolete too
@@ -563,6 +589,10 @@ BEGIN
 					, `city`
 					, `country_code`
 					, `description`
+					, `mgt_cny_default_assignee`
+					, `landlord_default_assignee`
+					, `tenant_default_assignee`
+					, `agent_default_assignee`
 					)
 					VALUES
 						(@external_id_update_extl1
@@ -588,6 +618,10 @@ BEGIN
 						, @city_update_extl1
 						, @country_code_update_extl1
 						, @description_update_extl1
+						, @ext_l1_default_assignee_mgt_cny
+						, @ext_l1_default_assignee_landlord
+						, @ext_l1_default_assignee_tenant
+						, @ext_l1_default_assignee_agent
 						)
 					ON DUPLICATE KEY UPDATE
 						`syst_updated_datetime` = NOW()
@@ -610,6 +644,10 @@ BEGIN
 						, `city` = @city_update_extl1
 						, `country_code` = @country_code_update_extl1
 						, `description` = @description_update_extl1
+						, `mgt_cny_default_assignee` = @ext_l1_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @ext_l1_default_assignee_landlord
+						, `tenant_default_assignee` = @ext_l1_default_assignee_tenant
+						, `agent_default_assignee` = @ext_l1_default_assignee_agent
 					;
 
 			# Housekeeping - we make sure that if a building is obsolete - all units in that building are obsolete too
@@ -647,10 +685,12 @@ BEGIN
 #	- The record does NOT exist in the table `ut_map_external_source_units` yet
 #	- The record has NOT been explicitly been marked as `do_not_insert`
 #	- This is done via an authorized Insert Method:
-#		- 'ut_insert_external_property_level_1'
-#		- 'ut_update_external_property_level_1'
-#		- 'ut_update_external_property_level_1_creation_needed'
-#		- ''
+#		- 'ut_after_insert_in_external_property_level_1_insert'
+#		- 'ut_after_insert_in_external_property_level_1_update'
+#		- 'ut_after_update_external_property_level_1_insert_creation_needed'
+#		- 'ut_after_update_external_property_level_1_update_creation_needed'
+#		- 'ut_after_update_external_property_level_1_insert_update_needed'
+#		- 'ut_after_update_external_property_level_1_update_update_needed'
 #
 
 	SET @is_creation_needed_in_unee_t_insert_l1 = NEW.`is_creation_needed_in_unee_t` ;
@@ -712,12 +752,12 @@ BEGIN
 	IF @is_creation_needed_in_unee_t_insert_l1 = 1
 		AND @do_not_insert_insert_l1 = 0
 		AND @existing_mefe_unit_id_insert_l1 IS NULL
-		AND (@upstream_create_method_insert_l1 = 'ut_insert_external_property_level_1'
-			OR @upstream_update_method_insert_l1 = 'ut_insert_external_property_level_1'
-			OR @upstream_create_method_insert_l1 = 'ut_update_external_property_level_1'
-			OR @upstream_update_method_insert_l1 = 'ut_update_external_property_level_1'
-			OR @upstream_create_method_insert_l1 = 'ut_update_external_property_level_1_creation_needed'
-			OR @upstream_update_method_insert_l1 = 'ut_update_external_property_level_1_creation_needed'
+		AND (@upstream_create_method_insert_l1 = 'ut_after_insert_in_external_property_level_1_insert'
+			OR @upstream_update_method_insert_l1 = 'ut_after_insert_in_external_property_level_1_update'
+			OR @upstream_create_method_insert_l1 = 'ut_after_update_external_property_level_1_insert_creation_needed'
+			OR @upstream_update_method_insert_l1 = 'ut_after_update_external_property_level_1_update_creation_needed'
+			OR @upstream_create_method_insert_l1 = 'ut_after_update_external_property_level_1_insert_update_needed'
+			OR @upstream_update_method_insert_l1 = 'ut_after_update_external_property_level_1_update_update_needed'
 			)
 	THEN 
 
@@ -745,6 +785,11 @@ BEGIN
 			;
 			
 		SET @new_record_id_insert_l1 = NEW.`id_building` ;
+
+		SET @l1_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @l1_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @l1_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @l1_default_assignee_agent := NEW.`agent_default_assignee` ;
 		
 		# We insert/Update a new record in the table `ut_map_external_source_units`
 
@@ -766,6 +811,10 @@ BEGIN
 				, `external_system`
 				, `table_in_external_system`
 				, `tower`
+				, `mgt_cny_default_assignee`
+				, `landlord_default_assignee`
+				, `tenant_default_assignee`
+				, `agent_default_assignee`
 				)
 				VALUES
 					(NOW()
@@ -785,6 +834,10 @@ BEGIN
 					, @external_system_insert_l1
 					, @table_in_external_system_insert_l1
 					, @tower_insert_l1
+					, @l1_default_assignee_mgt_cny
+					, @l1_default_assignee_landlord
+					, @l1_default_assignee_tenant
+					, @l1_default_assignee_agent
 					)
 				ON DUPLICATE KEY UPDATE 
 					`syst_updated_datetime` = NOW()
@@ -797,6 +850,10 @@ BEGIN
 					, `uneet_name` = @uneet_name_insert_l1
 					, `unee_t_unit_type` = @unee_t_unit_type_insert_l1
 					, `is_update_needed` = 1
+					, `mgt_cny_default_assignee` = @l1_default_assignee_mgt_cny
+					, `landlord_default_assignee` = @l1_default_assignee_landlord
+					, `tenant_default_assignee` = @l1_default_assignee_tenant
+					, `agent_default_assignee` = @l1_default_assignee_agent
 				;
 
 	END IF;
@@ -823,37 +880,55 @@ BEGIN
 # 	- We need to create the unit in Unee-T
 #	- The record has NOT been explicitly been marked as `do_not_insert`
 #	- This is done via an authorized update Method:
-#		- `ut_insert_external_property_level_1`
-#		- 'ut_update_external_property_level_1_creation_needed'
+#		- `ut_after_insert_in_external_property_level_1_insert`
+#		- 'ut_after_insert_in_external_property_level_1_update'
+#		- 'ut_after_update_external_property_level_1_insert_creation_needed'
+#		- 'ut_after_update_external_property_level_1_update_creation_needed'
+#		- 'ut_after_update_external_property_level_1_insert_update_needed'
+#		- 'ut_after_update_external_property_level_1_update_update_needed'
+#
 
 # Capture the variables we need to verify if conditions are met:
 
-	SET @is_creation_needed_in_unee_t_update_l1 = NEW.`is_creation_needed_in_unee_t` ;
-
-	SET @external_property_id_update_l1 = NEW.`external_id` ;
-	SET @external_system_update_l1 = NEW.`external_system_id` ;
-	SET @table_in_external_system_update_l1 = NEW.`external_table` ;
-	SET @organization_id_update_l1 = NEW.`organization_id`;
-	SET @tower_update_l1 = NEW.`tower` ; 
-
-	SET @new_is_creation_needed_in_unee_t_update_l1 =  NEW.`is_creation_needed_in_unee_t` ;
-	SET @old_is_creation_needed_in_unee_t_update_l1 = OLD.`is_creation_needed_in_unee_t` ; 
-
-	SET @id_building_update_l1 = NEW.`id_building` ;
-
 	SET @upstream_create_method_update_l1 = NEW.`creation_method` ;
 	SET @upstream_update_method_update_l1 = NEW.`update_method` ;
+			
+	SET @new_record_id_update_l1 = NEW.`id_building`;
+
+	SET @check_new_record_id_update_l1 = (IF(@new_record_id_update_l1 IS NULL
+			, 0
+			, IF(@new_record_id_update_l1 = ''
+				, 0
+				, 1
+				)
+			)
+		)
+		;
 
 # We can now check if the conditions are met:
 
-	IF (@upstream_create_method_update_l1 = 'ut_insert_external_property_level_1'
-			OR @upstream_update_method_update_l1 = 'ut_insert_external_property_level_1'
-			OR @upstream_create_method_update_l1 = 'ut_update_external_property_level_1_creation_needed'
-			OR @upstream_update_method_update_l1 = 'ut_update_external_property_level_1_creation_needed'
+	IF (@upstream_create_method_update_l1 = 'ut_after_insert_in_external_property_level_1_insert'
+			OR @upstream_update_method_update_l1 = 'ut_after_insert_in_external_property_level_1_update'
+			OR @upstream_create_method_update_l1 = 'ut_after_update_external_property_level_1_insert_creation_needed'
+			OR @upstream_update_method_update_l1 = 'ut_after_update_external_property_level_1_update_creation_needed'
+			OR @upstream_create_method_update_l1 = 'ut_after_update_external_property_level_1_insert_update_needed'
+			OR @upstream_update_method_update_l1 = 'ut_after_update_external_property_level_1_update_update_needed'
 			)
+		AND @check_new_record_id_update_l1 = 1
 	THEN 
 
+	# Clean Slate - Make sure we don't use a legacy MEFE id
+
+		SET @mefe_unit_id_update_l1 = NULL ;
+
 	# The conditions are met: we capture the other variables we need
+
+		SET @is_creation_needed_in_unee_t_update_l1 = NEW.`is_creation_needed_in_unee_t` ;
+
+		SET @tower_update_l1 = NEW.`tower` ; 
+
+		SET @new_is_creation_needed_in_unee_t_update_l1 =  NEW.`is_creation_needed_in_unee_t` ;
+		SET @old_is_creation_needed_in_unee_t_update_l1 = OLD.`is_creation_needed_in_unee_t` ; 
 
 		SET @creation_system_id_update_l1 = NEW.`update_system_id` ;
 		SET @created_by_id_update_l1 = NEW.`updated_by_id` ;
@@ -876,8 +951,6 @@ BEGIN
 				)
 			)
 			;
-			
-		SET @new_record_id_update_l1 = NEW.`id_building`;
 
 		SET @external_property_id_update_l1 = NEW.`external_id` ;
 		SET @external_system_update_l1 = NEW.`external_system_id` ;
@@ -887,13 +960,16 @@ BEGIN
 
 		SET @mefe_unit_id_update_l1 = (SELECT `unee_t_mefe_unit_id`
 			FROM `ut_map_external_source_units`
-			WHERE `external_property_type_id` = @external_property_type_id_update_l1
-				AND `external_property_id` = @external_property_id_update_l1
-				AND `external_system` = @external_system_update_l1
-				AND `table_in_external_system` = @table_in_external_system_update_l1
-				AND `organization_id` = @organization_id_update_l1
-				AND `tower` = @tower_update_l1
-			);
+			WHERE `new_record_id` = @new_record_id_update_l1
+				AND `external_property_type_id` = @external_property_type_id_update_l1
+				AND `unee_t_mefe_unit_id` IS NOT NULL
+			)
+			;
+
+		SET @l1_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
+		SET @l1_default_assignee_landlord := NEW.`landlord_default_assignee` ;
+		SET @l1_default_assignee_tenant := NEW.`tenant_default_assignee` ;
+		SET @l1_default_assignee_agent := NEW.`agent_default_assignee` ;
 		
 		# If the record does NOT exist, we create the record
 		# unless 
@@ -948,6 +1024,10 @@ BEGIN
 					, `external_system`
 					, `table_in_external_system`
 					, `tower`
+					, `mgt_cny_default_assignee`
+					, `landlord_default_assignee`
+					, `tenant_default_assignee`
+					, `agent_default_assignee`
 					)
 					VALUES
 						(NOW()
@@ -967,6 +1047,10 @@ BEGIN
 						, @external_system_update_l1
 						, @table_in_external_system_update_l1
 						, @tower_update_l1
+						, @l1_default_assignee_mgt_cny
+						, @l1_default_assignee_landlord
+						, @l1_default_assignee_tenant
+						, @l1_default_assignee_agent
 						)
 					ON DUPLICATE KEY UPDATE
 						`syst_updated_datetime` = NOW()
@@ -979,6 +1063,10 @@ BEGIN
 						, `uneet_name` = @uneet_name_update_l1
 						, `unee_t_unit_type` = @unee_t_unit_type_update_l1
 						, `is_update_needed` = 1
+						, `mgt_cny_default_assignee` = @l1_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @l1_default_assignee_landlord
+						, `tenant_default_assignee` = @l1_default_assignee_tenant
+						, `agent_default_assignee` = @l1_default_assignee_agent
 					;
 
 ###################################################################
@@ -1010,6 +1098,10 @@ BEGIN
 						, `uneet_name` = @uneet_name_update_l1
 						, `unee_t_unit_type` = @unee_t_unit_type_update_l1
 						, `is_update_needed` = 1
+						, `mgt_cny_default_assignee` = @l1_default_assignee_mgt_cny
+						, `landlord_default_assignee` = @l1_default_assignee_landlord
+						, `tenant_default_assignee` = @l1_default_assignee_tenant
+						, `agent_default_assignee` = @l1_default_assignee_agent
 					WHERE `unee_t_mefe_unit_id` = @mefe_unit_id_update_l1
 					;
 

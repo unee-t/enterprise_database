@@ -32,13 +32,13 @@
 #		- `ut_verify_count_all_P_by_org_and_countries`
 #		- 
 #
-#
 #	- On persons
 #		- `ut_user_information_persons`
 #		- `ut_check_unee_t_updates_persons`
 #		- `ut_info_external_persons`
 #		- `ut_info_persons`
 #		- `ut_info_mefe_users`
+#		- `ut_user_person_details`
 #
 #	- On association user/units
 #		- `ut_check_unee_t_update_add_user_to_unit_level_1`
@@ -54,8 +54,9 @@
 #		- `ut_organization_default_table_level_2_properties`
 #		- `ut_organization_default_table_level_3_properties`
 #		- `ut_organization_default_table_persons`
-#		- `ut_organization_associated_mefe_user`
-#
+#		- `ut_organization_default_L1P`
+#		- `ut_organization_default_L2P`
+#		- DEPRECATED - REMOVED `ut_organization_associated_mefe_user`
 #
 # - Performance analysis
 #	- `ut_analysis_mefe_api_unit_creation_time`
@@ -68,11 +69,12 @@
 #		- `ut_analysis_errors_user_already_has_a_role_count`
 #		- ``
 #		- ``
-#	- ``
-#	- ``
-#	- ``
-#	- ``
-#	- ``
+#
+#	- To facilitate the selection of default assignees
+#		- `ut_list_possible_assignees`
+#		
+#	- To facilitate the selection of default L1P and default L2P
+#		- `ut_list_possible_properties`
 #
 #  in the Unee-T Enterprise SQL database
 #
@@ -99,13 +101,17 @@
 	CREATE VIEW `ut_organization_mefe_user_id`
 	AS
 	SELECT
-		`mefe_user_id`
-		, `organization_id`
+	    `b`.`id_organization` AS `organization_id`
+	    , `b`.`designation`
+	    , `a`.`unee_t_mefe_user_id` AS `mefe_user_id`
+	    , `a`.`unee_t_mefe_user_api_key`
 	FROM
-		`ut_api_keys`
-	WHERE `is_obsolete` = 0
-		OR `revoked_datetime` IS NOT NULL
-	GROUP BY `mefe_user_id`, `organization_id`
+	    `ut_map_external_source_users` AS `a`
+	    INNER JOIN `uneet_enterprise_organizations` AS `b`
+		ON (`a`.`organization_id` = `b`.`id_organization`) 
+		AND (`a`.`external_person_id` = `b`.`mefe_master_user_external_person_id`) 
+		AND (`a`.`table_in_external_system` = `b`.`mefe_master_user_external_person_table`) 
+		AND (`a`.`external_system` = `b`.`mefe_master_user_external_person_system`)
 	;
 
 # Create a View to get the additional information for condo/buildings
@@ -678,6 +684,35 @@
 			ON (`ut_map_external_source_users`.`person_id` = `persons`.`id_person`)
 		;
 
+# Create the view to get the necessary information to assign the default users
+#	  `ut_user_person_details`
+
+	DROP VIEW IF EXISTS `ut_user_person_details` ;
+
+	CREATE VIEW `ut_user_person_details`
+	AS
+	SELECT
+		`a`.`unee_t_mefe_user_id`
+		, `b`.`country_code`
+		, `b`.`email`
+		, `b`.`organization_id`
+		, `b`.`person_status_id`
+		, `b`.`gender`
+		, `b`.`salutation_id`
+		, `b`.`given_name`
+		, `b`.`middle_name`
+		, `b`.`family_name`
+		, `b`.`alias`
+		, `b`.`job_title`
+		, `b`.`organization`
+		, `b`.`tel_1`
+	FROM
+		`ut_map_external_source_users` AS `a`
+		INNER JOIN `persons` AS `b`
+			ON (`a`.`person_id` = `b`.`id_person`)
+		WHERE  `a`.`unee_t_mefe_user_id` IS NOT NULL
+		;
+
 # We create a view to get check the creation time for units
 
 	DROP VIEW IF EXISTS `ut_analysis_mefe_api_unit_creation_time` ;
@@ -760,16 +795,16 @@
 
 	CREATE VIEW `ut_organization_default_area`
 	AS
-	SELECT 
-		`id_area` AS `default_area_id`
-		, `area_name` AS `default_area_name`
-		, `created_by_id` AS `organization_id`
-	FROM `external_property_groups_areas`
-	WHERE 
-		`is_default` = 1
-		AND (`country_code` IS NULL
-			OR `country_code` = '')
-	;
+	SELECT
+	    `a`.`id_area` AS `default_area_id`
+	    , `a`.`area_name` AS `default_area_name`
+	    , `b`.`id_organization` AS `organization_id`
+	FROM
+	    `external_property_groups_areas` AS `a`
+	    INNER JOIN `uneet_enterprise_organizations` AS `b`
+		ON (`a`.`created_by_id` = `b`.`id_organization`) 
+		AND (`a`.`id_area` = `b`.`default_area`)
+		;
 
 # We create a view to get the default external system for each organization
 
@@ -777,11 +812,15 @@
 
 	CREATE VIEW `ut_organization_default_external_system`
 	AS
-	SELECT 
-		`designation`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`designation`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table for areas for each organization
 
@@ -789,11 +828,15 @@
 
 	CREATE VIEW `ut_organization_default_table_areas`
 	AS
-	SELECT 
-		`area_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`area_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table_level_1_properties for each organization
 
@@ -801,11 +844,15 @@
 
 	CREATE VIEW `ut_organization_default_table_level_1_properties`
 	AS
-	SELECT 
-		`properties_level_1_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`properties_level_1_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table_level_2_properties for each organization
 
@@ -813,11 +860,15 @@
 
 	CREATE VIEW `ut_organization_default_table_level_2_properties`
 	AS
-	SELECT 
-		`properties_level_2_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`properties_level_2_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table_level_3_properties for each organization
 
@@ -825,11 +876,15 @@
 
 	CREATE VIEW `ut_organization_default_table_level_3_properties`
 	AS
-	SELECT 
-		`properties_level_3_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`properties_level_3_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
 # We create a view to get the default table `persons` for each organization
 
@@ -837,23 +892,71 @@
 
 	CREATE VIEW `ut_organization_default_table_persons`
 	AS
-	SELECT 
-		`person_table`
-		, `organization_id`
-	FROM `ut_external_sot_for_unee_t_objects`
-	;
+	SELECT
+		`a`.`person_table`
+		, `b`.`id_organization` AS `organization_id`
+	FROM
+		`ut_external_sot_for_unee_t_objects` AS `a`
+		INNER JOIN `uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`) 
+			AND (`a`.`id_external_sot_for_unee_t` = `b`.`default_sot_id`)
+		;
 
-# We create a view to get the associated MEFE user for each organization
+# We create the view to get the details of the default L1P for a given organization
 
-	DROP VIEW IF EXISTS `ut_organization_associated_mefe_user` ;
+	DROP VIEW IF EXISTS `ut_organization_default_L1P` ;
 
-	CREATE VIEW `ut_organization_associated_mefe_user`
+	CREATE VIEW `ut_organization_default_L1P`
 	AS
-	SELECT 
-		`mefe_user_id` AS `associated_mefe_user`
-		, `organization_id`
-	FROM `ut_api_keys`
-	;
+	SELECT
+		`a`.`organization_id`
+		, `b`.`designation` AS `organization`
+		, `a`.`unee_t_mefe_unit_id`
+		, `a`.`uneet_name`
+		, `a`.`mefe_unit_id_parent`
+		, `a`.`is_obsolete`
+		, `a`.`external_property_id`
+		, `a`.`external_system`
+		, `a`.`table_in_external_system`
+		, `a`.`tower`
+	FROM
+			`ut_map_external_source_units` AS `a`
+		INNER JOIN 	`uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`)
+	WHERE `a`.`unee_t_mefe_unit_id` IS NOT NULL
+		AND `a`.`external_property_type_id` = 1
+		;
+
+
+# We create the view to get the details of the default L2P for a given organization
+
+	DROP VIEW IF EXISTS `ut_organization_default_L2P` ;
+
+	CREATE VIEW `ut_organization_default_L2P`
+	AS
+	SELECT
+		`a`.`organization_id`
+		, `b`.`designation` AS `organization`
+		, `a`.`unee_t_mefe_unit_id`
+		, `a`.`uneet_name`
+		, `a`.`mefe_unit_id_parent`
+		, `a`.`is_obsolete`
+		, `a`.`external_property_id`
+		, `a`.`external_system`
+		, `a`.`table_in_external_system`
+		, `a`.`tower`
+	FROM
+			`ut_map_external_source_units` AS `a`
+		INNER JOIN 	`uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`)
+	WHERE `a`.`unee_t_mefe_unit_id` IS NOT NULL
+		AND `a`.`external_property_type_id` = 2
+		;
+
+
+
+
+
 
 # We create a view to list user by organization by country
 
@@ -1231,4 +1334,62 @@
                 ON (`a`.`organization_id` = `c`.`organization_id`) 
                 AND (`a`.`country` = `c`.`country`)
         ;
+
+# Add the view to facilitate selection of default users for each role
+
+	DROP VIEW IF EXISTS `ut_list_possible_assignees` ;
+
+	CREATE VIEW `ut_list_possible_assignees`
+	AS 
+	SELECT
+	    `a`.`unee_t_mefe_user_id`
+	    , `a`.`is_obsolete`
+	    , `a`.`organization_id`
+	    , `a`.`person_id`
+	    , `b`.`given_name`
+	    , `b`.`family_name`
+	    , `b`.`alias`
+	    , `b`.`email`
+	    , CONCAT( `b`.`given_name`
+		, IF(`b`.`alias` IS NULL
+			, ' '
+			, IF(`b`.`alias` = ''
+				, ' ' 
+				, CONCAT(' ('
+					, `b`.`alias`
+					, ') '
+					)
+				)
+			)
+		, `b`.`family_name`
+		) AS `person_designation`
+	FROM
+	    `ut_map_external_source_users` AS `a`
+	    INNER JOIN `persons` AS `b`
+		ON (`a`.`person_id` = `b`.`id_person`)
+	WHERE (`a`.`is_obsolete` = 0
+		AND `a`.`unee_t_mefe_user_id` IS NOT NULL
+		AND `a`.`creation_system_id` != 'Setup')
+	;
+	
+# Add the view to facilitate the selection of default L1P and default L2P
+
+	DROP VIEW IF EXISTS `ut_list_possible_properties` ;
+
+	CREATE VIEW `ut_list_possible_properties`
+	AS 
+	SELECT
+		`a`.`organization_id`
+		, `b`.`designation` AS `organization`
+		, `a`.`external_property_type_id`
+		, `a`.`unee_t_mefe_unit_id`
+		, `a`.`uneet_name`
+		, `a`.`mefe_unit_id_parent`
+		, `a`.`is_obsolete`
+	FROM
+			`ut_map_external_source_units` AS `a`
+		INNER JOIN 	`uneet_enterprise_organizations` AS `b`
+			ON (`a`.`organization_id` = `b`.`id_organization`)
+	WHERE `a`.`unee_t_mefe_unit_id` IS NOT NULL
+		;
 
