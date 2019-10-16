@@ -32,7 +32,7 @@
 # What are the version of the Unee-T BZ Database schema BEFORE and AFTER this update?
 
 	SET @old_schema_version := 'v1.22.8';
-	SET @new_schema_version := 'v1.22.9_alpha_1';
+	SET @new_schema_version := 'v1.22.9';
 
 # What is the name of this script?
 

@@ -1,6 +1,6 @@
 #################
 #
-# This is valid for version v22.8 of the UNTE database schema
+# This is valid for version v22.9 of the UNTE database schema
 #
 # All lambda related objects
 #
@@ -63,7 +63,6 @@
 #		- `lambda_update_unit`
 #		- `lambda_remove_user_from_unit`
 #		- `lambda_update_unit_name_type`
-#
 #
 ###############################
 #
@@ -153,7 +152,7 @@ BEGIN
 			#	- Prod: 192458993663
 			#	- Demo: 915001051872
 	
-					SET @lambda_key = 915001051872;
+					SET @lambda_key = 812644853088;
 
 			# MEFE API Key:
 				SET @key_this_envo = 'ABCDEFG';
@@ -200,8 +199,6 @@ BEGIN
 			OR @action_type = ''
 			OR @user_creation_request_id IS NULL
 			OR @user_creation_request_id = ''
-			OR @creator_id IS NULL
-			OR @creator_id = ''
 		THEN
 
 		# We have a problem - some key information are missing
@@ -219,11 +216,20 @@ BEGIN
 
 				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
 						, ' - @action_type: '
-						, @action_type
+						, IF(@action_type IS NULL
+							, 'missing'
+							, @action_type
+							)
 						, ' - @user_creation_request_id: '
-						, @user_creation_request_id
+						, IF(@user_creation_request_id IS NULL
+							, 'missing'
+							, @user_creation_request_id
+							)
 						, ' - @creator_id: '
-						, @creator_id
+						, IF(@creator_id IS NULL
+							, 'missing'
+							, @creator_id
+							)
 						)
 					) 
 					;
@@ -380,7 +386,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:915001051872:function:ut_lambda2sqs_push')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'userCreationRequestId' , user_creation_request_id
@@ -410,18 +416,6 @@ BEGIN
 # We only do this IF:
 #	- The variable @disable_lambda != 1
 #	- We do NOT have a MEFE Unit ID for that unit
-#	- This is from a recognized creation method:
-#		- `ut_insert_map_external_source_unit_add_building`
-#		- `ut_update_map_external_source_unit_add_building_creation_needed`
-#		- `ut_insert_map_external_source_unit_add_unit`
-#		- `ut_update_map_external_source_unit_add_unit_creation_needed`
-#		- `ut_insert_map_external_source_unit_add_room`
-#		- `ut_update_map_external_source_unit_add_room_creation_needed`
-#		- 'ut_update_map_external_source_unit_edit_level_1'
-#		- 'ut_update_map_external_source_unit_edit_level_2'
-#		- 'ut_update_map_external_source_unit_edit_level_3'
-#		- ''
-#		- ''
 #		- ''
 
 	SET @mefe_unit_id = NEW.`unee_t_mefe_unit_id` ;
@@ -433,6 +427,10 @@ BEGIN
 		AND (@disable_lambda != 1
 			OR @disable_lambda IS NULL)
 	THEN
+
+		# What is the action type?
+
+			SET @action_type = 'CREATE_UNIT';
 
 		# The Source table
 
@@ -462,7 +460,7 @@ BEGIN
 			#	- Prod: 192458993663
 			#	- Demo: 915001051872
 
-				SET @lambda_key = 915001051872;
+				SET @lambda_key = 812644853088;
 
 			# MEFE API Key:
 				SET @key_this_envo = 'ABCDEFG';
@@ -692,11 +690,20 @@ BEGIN
 
 				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
 						, ' - @action_type: '
-						, @action_type
+						, IF(@action_type IS NULL
+							, 'missing'
+							, @action_type
+							)
 						, ' - @unit_creation_request_id: '
-						, @unit_creation_request_id
+						, IF(@unit_creation_request_id IS NULL
+							, 'missing'
+							, @unit_creation_request_id
+							)
 						, ' - @creator_id: '
-						, @creator_id
+						, IF(@creator_id IS NULL
+							, 'missing'
+							, @creator_id
+							)
 						)
 					) 
 					;
@@ -743,10 +750,6 @@ BEGIN
 
 			# Simulate what the Procedure `lambda_create_unit` does
 			# Make sure to update that if you update the procedure `lambda_create_unit`
-
-				# What is the action type?
-
-					SET @action_type = 'CREATE_UNIT';
 
 				# What is the procedure associated with this trigger:
 
@@ -881,7 +884,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:915001051872:function:ut_lambda2sqs_push')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'unitCreationRequestId' , unit_creation_request_id
@@ -915,14 +918,6 @@ BEGIN
 
 # We only do this IF:
 #	- The variable @disable_lambda != 1
-#WIP	- This is done via an authorized insert method:
-#WIP		- 'ut_add_user_to_role_in_a_level_3_property'
-#WIP		- 'ut_add_user_to_role_in_a_level_2_property'
-#WIP		- 'ut_add_user_to_role_in_a_level_1_property'
-#WIP		- 'ut_update_mefe_unit_id_assign_users_to_property'
-#WIP		- ''
-#WIP		- ''
-#WIP		- ''
 #
 
 	SET @upstream_create_method_8_3 = NEW.`creation_method` ;
@@ -964,7 +959,7 @@ BEGIN
 			#	- Prod: 192458993663
 			#	- Demo: 915001051872
 
-				SET @lambda_key = 915001051872;
+				SET @lambda_key = 812644853088;
 
 			# MEFE API Key:
 				SET @key_this_envo = 'ABCDEFG';
@@ -1141,11 +1136,20 @@ BEGIN
 
 				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
 						, ' - @action_type: '
-						, @action_type
+						, IF(@action_type IS NULL
+							, 'missing'
+							, @action_type
+							)
 						, ' - @id_map_user_unit_permissions: '
-						, @id_map_user_unit_permissions
+						, IF(@id_map_user_unit_permissions IS NULL
+							, 'missing'
+							, @id_map_user_unit_permissions
+							)
 						, ' - @requestor_mefe_user_id: '
-						, @requestor_mefe_user_id
+						, IF(@requestor_mefe_user_id IS NULL
+							, 'missing'
+							, @requestor_mefe_user_id
+							)
 						)
 					) 
 					;
@@ -1334,7 +1338,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:915001051872:function:ut_lambda2sqs_push')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'idMapUserUnitPermission' , id_map_user_unit_permissions
@@ -1375,15 +1379,9 @@ BEGIN
 #	- @person_id
 #	- @requestor_id
 #
-
 # We only do this IF:
 #	- The variable @disable_lambda != 1
 #	- We have a MEFE user ID
-#WIP	- There was NO change to the fact that we need to create a Unee-T account
-#	- This is done via an authorized insert method:
-#WIP		- `ut_person_has_been_updated_and_ut_account_needed`
-#		- ''
-#		- ''
 #
 
 	SET @mefe_user_id_uu_l_1 = (SELECT `unee_t_mefe_user_id`
@@ -1429,7 +1427,7 @@ BEGIN
 			#	- Prod: 192458993663
 			#	- Demo: 915001051872
 
-					SET @lambda_key = 915001051872;
+					SET @lambda_key = 812644853088;
 
 				# MEFE API Key:
 
@@ -1509,11 +1507,20 @@ BEGIN
 
 				SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
 						, ' - @action_type: '
-						, @action_type
+						, IF(@action_type IS NULL
+							, 'missing'
+							, @action_type
+							)
 						, ' - @update_user_request_id: '
-						, @update_user_request_id
+						, IF(@update_user_request_id IS NULL
+							, 'missing'
+							, @update_user_request_id
+							)
 						, ' - @requestor_mefe_user_id: '
-						, @requestor_mefe_user_id
+						, IF(@requestor_mefe_user_id IS NULL
+							, 'missing'
+							, @requestor_mefe_user_id
+							)
 						)
 					) 
 					;
@@ -1680,7 +1687,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:915001051872:function:ut_lambda2sqs_push')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'updateUserRequestId' , update_user_request_id
@@ -1714,7 +1721,6 @@ BEGIN
 #	- The variable @disable_lambda != 1
 #	- We do NOT have a MEFE Unit ID
 #	- this unit is marked a `is_update_needed` = 1
-#	- This is done via an authorized update method:
 #
 
 # Capture the variables we need to verify if conditions are met:
@@ -1761,7 +1767,7 @@ BEGIN
 			#	- Prod: 192458993663
 			#	- Demo: 915001051872
 
-				SET @lambda_key = 915001051872;
+				SET @lambda_key = 812644853088;
 
 			# MEFE API Key:
 				SET @key_this_envo = 'ABCDEFG';
@@ -2013,11 +2019,20 @@ BEGIN
 
 					SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
 							, ' - @action_type: '
-							, @action_type
+							, IF(@action_type IS NULL
+								, 'missing'
+								, @action_type
+								)
 							, ' - @unit_creation_request_id: '
-							, @unit_creation_request_id
+							, IF(@unit_creation_request_id IS NULL
+								, 'missing'
+								, @unit_creation_request_id
+								)
 							, ' - @creator_id: '
-							, @creator_id
+							, IF(@creator_id IS NULL
+								, 'missing'
+								, @creator_id
+								)
 							)
 						) 
 						;
@@ -2056,7 +2071,7 @@ BEGIN
 						)
 					;
 
-		# We have the mandatory information, we can proceed and trigger calls to downstream systems
+		# In all other scenarios, we have the mandatory information, we can proceed and trigger calls to downstream systems
 
 			ELSE
 
@@ -2215,11 +2230,20 @@ BEGIN
 
 						SET @error_message = (CONCAT('Lambda request was NOT sent - some Key information are missing'
 								, ' - @action_type: '
-								, @action_type
+								, IF(@action_type IS NULL
+									, 'missing'
+									, @action_type
+									)
 								, ' - @update_unit_request_id: '
-								, @update_unit_request_id
+								, IF(@update_unit_request_id IS NULL
+									, 'missing'
+									, @update_unit_request_id
+									)
 								, ' - @creator_id: '
-								, @requestor_user_id
+								, IF(@requestor_user_id IS NULL
+									, 'missing'
+									, @requestor_user_id
+									)
 								)
 							) 
 							;
@@ -2403,7 +2427,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:915001051872:function:ut_lambda2sqs_push')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'updateUnitRequestId' , update_unit_request_id
@@ -2514,7 +2538,7 @@ BEGIN
 			#	- Prod: 192458993663
 			#	- Demo: 915001051872
 
-					SET @lambda_key := 915001051872;
+					SET @lambda_key := 812644853088;
 
 				# MEFE API Key:
 					SET @key_this_envo := 'ABCDEFG';
@@ -2651,7 +2675,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:915001051872:function:ut_lambda2sqs_push')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'removeUserFromUnitRequestId' , remove_user_from_unit_request_id
@@ -2691,7 +2715,7 @@ BEGIN
 		#	- Prod: 192458993663
 		#	- Demo: 915001051872
 
-			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:915001051872:function:ut_lambda2sqs_push')
+			CALL mysql.lambda_async (CONCAT('arn:aws:lambda:ap-southeast-1:812644853088:function:ut_lambda2sqs_push')
 				, JSON_OBJECT(
 					'mefeAPIRequestId' , mefe_api_request_id
 					, 'updateUnitRequestId' , update_unit_request_id
