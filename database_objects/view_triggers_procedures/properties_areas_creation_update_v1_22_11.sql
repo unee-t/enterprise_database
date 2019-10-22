@@ -99,10 +99,83 @@ BEGIN
 		SET @area_name_insert_ext_area = NEW.`area_name` ;
 		SET @area_definition_insert_ext_area = NEW.`area_definition` ;
 
-		SET @area_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
-		SET @area_default_assignee_landlord := NEW.`landlord_default_assignee` ;
-		SET @area_default_assignee_tenant := NEW.`tenant_default_assignee` ;
-		SET @area_default_assignee_agent := NEW.`agent_default_assignee` ;
+		# Default assignees:
+
+			# Mgt Cny (4)
+
+				SET @organization_default_assignee_mgt_cny := (SELECT `default_assignee_mgt_cny`
+					FROM `uneet_enterprise_organizations` 
+					WHERE `id_organization` = @source_system_creator_insert_ext_area
+					)
+					;
+
+				SET @area_default_assignee_mgt_cny_raw := NEW.`mgt_cny_default_assignee` ;
+
+				SET @area_default_assignee_mgt_cny :=  IF(@area_default_assignee_mgt_cny_raw IS NULL
+					, @organization_default_assignee_mgt_cny
+					, IF(@area_default_assignee_mgt_cny_raw = ''
+						, @organization_default_assignee_mgt_cny
+						, @area_default_assignee_mgt_cny_raw
+						)
+					)
+					;
+
+			# Landlord ()
+
+				SET @organization_default_assignee_landlord := (SELECT `default_assignee_landlord`
+					FROM `uneet_enterprise_organizations` 
+					WHERE `id_organization` = @source_system_creator_insert_ext_area
+					)
+					;
+
+				SET @area_default_assignee_landlord_raw := NEW.`landlord_default_assignee` ;
+
+				SET @area_default_assignee_landlord :=  IF(@area_default_assignee_landlord_raw IS NULL
+					, @organization_default_assignee_landlord
+					, IF(@area_default_assignee_landlord_raw = ''
+						, @organization_default_assignee_landlord
+						, @area_default_assignee_landlord_raw
+						)
+					)
+					;
+
+			# Tenant ()
+			
+				SET @organization_default_assignee_tenant := (SELECT `default_assignee_tenant`
+					FROM `uneet_enterprise_organizations` 
+					WHERE `id_organization` = @source_system_creator_insert_ext_area
+					)
+					;
+
+				SET @area_default_assignee_tenant_raw := NEW.`tenant_default_assignee` ;
+
+				SET @area_default_assignee_tenant := IF(@area_default_assignee_tenant_raw IS NULL
+					, @organization_default_assignee_tenant
+					, IF(@area_default_assignee_tenant_raw = ''
+						, @organization_default_assignee_tenant
+						, @area_default_assignee_tenant_raw
+						)
+					)
+					;
+			
+			# Agent ()
+			
+				SET @organization_default_assignee_agent := (SELECT `default_assignee_agent`
+					FROM `uneet_enterprise_organizations` 
+					WHERE `id_organization` = @source_system_creator_insert_ext_area
+					)
+					;
+
+				SET @area_default_assignee_agent_raw := NEW.`agent_default_assignee` ;
+
+				SET @area_default_assignee_agent :=  IF(@area_default_assignee_agent_raw IS NULL
+					, @organization_default_assignee_agent
+					, IF(@area_default_assignee_agent_raw = ''
+						, @organization_default_assignee_agent
+						, @area_default_assignee_agent_raw
+						)
+					)
+					;
 
 	# We insert the record in the table `property_groups_areas`
 
@@ -130,7 +203,7 @@ BEGIN
 				(@external_id_insert_ext_area
 				, @external_system_id_insert_ext_area
 				, @external_table_insert_ext_area
-				, @syst_created_datetime_insert_ext_area
+				, NOW()
 				, @creation_system_id_insert_ext_area
 				, @created_by_id_insert_ext_area
 				, @downstream_creation_method_insert_ext_area
@@ -147,7 +220,7 @@ BEGIN
 				, @area_default_assignee_agent
 				)
 			ON DUPLICATE KEY UPDATE
-				`syst_updated_datetime` = @syst_updated_datetime_insert_ext_area
+				`syst_updated_datetime` = NOW()
 				, `update_system_id` = @update_system_id_insert_ext_area
 				, `updated_by_id` = @updated_by_id_insert_ext_area
 				, `update_method` = @downstream_update_method_insert_ext_area
@@ -269,11 +342,83 @@ BEGIN
 		SET @area_name_update_ext_area = NEW.`area_name` ;
 		SET @area_definition_update_ext_area = NEW.`area_definition` ;
 
-		SET @area_default_assignee_mgt_cny := NEW.`mgt_cny_default_assignee` ;
-		SET @area_default_assignee_landlord := NEW.`landlord_default_assignee` ;
-		SET @area_default_assignee_tenant := NEW.`tenant_default_assignee` ;
-		SET @area_default_assignee_agent := NEW.`agent_default_assignee` ;
+		# Default assignees:
 
+			# Mgt Cny (4)
+
+				SET @organization_default_assignee_mgt_cny := (SELECT `default_assignee_mgt_cny`
+					FROM `uneet_enterprise_organizations` 
+					WHERE `id_organization` = @organization_id_update_ext_area
+					)
+					;
+
+				SET @area_default_assignee_mgt_cny_raw := NEW.`mgt_cny_default_assignee` ;
+
+				SET @area_default_assignee_mgt_cny :=  IF(@area_default_assignee_mgt_cny_raw IS NULL
+					, @organization_default_assignee_mgt_cny
+					, IF(@area_default_assignee_mgt_cny_raw = ''
+						, @organization_default_assignee_mgt_cny
+						, @area_default_assignee_mgt_cny_raw
+						)
+					)
+					;
+
+			# Landlord ()
+
+				SET @organization_default_assignee_landlord := (SELECT `default_assignee_landlord`
+					FROM `uneet_enterprise_organizations` 
+					WHERE `id_organization` = @organization_id_update_ext_area
+					)
+					;
+
+				SET @area_default_assignee_landlord_raw := NEW.`landlord_default_assignee` ;
+
+				SET @area_default_assignee_landlord :=  IF(@area_default_assignee_landlord_raw IS NULL
+					, @organization_default_assignee_landlord
+					, IF(@area_default_assignee_landlord_raw = ''
+						, @organization_default_assignee_landlord
+						, @area_default_assignee_landlord_raw
+						)
+					)
+					;
+
+			# Tenant ()
+			
+				SET @organization_default_assignee_tenant := (SELECT `default_assignee_tenant`
+					FROM `uneet_enterprise_organizations` 
+					WHERE `id_organization` = @organization_id_update_ext_area
+					)
+					;
+
+				SET @area_default_assignee_tenant_raw := NEW.`tenant_default_assignee` ;
+
+				SET @area_default_assignee_tenant := IF(@area_default_assignee_tenant_raw IS NULL
+					, @organization_default_assignee_tenant
+					, IF(@area_default_assignee_tenant_raw = ''
+						, @organization_default_assignee_tenant
+						, @area_default_assignee_tenant_raw
+						)
+					)
+					;
+			
+			# Agent ()
+			
+				SET @organization_default_assignee_agent := (SELECT `default_assignee_agent`
+					FROM `uneet_enterprise_organizations` 
+					WHERE `id_organization` = @organization_id_update_ext_area
+					)
+					;
+
+				SET @area_default_assignee_agent_raw := NEW.`agent_default_assignee` ;
+
+				SET @area_default_assignee_agent :=  IF(@area_default_assignee_agent_raw IS NULL
+					, @organization_default_assignee_agent
+					, IF(@area_default_assignee_agent_raw = ''
+						, @organization_default_assignee_agent
+						, @area_default_assignee_agent_raw
+						)
+					)
+					;
 
 		IF @new_is_creation_needed_in_unee_t_update_ext_area != @old_is_creation_needed_in_unee_t_update_ext_area
 		THEN
