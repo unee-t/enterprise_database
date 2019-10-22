@@ -12,11 +12,12 @@
 #		- Agent
 #		- Tenant
 #	- Default Area for the organization.
+#	- Default L1P for the organization.
 #
 #####################################################
 
 
-# In the previous Step 1 and 2. We have created the following objects:
+# In the previous Step 1 2 and 3. We have created the following objects:
 #	- Organization
 #	- SoT for this organization
 #	- Update the default SoT for the organization
@@ -44,17 +45,18 @@
 #		- Agent
 #		- Landlord
 #		- Tenant
+#	- Default Area
 #
-# This Step 3 we:
+# This Step 4 we:
 #	- Update the organization table
-#		- Default Area information
+#		- Default L1P information
 #	- Creates the following objects:
-#		- Default L1P
+#		- Default L2P
 #
 
 # We need to know which organization we are dealing with
 
-	SET @organization_id_for_step_3 = 10 ;
+	SET @organization_id_for_step_4 = 10 ;
 
 # The variables below should be identical as is Step 1
 	
@@ -64,16 +66,18 @@
 
 	SET @demo_cny_country_code = 'US' ;
 
-# We are creating the following type of building:
-	# 5: Hotel
-	# 10: Condominium
-	# 11: Apartment Block
-	# 12: Warehouse
-	# 13: Shopping Mall
-	# 17: Other/Building
-	# 21: Unknown/Building
+# We are creating the following type of unit:
+	# 1: Apartment/Flat
+	# 2: House
+	# 3: Villa
+	# 4: Office
+	# 7: Shop
+	# 8: Salon
+	# 9: Restaurant/Cafe
+	# 18: Other/Unit
+	# 22: Unknown/Unit
 
-	SET @unee_t_unit_type = 'Condominium' ;
+	SET @unee_t_unit_type = 'Apartment/Flat' ;
 
 #####################################
 #
@@ -85,19 +89,19 @@
 
 	SET @demo_cny_name = (SELECT `designation`
 		FROM `uneet_enterprise_organizations`
-		WHERE `id_organization` = @organization_id_for_step_3
+		WHERE `id_organization` = @organization_id_for_step_4
 		)
 		;
 
 	SET @default_role_type_id =  (SELECT `default_role_type_id`
 		FROM `uneet_enterprise_organizations`
-		WHERE `id_organization` = @organization_id_for_step_3
+		WHERE `id_organization` = @organization_id_for_step_4
 		)
 		;
 
 	SET @default_sot_id = (SELECT `default_sot_id`
 		FROM `uneet_enterprise_organizations`
-		WHERE `id_organization` = @organization_id_for_step_3
+		WHERE `id_organization` = @organization_id_for_step_4
 		)
 		;
 
@@ -143,7 +147,7 @@
 
 		SET @mefe_master_user_external_person_id = (SELECT `mefe_master_user_external_person_id`
 			FROM `uneet_enterprise_organizations`
-			WHERE `id_organization` = @organization_id_for_step_3
+			WHERE `id_organization` = @organization_id_for_step_4
 			)
 			;
 
@@ -154,7 +158,7 @@
 		SET @mefe_master_user_mefe_id = (SELECT `unee_t_mefe_user_id`
 			FROM `ut_map_external_source_users`
 			WHERE 
-				`organization_id` = @organization_id_for_step_3
+				`organization_id` = @organization_id_for_step_4
 				AND `external_person_id` = @mefe_master_user_external_person_id
 				AND `table_in_external_system` = @mefe_master_user_external_person_table
 				AND `external_system` = @mefe_master_user_external_person_system
@@ -176,7 +180,7 @@
 			SET @mefe_id_default_mgt_cny = (SELECT `unee_t_mefe_user_id`
 			FROM `ut_map_external_source_users`
 			WHERE 
-				`organization_id` = @organization_id_for_step_3
+				`organization_id` = @organization_id_for_step_4
 				AND `external_person_id` = @external_person_id
 				AND `table_in_external_system` = @default_table_person
 				AND `external_system` = @default_sot_designation
@@ -198,7 +202,7 @@
 			SET @mefe_id_default_agent = (SELECT `unee_t_mefe_user_id`
 			FROM `ut_map_external_source_users`
 			WHERE 
-				`organization_id` = @organization_id_for_step_3
+				`organization_id` = @organization_id_for_step_4
 				AND `external_person_id` = @external_person_id
 				AND `table_in_external_system` = @default_table_person
 				AND `external_system` = @default_sot_designation
@@ -220,7 +224,7 @@
 			SET @mefe_id_default_landlord = (SELECT `unee_t_mefe_user_id`
 			FROM `ut_map_external_source_users`
 			WHERE 
-				`organization_id` = @organization_id_for_step_3
+				`organization_id` = @organization_id_for_step_4
 				AND `external_person_id` = @external_person_id
 				AND `table_in_external_system` = @default_table_person
 				AND `external_system` = @default_sot_designation
@@ -242,7 +246,7 @@
 			SET @mefe_id_default_tenant = (SELECT `unee_t_mefe_user_id`
 			FROM `ut_map_external_source_users`
 			WHERE 
-				`organization_id` = @organization_id_for_step_3
+				`organization_id` = @organization_id_for_step_4
 				AND `external_person_id` = @external_person_id
 				AND `table_in_external_system` = @default_table_person
 				AND `external_system` = @default_sot_designation
@@ -255,26 +259,62 @@
 
 	SET @default_area = (SELECT `id_area`
 		FROM `external_property_groups_areas`
-		WHERE `created_by_id` = @organization_id_for_step_3
+		WHERE `created_by_id` = @organization_id_for_step_4
 			AND `is_default` = 1
 		)
 		;
 
-	SET @area_external_system =  (SELECT `external_system_id`
-		FROM `external_property_groups_areas`
-		WHERE `id_area` = @default_area
+# The default l1p for that organization:
+
+	SET @default_l1p_external_id =  (CONCAT('unknown_'
+			, 'building'
+			, '_'
+			, LOWER(@demo_cny_name)
+			)
 		)
 		;
 
-	SET @area_external_table =  (SELECT `external_table`
-		FROM `external_property_groups_areas`
-		WHERE `id_area` = @default_area
+	SET @default_l1p_mefe_unit_id = (SELECT `unee_t_mefe_unit_id`
+		FROM `ut_map_external_source_units`
+		WHERE `organization_id` = @organization_id_for_step_4
+			AND `external_system` = @default_sot_designation
+			AND `table_in_external_system` = @default_table_L1P
+			AND `external_property_id` = @default_l1p_external_id
+			AND `external_property_type_id` = 1
 		)
 		;
 
-	SET @area_external_id =  (SELECT `external_id`
-		FROM `external_property_groups_areas`
-		WHERE `id_area` = @default_area
+	SET @l1p_external_system = (SELECT `external_system`
+		FROM `ut_map_external_source_units`
+		WHERE `unee_t_mefe_unit_id` = @default_l1p_mefe_unit_id
+		)
+		;
+
+	SET @l1p_external_table = (SELECT `table_in_external_system`
+		FROM `ut_map_external_source_units`
+		WHERE `unee_t_mefe_unit_id` = @default_l1p_mefe_unit_id
+		)
+		;
+
+	SET @l1p_external_id = (SELECT `external_property_id`
+		FROM `ut_map_external_source_units`
+		WHERE `unee_t_mefe_unit_id` = @default_l1p_mefe_unit_id
+		)
+		;
+
+	SET @l1p_tower = (SELECT `tower`
+		FROM `ut_map_external_source_units`
+		WHERE `unee_t_mefe_unit_id` = @default_l1p_mefe_unit_id
+		)
+		;
+
+	SET @default_l1p_id_in_external_property_level_1_buildings =  (SELECT `id_building`
+		FROM `external_property_level_1_buildings`
+		WHERE `created_by_id` = @organization_id_for_step_4
+			AND `external_id` = @l1p_external_id
+			AND `external_table` = @l1p_external_table
+			AND `external_system_id` = @l1p_external_system
+			AND `tower` = @l1p_tower
 		)
 		;
 
@@ -284,19 +324,19 @@
 #
 ########################################
 
-# Update the organization record - Add the default Area:
+# Update the organization record - Add the default L1P:
 	
 	UPDATE `uneet_enterprise_organizations`
 		SET 
-			`default_area` = @default_area
-		WHERE `id_organization` = @organization_id_for_step_3
+			`default_building` = @default_l1p_mefe_unit_id
+		WHERE `id_organization` = @organization_id_for_step_4
 		;
 
-# Create the default building for this organization
+# Create the default unit for this organization
 
-	SET @create_what = 'building' ;
+	SET @create_what = 'unit' ;
 
-	SET @default_l1p_name = (CONCAT('Unknown '
+	SET @default_l2p_name = (CONCAT('Unknown '
 			, @create_what
 			, ' - '
 			, UPPER(@demo_cny_name)
@@ -304,7 +344,7 @@
 		)
 		;
 
-	SET @default_l1p_external_id= (CONCAT('unknown_'
+	SET @default_l2p_external_id= (CONCAT('unknown_'
 			, @create_what
 			, '_'
 			, LOWER(@demo_cny_name)
@@ -312,7 +352,7 @@
 		)
 		;
 
-	SET @default_l1p_description = (CONCAT(UPPER(@demo_cny_name)
+	SET @default_l2p_description = (CONCAT(UPPER(@demo_cny_name)
 			, ' - We have no information on the '
 			, @create_what
 			, ' for these properties.'
@@ -320,7 +360,7 @@
 		)
 		;
 
-	INSERT INTO `external_property_level_1_buildings`
+	INSERT INTO `external_property_level_2_units`
 		(`external_id`
 		, `external_system_id`
 		, `external_table`
@@ -330,48 +370,44 @@
 		, `creation_method`
 		, `is_update_on_duplicate_key`
 		, `is_obsolete`
-		, `order`
 		, `is_creation_needed_in_unee_t`
 		, `do_not_insert`
 		, `unee_t_unit_type`
-		, `area_id`
-		, `area_external_system`
-		, `area_external_table`
-		, `area_external_id`
-		, `designation`
+		, `building_system_id`
+		, `l1p_external_system`
+		, `l1p_external_table`
+		, `l1p_external_id`
 		, `tower`
-		, `address_1`
-		, `country_code`
+		, `designation`
 		, `description`
 		, `mgt_cny_default_assignee`
 		, `agent_default_assignee`
 		, `landlord_default_assignee`
+		, `tenant_default_assignee`
 		)
 		VALUES
-			(@default_l1p_external_id
+			(@default_l2p_external_id
 			, @default_sot_designation
-			, @default_table_L1P
+			, @default_table_L2P
 			, NOW() 
 			, @default_sot_id
-			, @organization_id_for_step_3
-			, 'Manage_Buildings_Add_Page'
-			, 0
+			, @organization_id_for_step_4
+			, 'Manage_Units_Add_Page'
 			, 0
 			, 0
 			, 1
 			, 0
 			, @unee_t_unit_type
-			, @default_area
-			, @area_external_system
-			, @area_external_table
-			, @area_external_id
-			, @default_l1p_name
+			, @default_l1p_id_in_external_property_level_1_buildings
+			, @l1p_external_system
+			, @l1p_external_table
+			, @l1p_external_id
 			, 1
-			, 'Unknown'
-			, @demo_cny_country_code
-			, @default_l1p_description
+			, @default_l2p_name
+			, @default_l2p_description
 			, @mefe_id_default_mgt_cny
 			, @mefe_id_default_agent
 			, @mefe_id_default_landlord
+			, @mefe_id_default_tenant
 			)
 		;

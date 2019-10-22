@@ -144,6 +144,7 @@ BEGIN
 			, `created_by_id`
 			, `creation_method`
 			, `organization_id`
+			, `country_code`
 			, `mefe_user_id`
 			, `email`
 			, `unee_t_user_type_id`
@@ -187,6 +188,7 @@ BEGIN
 			, @created_by_id_trig_auto_assign_1
 			, @creation_method_trig_auto_assign_1
 			, @organization_id_trig_auto_assign_1
+			, `a`.`country_code`
 			, `a`.`mefe_user_id`
 			, `a`.`email`
 			, `a`.`unee_t_user_type_id`
@@ -226,6 +228,49 @@ BEGIN
 				WHERE 
 					`a`.`organization_id` = @organization_id_trig_auto_assign_1
 					AND `a`.`is_all_unit` = 1
+			ON DUPLICATE KEY UPDATE 
+				`syst_created_datetime` = @syst_created_datetime_trig_auto_assign_1
+				, `creation_system_id` = @creation_system_id_trig_auto_assign_1
+				, `requestor_id` = @requestor_id_trig_auto_assign_1
+				, `created_by_id` = @created_by_id_trig_auto_assign_1
+				, `creation_method` = @creation_method_trig_auto_assign_1
+				, `organization_id` = @organization_id_trig_auto_assign_1
+				, `country_code` = `a`.`country_code`
+				, `mefe_user_id` = `a`.`mefe_user_id`
+				, `email` = `a`.`email`
+				, `unee_t_user_type_id` = `a`.`unee_t_user_type_id`
+				, `mefe_unit_id` = @unee_t_mefe_unit_id_trig_auto_assign_1
+				, `unee_t_role_id` = `a`.`unee_t_role_id`
+				, `is_occupant` = `a`.`is_occupant`
+				, `is_default_assignee` = `a`.`is_default_assignee`
+				, `is_default_invited` = `a`.`is_default_invited`
+				, `is_unit_owner` = `a`.`is_unit_owner`
+				, `is_public` = `a`.`is_public`
+				, `can_see_role_landlord` = `a`.`can_see_role_landlord`
+				, `can_see_role_tenant` = `a`.`can_see_role_tenant`
+				, `can_see_role_mgt_cny` = `a`.`can_see_role_mgt_cny`
+				, `can_see_role_agent` = `a`.`can_see_role_agent`
+				, `can_see_role_contractor` = `a`.`can_see_role_contractor`
+				, `can_see_occupant` = `a`.`can_see_occupant`
+				, `is_assigned_to_case` = `a`.`is_assigned_to_case`
+				, `is_invited_to_case` = `a`.`is_invited_to_case`
+				, `is_next_step_updated` = `a`.`is_next_step_updated`
+				, `is_deadline_updated` = `a`.`is_deadline_updated`
+				, `is_solution_updated` = `a`.`is_solution_updated`
+				, `is_case_resolved` = `a`.`is_case_resolved`
+				, `is_case_blocker` = `a`.`is_case_blocker`
+				, `is_case_critical` = `a`.`is_case_critical`
+				, `is_any_new_message` = `a`.`is_any_new_message`
+				, `is_message_from_tenant` = `a`.`is_message_from_tenant`
+				, `is_message_from_ll` = `a`.`is_message_from_ll`
+				, `is_message_from_occupant` = `a`.`is_message_from_occupant`
+				, `is_message_from_agent` = `a`.`is_message_from_agent`
+				, `is_message_from_mgt_cny` = `a`.`is_message_from_mgt_cny`
+				, `is_message_from_contractor` = `a`.`is_message_from_contractor`
+				, `is_new_ir` = `a`.`is_new_ir`
+				, `is_new_item` = `a`.`is_new_item`
+				, `is_item_removed` = `a`.`is_item_removed`
+				, `is_item_moved` = `a`.`is_item_moved`
 			;
 
 	# We insert all the user that should see all the unit in the country where this unit is
@@ -322,6 +367,49 @@ BEGIN
 						`a`.`organization_id` = @organization_id_trig_auto_assign_1
 						AND `a`.`country_code` = @property_country_code_trig_auto_assign_1
 						AND `a`.`is_all_units_in_country` = 1
+				ON DUPLICATE KEY UPDATE 
+					`syst_created_datetime` = @syst_created_datetime_trig_auto_assign_1
+					, `creation_system_id` = @creation_system_id_trig_auto_assign_1
+					, `requestor_id` = @requestor_id_trig_auto_assign_1
+					, `created_by_id` = @created_by_id_trig_auto_assign_1
+					, `creation_method` = @creation_method_trig_auto_assign_1
+					, `organization_id` = @organization_id_trig_auto_assign_1
+					, `country_code` = `a`.`country_code`
+					, `mefe_user_id` = `a`.`mefe_user_id`
+					, `email` = `a`.`email`
+					, `unee_t_user_type_id` = `a`.`unee_t_user_type_id`
+					, `mefe_unit_id` = @unee_t_mefe_unit_id_trig_auto_assign_1
+					, `unee_t_role_id` = `a`.`unee_t_role_id`
+					, `is_occupant` = `a`.`is_occupant`
+					, `is_default_assignee` = `a`.`is_default_assignee`
+					, `is_default_invited` = `a`.`is_default_invited`
+					, `is_unit_owner` = `a`.`is_unit_owner`
+					, `is_public` = `a`.`is_public`
+					, `can_see_role_landlord` = `a`.`can_see_role_landlord`
+					, `can_see_role_tenant` = `a`.`can_see_role_tenant`
+					, `can_see_role_mgt_cny` = `a`.`can_see_role_mgt_cny`
+					, `can_see_role_agent` = `a`.`can_see_role_agent`
+					, `can_see_role_contractor` = `a`.`can_see_role_contractor`
+					, `can_see_occupant` = `a`.`can_see_occupant`
+					, `is_assigned_to_case` = `a`.`is_assigned_to_case`
+					, `is_invited_to_case` = `a`.`is_invited_to_case`
+					, `is_next_step_updated` = `a`.`is_next_step_updated`
+					, `is_deadline_updated` = `a`.`is_deadline_updated`
+					, `is_solution_updated` = `a`.`is_solution_updated`
+					, `is_case_resolved` = `a`.`is_case_resolved`
+					, `is_case_blocker` = `a`.`is_case_blocker`
+					, `is_case_critical` = `a`.`is_case_critical`
+					, `is_any_new_message` = `a`.`is_any_new_message`
+					, `is_message_from_tenant` = `a`.`is_message_from_tenant`
+					, `is_message_from_ll` = `a`.`is_message_from_ll`
+					, `is_message_from_occupant` = `a`.`is_message_from_occupant`
+					, `is_message_from_agent` = `a`.`is_message_from_agent`
+					, `is_message_from_mgt_cny` = `a`.`is_message_from_mgt_cny`
+					, `is_message_from_contractor` = `a`.`is_message_from_contractor`
+					, `is_new_ir` = `a`.`is_new_ir`
+					, `is_new_item` = `a`.`is_new_item`
+					, `is_item_removed` = `a`.`is_item_removed`
+					, `is_item_moved` = `a`.`is_item_moved`
 				;
 
 	# We can now check and assign the default assignees for the newly created property:
@@ -424,6 +512,30 @@ BEGIN
 						, `a`.`can_see_occupant`
 						FROM `ut_user_types` AS `a`
 							WHERE `id_unee_t_user_type` = @unee_t_user_type_id_default_assignee
+						ON DUPLICATE KEY UPDATE
+							`syst_created_datetime` = NOW()
+							, `creation_system_id` = @creation_system_id_trig_auto_assign_1
+							, `requestor_id` = @requestor_id_trig_auto_assign_1
+							, `created_by_id` = @created_by_id_trig_auto_assign_1
+							, `creation_method` = @creation_method_trig_auto_assign_1
+							, `organization_id` = @organization_id_trig_auto_assign_1
+							, `country_code` = @country_code_default_assignee
+							, `mefe_user_id` = @default_user_mgt_cny
+							, `email` = @email_default_assignee
+							, `unee_t_user_type_id` = @unee_t_user_type_id_default_assignee
+							, `mefe_unit_id` = @unee_t_mefe_unit_id_trig_auto_assign_1
+							, `unee_t_role_id` = @unee_t_user_role_type
+							, `is_occupant` = `a`.`is_occupant`
+							, `is_default_assignee` = `a`.`is_default_assignee`
+							, `is_default_invited` = `a`.`is_default_invited`
+							, `is_unit_owner` = `a`.`is_unit_owner`
+							, `is_public` = `a`.`is_public`
+							, `can_see_role_landlord` = `a`.`can_see_role_landlord`
+							, `can_see_role_tenant` = `a`.`can_see_role_tenant`
+							, `can_see_role_mgt_cny` = `a`.`can_see_role_mgt_cny`
+							, `can_see_role_agent` = `a`.`can_see_role_agent`
+							, `can_see_role_contractor` = `a`.`can_see_role_contractor`
+							, `can_see_occupant` = `a`.`can_see_occupant`
 						;
 
 			END IF;
@@ -526,6 +638,30 @@ BEGIN
 						, `a`.`can_see_occupant`
 						FROM `ut_user_types` AS `a`
 							WHERE `id_unee_t_user_type` = @unee_t_user_type_id_default_assignee
+						ON DUPLICATE KEY UPDATE
+							`syst_created_datetime` = NOW()
+							, `creation_system_id` = @creation_system_id_trig_auto_assign_1
+							, `requestor_id` = @requestor_id_trig_auto_assign_1
+							, `created_by_id` = @created_by_id_trig_auto_assign_1
+							, `creation_method` = @creation_method_trig_auto_assign_1
+							, `organization_id` = @organization_id_trig_auto_assign_1
+							, `country_code` = @country_code_default_assignee
+							, `mefe_user_id` = @default_user_mgt_cny
+							, `email` = @email_default_assignee
+							, `unee_t_user_type_id` = @unee_t_user_type_id_default_assignee
+							, `mefe_unit_id` = @unee_t_mefe_unit_id_trig_auto_assign_1
+							, `unee_t_role_id` = @unee_t_user_role_type
+							, `is_occupant` = `a`.`is_occupant`
+							, `is_default_assignee` = `a`.`is_default_assignee`
+							, `is_default_invited` = `a`.`is_default_invited`
+							, `is_unit_owner` = `a`.`is_unit_owner`
+							, `is_public` = `a`.`is_public`
+							, `can_see_role_landlord` = `a`.`can_see_role_landlord`
+							, `can_see_role_tenant` = `a`.`can_see_role_tenant`
+							, `can_see_role_mgt_cny` = `a`.`can_see_role_mgt_cny`
+							, `can_see_role_agent` = `a`.`can_see_role_agent`
+							, `can_see_role_contractor` = `a`.`can_see_role_contractor`
+							, `can_see_occupant` = `a`.`can_see_occupant`
 						;
 
 			END IF;
@@ -627,6 +763,30 @@ BEGIN
 						, `a`.`can_see_occupant`
 						FROM `ut_user_types` AS `a`
 							WHERE `id_unee_t_user_type` = @unee_t_user_type_id_default_assignee
+						ON DUPLICATE KEY UPDATE
+							`syst_created_datetime` = NOW()
+							, `creation_system_id` = @creation_system_id_trig_auto_assign_1
+							, `requestor_id` = @requestor_id_trig_auto_assign_1
+							, `created_by_id` = @created_by_id_trig_auto_assign_1
+							, `creation_method` = @creation_method_trig_auto_assign_1
+							, `organization_id` = @organization_id_trig_auto_assign_1
+							, `country_code` = @country_code_default_assignee
+							, `mefe_user_id` = @default_user_mgt_cny
+							, `email` = @email_default_assignee
+							, `unee_t_user_type_id` = @unee_t_user_type_id_default_assignee
+							, `mefe_unit_id` = @unee_t_mefe_unit_id_trig_auto_assign_1
+							, `unee_t_role_id` = @unee_t_user_role_type
+							, `is_occupant` = `a`.`is_occupant`
+							, `is_default_assignee` = `a`.`is_default_assignee`
+							, `is_default_invited` = `a`.`is_default_invited`
+							, `is_unit_owner` = `a`.`is_unit_owner`
+							, `is_public` = `a`.`is_public`
+							, `can_see_role_landlord` = `a`.`can_see_role_landlord`
+							, `can_see_role_tenant` = `a`.`can_see_role_tenant`
+							, `can_see_role_mgt_cny` = `a`.`can_see_role_mgt_cny`
+							, `can_see_role_agent` = `a`.`can_see_role_agent`
+							, `can_see_role_contractor` = `a`.`can_see_role_contractor`
+							, `can_see_occupant` = `a`.`can_see_occupant`
 						;
 			END IF;
 
@@ -728,6 +888,30 @@ BEGIN
 						, `a`.`can_see_occupant`
 						FROM `ut_user_types` AS `a`
 							WHERE `id_unee_t_user_type` = @unee_t_user_type_id_default_assignee
+						ON DUPLICATE KEY UPDATE
+							`syst_created_datetime` = NOW()
+							, `creation_system_id` = @creation_system_id_trig_auto_assign_1
+							, `requestor_id` = @requestor_id_trig_auto_assign_1
+							, `created_by_id` = @created_by_id_trig_auto_assign_1
+							, `creation_method` = @creation_method_trig_auto_assign_1
+							, `organization_id` = @organization_id_trig_auto_assign_1
+							, `country_code` = @country_code_default_assignee
+							, `mefe_user_id` = @default_user_mgt_cny
+							, `email` = @email_default_assignee
+							, `unee_t_user_type_id` = @unee_t_user_type_id_default_assignee
+							, `mefe_unit_id` = @unee_t_mefe_unit_id_trig_auto_assign_1
+							, `unee_t_role_id` = @unee_t_user_role_type
+							, `is_occupant` = `a`.`is_occupant`
+							, `is_default_assignee` = `a`.`is_default_assignee`
+							, `is_default_invited` = `a`.`is_default_invited`
+							, `is_unit_owner` = `a`.`is_unit_owner`
+							, `is_public` = `a`.`is_public`
+							, `can_see_role_landlord` = `a`.`can_see_role_landlord`
+							, `can_see_role_tenant` = `a`.`can_see_role_tenant`
+							, `can_see_role_mgt_cny` = `a`.`can_see_role_mgt_cny`
+							, `can_see_role_agent` = `a`.`can_see_role_agent`
+							, `can_see_role_contractor` = `a`.`can_see_role_contractor`
+							, `can_see_occupant` = `a`.`can_see_occupant`
 						;
 
 			END IF;

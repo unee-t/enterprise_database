@@ -1721,6 +1721,8 @@ BEGIN
 #	- The variable @disable_lambda != 1
 #	- We do NOT have a MEFE Unit ID
 #	- this unit is marked a `is_update_needed` = 1
+#	- This is NOT a reply after unit has been created
+#		- 'ut_creation_unit_mefe_api_reply'
 #
 
 # Capture the variables we need to verify if conditions are met:
@@ -1734,9 +1736,12 @@ BEGIN
 	SET @upstream_latest_trigger = NEW.`latest_trigger` ;
 
 # We can now check if the conditions are met:
+#	- Lambda has not been disabled
+#	- This is NOT a reply from the Golang script after unit creation
 
 	IF (@disable_lambda != 1
 			OR @disable_lambda IS NULL)
+		AND @upstream_update_method != 'ut_creation_unit_mefe_api_reply'
 	THEN
 
 	# The conditions are met: we capture the other variables we need
@@ -1979,7 +1984,8 @@ BEGIN
 
 		IF @is_creation_needed_in_unee_t = 1
 			AND @mefe_unit_id IS NULL
-			AND @do_not_insert_ = 0
+			AND (@do_not_insert_ = 0
+				OR @do_not_insert_ IS NULL)
 		THEN 
 
 			# This is option 1 - creation IS needed
