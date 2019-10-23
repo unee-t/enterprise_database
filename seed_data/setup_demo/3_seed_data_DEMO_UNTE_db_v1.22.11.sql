@@ -167,7 +167,7 @@
 
 			SET @external_person_id = (CONCAT (@demo_email_prefix
 					, 'support.'
-					, LOWER(@demo_cpny_name)
+					, LOWER(@demo_cny_name)
 					, @demo_email_suffix
 					)
 				)
@@ -189,7 +189,7 @@
 
 			SET @external_person_id = (CONCAT (@demo_email_prefix
 					, 'agent.'
-					, LOWER(@demo_cpny_name)
+					, LOWER(@demo_cny_name)
 					, @demo_email_suffix
 					)
 				)
@@ -211,7 +211,7 @@
 
 			SET @external_person_id = (CONCAT (@demo_email_prefix
 					, 'landlord.'
-					, LOWER(@demo_cpny_name)
+					, LOWER(@demo_cny_name)
 					, @demo_email_suffix
 					)
 				)
@@ -233,7 +233,7 @@
 
 			SET @external_person_id = (CONCAT (@demo_email_prefix
 					, 'tenant.'
-					, LOWER(@demo_cpny_name)
+					, LOWER(@demo_cny_name)
 					, @demo_email_suffix
 					)
 				)

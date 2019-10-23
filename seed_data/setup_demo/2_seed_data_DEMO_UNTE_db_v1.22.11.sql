@@ -37,10 +37,14 @@
 #		- Tenant
 #
 
-# This Step 2 creates the following objects:
-#	- Default Area
-#	- Default L1P
-#	- Default L2P
+# This Step 2 we : 
+#	- Update the organization default assignees
+#		- Mgt Cny
+#		- Agent
+#		- Landlord
+#		- Tenant
+#	- creates the following objects:
+#		- Default Area
 
 # We need to know which organization we are dealing with
 
@@ -148,7 +152,7 @@
 
 			SET @external_person_id = (CONCAT (@demo_email_prefix
 					, 'support.'
-					, LOWER(@demo_cpny_name)
+					, LOWER(@demo_cny_name)
 					, @demo_email_suffix
 					)
 				)
@@ -170,7 +174,7 @@
 
 			SET @external_person_id = (CONCAT (@demo_email_prefix
 					, 'agent.'
-					, LOWER(@demo_cpny_name)
+					, LOWER(@demo_cny_name)
 					, @demo_email_suffix
 					)
 				)
@@ -192,7 +196,7 @@
 
 			SET @external_person_id = (CONCAT (@demo_email_prefix
 					, 'landlord.'
-					, LOWER(@demo_cpny_name)
+					, LOWER(@demo_cny_name)
 					, @demo_email_suffix
 					)
 				)
@@ -214,7 +218,7 @@
 
 			SET @external_person_id = (CONCAT (@demo_email_prefix
 					, 'tenant.'
-					, LOWER(@demo_cpny_name)
+					, LOWER(@demo_cny_name)
 					, @demo_email_suffix
 					)
 				)
